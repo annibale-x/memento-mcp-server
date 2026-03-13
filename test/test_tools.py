@@ -152,11 +152,11 @@ async def test_basic_tools():
         except Exception as e:
             print(f"   ✅ Memory 2 successfully deleted: {str(e)[:50]}...")
 
-        print("\n✅ All basic tool tests passed!")
+        print("\n[PASS] All basic tool tests passed!")
         return True
 
     except Exception as e:
-        print(f"\n❌ Error during basic tool tests: {e}")
+        print(f"\n[FAIL] Error during basic tool tests: {e}")
         import traceback
 
         traceback.print_exc()
@@ -225,11 +225,11 @@ async def test_extended_tools():
         # We would need to get the IDs of imported memories to delete them
         # For now, we'll just note that cleanup would be needed
 
-        print("\n✅ Extended tool tests completed!")
+        print("\n[PASS] Extended tool tests completed!")
         return True
 
     except Exception as e:
-        print(f"\n❌ Error during extended tool tests: {e}")
+        print(f"\n[FAIL] Error during extended tool tests: {e}")
         import traceback
 
         traceback.print_exc()
@@ -261,11 +261,11 @@ def test_tool_validation():
         print("   - strength should be between 0.0 and 1.0")
         print("   - limit should be positive integer")
 
-        print("\n✅ Tool validation tests passed!")
+        print("\n[PASS] Tool validation tests passed!")
         return True
 
     except Exception as e:
-        print(f"\n❌ Error in validation tests: {e}")
+        print(f"\n[FAIL] Error in validation tests: {e}")
         import traceback
 
         traceback.print_exc()
@@ -291,15 +291,19 @@ async def main():
     print("\n" + "=" * 60)
     print("TEST SUMMARY")
     print("=" * 60)
-    print(f"Validation tests: {'✅ PASSED' if validation_passed else '❌ FAILED'}")
-    print(f"Basic tool tests: {'✅ PASSED' if basic_tools_passed else '❌ FAILED'}")
     print(
-        f"Extended tool tests: {'✅ PASSED' if extended_tools_passed else '❌ FAILED'}"
+        f"Validation tests: {'[PASS] PASSED' if validation_passed else '[FAIL] FAILED'}"
+    )
+    print(
+        f"Basic tool tests: {'[PASS] PASSED' if basic_tools_passed else '[FAIL] FAILED'}"
+    )
+    print(
+        f"Extended tool tests: {'[PASS] PASSED' if extended_tools_passed else '[FAIL] FAILED'}"
     )
 
     all_passed = validation_passed and basic_tools_passed and extended_tools_passed
     print(
-        f"\nOverall: {'✅ ALL TESTS PASSED' if all_passed else '❌ SOME TESTS FAILED'}"
+        f"\nOverall: {'[PASS] ALL TESTS PASSED' if all_passed else '[FAIL] SOME TESTS FAILED'}"
     )
 
     return all_passed

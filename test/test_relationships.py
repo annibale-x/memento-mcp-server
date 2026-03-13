@@ -120,10 +120,10 @@ async def test_relationships():
         await server.memory_tools.delete_memory(stored_memory1["id"])
         await server.memory_tools.delete_memory(stored_memory2["id"])
 
-        print("\n✅ All relationship tests passed!")
+        print("\n[PASS] All relationship tests passed!")
 
     except Exception as e:
-        print(f"\n❌ Error during relationship tests: {e}")
+        print(f"\n[FAIL] Error during relationship tests: {e}")
         import traceback
 
         traceback.print_exc()
@@ -163,11 +163,11 @@ def test_relationship_models():
         loaded_dict = json.loads(relationship_json)
         print(f"Deserialized relationship dict: {loaded_dict}")
 
-        print("✅ Relationship model tests passed!")
+        print("[PASS] Relationship model tests passed!")
         return True
 
     except Exception as e:
-        print(f"❌ Error in relationship model tests: {e}")
+        print(f"[FAIL] Error in relationship model tests: {e}")
         import traceback
 
         traceback.print_exc()
@@ -198,11 +198,11 @@ def test_relationship_types():
         related_to = RelationshipType("related_to")
         assert related_to == RelationshipType.RELATED_TO
 
-        print("✅ Relationship type tests passed!")
+        print("[PASS] Relationship type tests passed!")
         return True
 
     except Exception as e:
-        print(f"❌ Error in relationship type tests: {e}")
+        print(f"[FAIL] Error in relationship type tests: {e}")
         import traceback
 
         traceback.print_exc()
@@ -226,13 +226,15 @@ async def main():
     print("\n" + "=" * 60)
     print("TEST SUMMARY")
     print("=" * 60)
-    print(f"Model tests: {'✅ PASSED' if model_tests_passed else '❌ FAILED'}")
-    print(f"Type tests: {'✅ PASSED' if type_tests_passed else '❌ FAILED'}")
-    print(f"Server tests: {'✅ PASSED' if server_tests_passed else '❌ FAILED'}")
+    print(f"Model tests: {'[PASS] PASSED' if model_tests_passed else '[FAIL] FAILED'}")
+    print(f"Type tests: {'[PASS] PASSED' if type_tests_passed else '[FAIL] FAILED'}")
+    print(
+        f"Server tests: {'[PASS] PASSED' if server_tests_passed else '[FAIL] FAILED'}"
+    )
 
     all_passed = model_tests_passed and type_tests_passed and server_tests_passed
     print(
-        f"\nOverall: {'✅ ALL TESTS PASSED' if all_passed else '❌ SOME TESTS FAILED'}"
+        f"\nOverall: {'[PASS] ALL TESTS PASSED' if all_passed else '[FAIL] SOME TESTS FAILED'}"
     )
 
     return all_passed
