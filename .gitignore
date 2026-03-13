@@ -1,6 +1,6 @@
 .serena
 # docs/
-test/
+
 *.db
 __pycache__/
 *.pyc
