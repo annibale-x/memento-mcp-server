@@ -7,7 +7,7 @@ enabling persistent knowledge tracking, relationship mapping, and contextual dev
 Supports SQLite backend only for simplified deployment with Zed editor.
 """
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 __author__ = "Hannibal"
 __email__ = "annibale.x@gmail.com"
 
