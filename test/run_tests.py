@@ -119,11 +119,43 @@ class TestRunner:
                 test_result["warnings"].append("No main() function found")
 
             else:
-                self.log(
-                    f"  INFO: {test_file.name} has no test functions to run", "INFO"
-                )
-                test_result["status"] = "skipped"
-                test_result["details"]["reason"] = "No test functions found"
+                # Check if the module has test functions that can be run directly
+                test_functions = []
+                for attr_name in dir(module):
+                    attr = getattr(module, attr_name)
+                    if callable(attr) and attr_name.startswith("test_"):
+                        test_functions.append(attr_name)
+
+                if test_functions:
+                    self.log_verbose(f"  Found test functions: {test_functions}")
+                    # Run all test functions
+                    all_passed = True
+                    for func_name in test_functions:
+                        func = getattr(module, func_name)
+                        try:
+                            if asyncio.iscoroutinefunction(func):
+                                # Async test function
+                                func_result = await func()
+                            else:
+                                # Sync test function
+                                func_result = func()
+
+                            if func_result is False:
+                                all_passed = False
+                                test_result["errors"].append(f"Test {func_name} failed")
+                        except Exception as e:
+                            all_passed = False
+                            test_result["errors"].append(f"Test {func_name} error: {e}")
+
+                    test_result["status"] = "passed" if all_passed else "failed"
+                    test_result["details"]["test_functions"] = test_functions
+                    test_result["details"]["all_passed"] = all_passed
+                else:
+                    self.log(
+                        f"  INFO: {test_file.name} has no test functions to run", "INFO"
+                    )
+                    test_result["status"] = "skipped"
+                    test_result["details"]["reason"] = "No test functions found"
 
         except Exception as e:
             self.log(f"  ERROR: Failed to run {test_file.name}: {e}", "ERROR")
@@ -154,6 +186,16 @@ class TestRunner:
         self.log(
             f"  {status_emoji[test_result['status']]} {test_file.name}: {test_result['status'].upper()} ({test_result['duration']:.2f}s)"
         )
+
+        # Log errors if any
+        if test_result["errors"]:
+            for error in test_result["errors"]:
+                self.log(f"    ERROR: {error}", "ERROR")
+
+        # Log warnings if any
+        if test_result["warnings"]:
+            for warning in test_result["warnings"]:
+                self.log(f"    WARNING: {warning}", "WARNING")
 
         return test_result
 

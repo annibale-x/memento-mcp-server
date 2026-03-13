@@ -5,8 +5,9 @@
   "memories": [
     {
       "id": "mem_import_001",
+      "title": "Project setup and configuration",
       "content": "Imported memory 1: Project setup and configuration",
-      "memory_type": "configuration",
+      "type": "general",
       "tags": ["setup", "configuration", "project"],
       "context": "Initial project setup for new development environment",
       "created_at": "2026-03-13T10:00:00Z",
@@ -18,8 +19,9 @@
     },
     {
       "id": "mem_import_002",
+      "title": "Authentication system implementation",
       "content": "Imported memory 2: Authentication system implementation",
-      "memory_type": "decision",
+      "type": "solution",
       "tags": ["authentication", "security", "backend"],
       "context": "Deciding on authentication approach for the application",
       "created_at": "2026-03-13T10:05:00Z",
@@ -31,8 +33,9 @@
     },
     {
       "id": "mem_import_003",
+      "title": "Database schema design",
       "content": "Imported memory 3: Database schema design",
-      "memory_type": "reference",
+      "type": "general",
       "tags": ["database", "schema", "design"],
       "context": "Planning the database structure for user data",
       "created_at": "2026-03-13T10:10:00Z",
@@ -44,8 +47,9 @@
     },
     {
       "id": "mem_import_004",
+      "title": "API endpoint testing issue",
       "content": "Imported memory 4: API endpoint testing issue",
-      "memory_type": "issue",
+      "type": "problem",
       "tags": ["api", "testing", "bug"],
       "context": "Encountered issue while testing user endpoints",
       "created_at": "2026-03-13T10:15:00Z",
@@ -57,8 +61,9 @@
     },
     {
       "id": "mem_import_005",
+      "title": "Fixed CORS configuration",
       "content": "Imported memory 5: Fixed CORS configuration",
-      "memory_type": "bug_fix",
+      "type": "fix",
       "tags": ["cors", "configuration", "frontend"],
       "context": "Resolved CORS issues for frontend-backend communication",
       "created_at": "2026-03-13T10:20:00Z",
@@ -70,8 +75,9 @@
     },
     {
       "id": "mem_import_006",
+      "title": "Learned about async database operations",
       "content": "Imported memory 6: Learned about async database operations",
-      "memory_type": "learning",
+      "type": "general",
       "tags": ["async", "database", "performance"],
       "context": "Research on optimizing database operations",
       "created_at": "2026-03-13T10:25:00Z",
@@ -87,7 +93,7 @@
       "id": "rel_import_001",
       "from_memory_id": "mem_import_002",
       "to_memory_id": "mem_import_001",
-      "relationship_type": "depends_on",
+      "relationship_type": "DEPENDS_ON",
       "context": "Authentication system depends on project configuration",
       "created_at": "2026-03-13T10:06:00Z",
       "strength": 0.8
@@ -96,7 +102,7 @@
       "id": "rel_import_002",
       "from_memory_id": "mem_import_003",
       "to_memory_id": "mem_import_002",
-      "relationship_type": "related_to",
+      "relationship_type": "RELATED_TO",
       "context": "Database schema is related to authentication system",
       "created_at": "2026-03-13T10:11:00Z",
       "strength": 0.6
@@ -105,7 +111,7 @@
       "id": "rel_import_003",
       "from_memory_id": "mem_import_004",
       "to_memory_id": "mem_import_002",
-      "relationship_type": "caused_by",
+      "relationship_type": "CAUSES",
       "context": "API testing issue was caused by authentication implementation",
       "created_at": "2026-03-13T10:16:00Z",
       "strength": 0.7
@@ -114,7 +120,7 @@
       "id": "rel_import_004",
       "from_memory_id": "mem_import_005",
       "to_memory_id": "mem_import_004",
-      "relationship_type": "solution_for",
+      "relationship_type": "SOLVES",
       "context": "CORS fix solved the API testing issue",
       "created_at": "2026-03-13T10:21:00Z",
       "strength": 0.9
@@ -123,7 +129,7 @@
       "id": "rel_import_005",
       "from_memory_id": "mem_import_006",
       "to_memory_id": "mem_import_003",
-      "relationship_type": "learned_from",
+      "relationship_type": "RELATED_TO",
       "context": "Learned async operations from database schema work",
       "created_at": "2026-03-13T10:26:00Z",
       "strength": 0.5
@@ -132,7 +138,7 @@
       "id": "rel_import_006",
       "from_memory_id": "mem_import_005",
       "to_memory_id": "mem_import_006",
-      "relationship_type": "context_for",
+      "relationship_type": "RELATED_TO",
       "context": "CORS fix provided context for learning about async operations",
       "created_at": "2026-03-13T10:27:00Z",
       "strength": 0.4
@@ -144,20 +150,16 @@
     "total_memories": 6,
     "total_relationships": 6,
     "memory_types_distribution": {
-      "configuration": 1,
-      "decision": 1,
-      "reference": 1,
-      "issue": 1,
-      "bug_fix": 1,
-      "learning": 1
+      "general": 3,
+      "solution": 1,
+      "problem": 1,
+      "fix": 1
     },
     "relationship_types_distribution": {
-      "depends_on": 1,
-      "related_to": 1,
-      "caused_by": 1,
-      "solution_for": 1,
-      "learned_from": 1,
-      "context_for": 1
+      "DEPENDS_ON": 1,
+      "RELATED_TO": 3,
+      "CAUSES": 1,
+      "SOLVES": 1
     }
   }
 }

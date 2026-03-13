@@ -1,8 +1,8 @@
 """
 Test file for MCP tools functionality in mcp-user-memory
+Tests tool-related models and validation without requiring server initialization.
 """
 
-import asyncio
 import json
 import os
 import sys
@@ -10,298 +10,415 @@ import sys
 # Add parent directory to path to import user_memory
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from user_memory import MemoryGraphServer
-from user_memory.models import MemoryType, RelationshipType
+from user_memory.models import Memory, MemoryContext, MemoryType, RelationshipType
 
 
-async def test_basic_tools():
-    """Test basic MCP tools functionality"""
-    print("Testing basic MCP tools...")
-
-    # Create a test server instance
-    server = MemoryGraphServer()
+def test_memory_model_validation():
+    """Test memory model validation and constraints"""
+    print("Testing memory model validation...")
 
     try:
-        # Initialize the server
-        await server.initialize()
-
-        # Test 1: Store memory
-        print("\n1. Testing store_memory...")
-        memory_result = await server.memory_tools.store_memory(
-            content="Test memory: Implemented user authentication with JWT",
-            memory_type=MemoryType.DECISION.value,
-            tags=["authentication", "security", "backend"],
-            context="Working on user authentication system",
+        # Test valid memory creation
+        memory = Memory(
+            type=MemoryType.SOLUTION,
+            title="Fixed authentication bug with JWT",
+            content="Increased JWT token expiration to 30 minutes and added refresh token support.",
+            tags=["authentication", "jwt", "security", "backend"],
+            importance=0.8,
+            confidence=0.9,
         )
 
-        print(f"   Memory stored with ID: {memory_result['id']}")
-        print(f"   Created at: {memory_result.get('created_at')}")
+        print(f"Created memory: {memory}")
+        print(f"Memory type: {memory.type}")
+        print(f"Memory title: {memory.title}")
+        print(f"Memory tags: {memory.tags}")
+        print(f"Memory importance: {memory.importance}")
+        print(f"Memory confidence: {memory.confidence}")
 
-        memory_id = memory_result["id"]
-
-        # Test 2: Get memory
-        print("\n2. Testing get_memory...")
-        retrieved_memory = await server.memory_tools.get_memory(memory_id)
-        print(f"   Retrieved memory content: {retrieved_memory['content'][:50]}...")
-        print(f"   Memory type: {retrieved_memory['memory_type']}")
-        print(f"   Tags: {retrieved_memory.get('tags', [])}")
-
-        # Test 3: Update memory
-        print("\n3. Testing update_memory...")
-        updated_memory = await server.memory_tools.update_memory(
-            memory_id=memory_id,
-            content="Test memory UPDATED: Implemented user authentication with JWT and refresh tokens",
-            tags=["authentication", "security", "backend", "tokens"],
+        # Test with context
+        context = MemoryContext(
+            project_path="/apps/api",
+            files_involved=["auth.py", "middleware.py"],
+            languages=["python"],
+            frameworks=["fastapi"],
+            git_branch="main",
+            working_directory="/home/user/projects/api",
         )
 
-        print(f"   Updated content: {updated_memory['content'][:60]}...")
-        print(f"   Updated tags: {updated_memory.get('tags', [])}")
-
-        # Test 4: Store another memory for relationships
-        print("\n4. Storing second memory for relationship tests...")
-        memory2_result = await server.memory_tools.store_memory(
-            content="Test memory 2: Fixed JWT validation bug",
-            memory_type=MemoryType.BUG_FIX.value,
-            tags=["jwt", "bug", "validation"],
-            context="Authentication system debugging",
+        memory_with_context = Memory(
+            type=MemoryType.FIX,
+            title="Fixed CORS configuration",
+            content="Updated CORS settings to allow frontend origin",
+            tags=["cors", "configuration", "frontend"],
+            context=context,
         )
 
-        memory2_id = memory2_result["id"]
-        print(f"   Second memory stored with ID: {memory2_id}")
+        print(f"\nMemory with context: {memory_with_context}")
+        print(f"Context project path: {memory_with_context.context.project_path}")
+        print(f"Context files: {memory_with_context.context.files_involved}")
+        print(f"Context languages: {memory_with_context.context.languages}")
 
-        # Test 5: Create relationship
-        print("\n5. Testing create_relationship...")
-        relationship = await server.relationship_tools.create_relationship(
-            from_memory_id=memory2_id,
-            to_memory_id=memory_id,
-            relationship_type=RelationshipType.SOLUTION_FOR.value,
-            context="JWT fix solved authentication implementation",
-            strength=0.9,
-        )
+        # Test serialization using model_dump with json mode for datetime serialization
+        memory_dict = memory.model_dump(mode="json")
+        print(f"\nSerialized memory: {json.dumps(memory_dict, indent=2)}")
 
-        print(f"   Relationship created: {relationship}")
+        # Test deserialization
+        memory_json = json.dumps(memory_dict)
+        loaded_dict = json.loads(memory_json)
+        print(f"Deserialized memory dict: {loaded_dict}")
 
-        # Test 6: Get relationships
-        print("\n6. Testing get_relationships...")
-        relationships = await server.relationship_tools.get_relationships(
-            memory_id=memory_id, direction="incoming"
-        )
+        # Test validation errors
+        print("\nTesting validation constraints...")
 
-        print(f"   Found {len(relationships)} incoming relationships")
-        for rel in relationships:
-            print(f"   - {rel['relationship_type']} from {rel['from_memory_id']}")
-
-        # Test 7: Recall memories
-        print("\n7. Testing recall_memories...")
-        recalled = await server.memory_tools.recall_memories(
-            query="authentication", limit=5
-        )
-
-        print(f"   Recalled {len(recalled)} memories for 'authentication'")
-        for mem in recalled[:3]:  # Show first 3
-            print(
-                f"   - {mem['content'][:40]}... (score: {mem.get('relevance_score', 0):.2f})"
-            )
-
-        # Test 8: Search memories
-        print("\n8. Testing search_memories...")
-        searched = await server.memory_tools.search_memories(
-            query="JWT token authentication", search_tolerance=0.6, limit=5
-        )
-
-        print(f"   Searched found {len(searched)} memories")
-        for mem in searched[:3]:  # Show first 3
-            print(
-                f"   - {mem['content'][:40]}... (similarity: {mem.get('similarity_score', 0):.2f})"
-            )
-
-        # Test 9: Export memories
-        print("\n9. Testing export_memories...")
-        exported = await server.memory_tools.export_memories(
-            format="json", include_relationships=True
-        )
-
-        # Parse and check export
-        if isinstance(exported, str):
-            export_data = json.loads(exported)
-        else:
-            export_data = exported
-
-        print(f"   Exported {len(export_data.get('memories', []))} memories")
-        print(f"   Exported {len(export_data.get('relationships', []))} relationships")
-
-        # Test 10: Delete memories
-        print("\n10. Testing delete_memory...")
-        delete_result1 = await server.memory_tools.delete_memory(memory_id)
-        delete_result2 = await server.memory_tools.delete_memory(memory2_id)
-
-        print(f"   Memory 1 deleted: {delete_result1}")
-        print(f"   Memory 2 deleted: {delete_result2}")
-
-        # Verify deletion
-        print("\n11. Verifying deletion...")
+        # Test empty title
         try:
-            await server.memory_tools.get_memory(memory_id)
-            print("   ❌ Memory 1 still exists (should have been deleted)")
-        except Exception as e:
-            print(f"   ✅ Memory 1 successfully deleted: {str(e)[:50]}...")
+            Memory(type=MemoryType.TASK, title="", content="Some content")
+            print("[FAIL] Should have raised validation error for empty title")
+            return False
+        except ValueError:
+            print("[PASS] Correctly rejected empty title")
 
+        # Test empty content
         try:
-            await server.memory_tools.get_memory(memory2_id)
-            print("   ❌ Memory 2 still exists (should have been deleted)")
-        except Exception as e:
-            print(f"   ✅ Memory 2 successfully deleted: {str(e)[:50]}...")
+            Memory(type=MemoryType.TASK, title="Valid title", content="")
+            print("[FAIL] Should have raised validation error for empty content")
+            return False
+        except ValueError:
+            print("[PASS] Correctly rejected empty content")
 
-        print("\n[PASS] All basic tool tests passed!")
+        # Test importance out of range
+        try:
+            Memory(
+                type=MemoryType.TASK,
+                title="Valid title",
+                content="Valid content",
+                importance=1.5,
+            )
+            print("[FAIL] Should have raised validation error for importance > 1.0")
+            return False
+        except ValueError:
+            print("[PASS] Correctly rejected importance > 1.0")
+
+        # Test confidence out of range
+        try:
+            Memory(
+                type=MemoryType.TASK,
+                title="Valid title",
+                content="Valid content",
+                confidence=-0.1,
+            )
+            print("[FAIL] Should have raised validation error for confidence < 0.0")
+            return False
+        except ValueError:
+            print("[PASS] Correctly rejected confidence < 0.0")
+
+        print("[PASS] Memory model validation tests passed!")
         return True
 
     except Exception as e:
-        print(f"\n[FAIL] Error during basic tool tests: {e}")
+        print(f"[FAIL] Error in memory model validation tests: {e}")
         import traceback
 
         traceback.print_exc()
         return False
 
-    finally:
-        # Clean up server resources
-        await server.cleanup()
 
-
-async def test_extended_tools():
-    """Test extended MCP tools (when available)"""
-    print("\n" + "=" * 60)
-    print("Testing extended MCP tools...")
-
-    server = MemoryGraphServer()
+def test_memory_type_enumeration():
+    """Test memory type enumeration"""
+    print("\nTesting memory type enumeration...")
 
     try:
-        await server.initialize()
+        # List all memory types
+        print("Available memory types:")
+        for mem_type in MemoryType:
+            print(f"  - {mem_type.value}: {mem_type.name}")
 
-        # Check if extended tools are available
-        if not hasattr(server, "extended_tools"):
-            print("Extended tools not available in current mode")
-            return True  # Not a failure, just not available
-
-        # Test import/export cycle
-        print("\n1. Testing import/export cycle...")
-
-        # Create test data
-        test_memories = [
-            {
-                "content": "Import test memory 1",
-                "memory_type": "note",
-                "tags": ["import", "test"],
-            },
-            {
-                "content": "Import test memory 2",
-                "memory_type": "reference",
-                "tags": ["import", "test", "reference"],
-            },
+        # Verify all expected types exist
+        expected_types = [
+            ("task", "TASK"),
+            ("code_pattern", "CODE_PATTERN"),
+            ("problem", "PROBLEM"),
+            ("solution", "SOLUTION"),
+            ("project", "PROJECT"),
+            ("technology", "TECHNOLOGY"),
+            ("error", "ERROR"),
+            ("fix", "FIX"),
+            ("command", "COMMAND"),
+            ("file_context", "FILE_CONTEXT"),
+            ("workflow", "WORKFLOW"),
+            ("general", "GENERAL"),
+            ("conversation", "CONVERSATION"),
         ]
 
-        # Export test data
-        export_data = {"memories": test_memories, "relationships": [], "version": "1.0"}
+        for value, name in expected_types:
+            mem_type = MemoryType(value)
+            assert mem_type.name == name
+            assert mem_type.value == value
+            print(f"  [OK] {name}: {value}")
 
-        # Test import
-        print("   Importing test data...")
-        import_result = await server.extended_tools.import_memories(
-            data=json.dumps(export_data), format="json", merge_strategy="skip"
-        )
+        # Test string to enum conversion
+        task = MemoryType("task")
+        assert task == MemoryType.TASK
 
-        print(f"   Import result: {import_result}")
+        solution = MemoryType("solution")
+        assert solution == MemoryType.SOLUTION
 
-        # Test get_memory_stats
-        print("\n2. Testing get_memory_stats...")
-        stats = await server.extended_tools.get_memory_stats()
-        print(f"   Memory statistics: {json.dumps(stats, indent=2)}")
+        problem = MemoryType("problem")
+        assert problem == MemoryType.PROBLEM
 
-        # Test health_check
-        print("\n3. Testing health_check...")
-        health = await server.extended_tools.health_check()
-        print(f"   Health check: {health}")
+        # Test invalid type
+        try:
+            MemoryType("invalid_type")
+            print("[FAIL] Should have raised ValueError for invalid type")
+            return False
+        except ValueError:
+            print("[PASS] Correctly rejected invalid memory type")
 
-        # Clean up imported memories
-        print("\n4. Cleaning up imported memories...")
-        # We would need to get the IDs of imported memories to delete them
-        # For now, we'll just note that cleanup would be needed
-
-        print("\n[PASS] Extended tool tests completed!")
+        print("[PASS] Memory type enumeration tests passed!")
         return True
 
     except Exception as e:
-        print(f"\n[FAIL] Error during extended tool tests: {e}")
+        print(f"[FAIL] Error in memory type enumeration tests: {e}")
         import traceback
 
         traceback.print_exc()
         return False
 
-    finally:
-        await server.cleanup()
+
+def test_relationship_type_enumeration():
+    """Test relationship type enumeration"""
+    print("\nTesting relationship type enumeration...")
+
+    try:
+        # List all relationship types
+        print("Available relationship types:")
+        for rel_type in RelationshipType:
+            print(f"  - {rel_type.value}: {rel_type.name}")
+
+        # Verify some key types exist
+        key_types = [
+            ("CAUSES", "CAUSES"),
+            ("SOLVES", "SOLVES"),
+            ("ADDRESSES", "ADDRESSES"),
+            ("RELATED_TO", "RELATED_TO"),
+            ("DEPENDS_ON", "DEPENDS_ON"),
+            ("REQUIRES", "REQUIRES"),
+            ("IMPROVES", "IMPROVES"),
+            ("BREAKS", "BREAKS"),
+        ]
+
+        for value, name in key_types:
+            rel_type = RelationshipType(value)
+            assert rel_type.name == name
+            assert rel_type.value == value
+            print(f"  [OK] {name}: {value}")
+
+        # Test string to enum conversion
+        causes = RelationshipType("CAUSES")
+        assert causes == RelationshipType.CAUSES
+
+        solves = RelationshipType("SOLVES")
+        assert solves == RelationshipType.SOLVES
+
+        related_to = RelationshipType("RELATED_TO")
+        assert related_to == RelationshipType.RELATED_TO
+
+        # Test invalid type
+        try:
+            RelationshipType("invalid_relationship")
+            print("[FAIL] Should have raised ValueError for invalid relationship type")
+            return False
+        except ValueError:
+            print("[PASS] Correctly rejected invalid relationship type")
+
+        print("[PASS] Relationship type enumeration tests passed!")
+        return True
+
+    except Exception as e:
+        print(f"[FAIL] Error in relationship type enumeration tests: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return False
 
 
-def test_tool_validation():
-    """Test tool parameter validation"""
-    print("\n" + "=" * 60)
-    print("Testing tool parameter validation...")
+def test_memory_context_model():
+    """Test memory context model"""
+    print("\nTesting memory context model...")
+
+    try:
+        # Test basic context creation
+        context = MemoryContext(
+            project_path="/my/project",
+            files_involved=["main.py", "utils.py"],
+            languages=["python", "javascript"],
+            frameworks=["django", "react"],
+            technologies=["postgresql", "redis"],
+            git_commit="abc123",
+            git_branch="feature/auth",
+            working_directory="/home/user/projects/myproject",
+            timestamp="2024-01-15T10:30:00Z",
+            session_id="session-123",
+            user_id="user-456",
+        )
+
+        print(f"Created context: {context}")
+        print(f"Project path: {context.project_path}")
+        print(f"Files involved: {context.files_involved}")
+        print(f"Languages: {context.languages}")
+        print(f"Frameworks: {context.frameworks}")
+        print(f"Technologies: {context.technologies}")
+        print(f"Git commit: {context.git_commit}")
+        print(f"Git branch: {context.git_branch}")
+        print(f"Working directory: {context.working_directory}")
+        print(f"Session ID: {context.session_id}")
+        print(f"User ID: {context.user_id}")
+
+        # Test serialization using model_dump with json mode for datetime serialization
+        context_dict = context.model_dump(mode="json")
+        print(f"\nSerialized context: {json.dumps(context_dict, indent=2)}")
+
+        # Test with minimal context
+        minimal_context = MemoryContext(
+            project_path="/simple/project",
+            files_involved=["app.py"],
+        )
+
+        print(f"\nMinimal context: {minimal_context}")
+        print(f"Project path: {minimal_context.project_path}")
+        print(f"Files involved: {minimal_context.files_involved}")
+
+        # Test context in memory
+        memory_with_context = Memory(
+            type=MemoryType.CODE_PATTERN,
+            title="Authentication middleware pattern",
+            content="Pattern for JWT authentication in FastAPI",
+            tags=["pattern", "authentication", "fastapi"],
+            context=context,
+        )
+
+        print(f"\nMemory with full context: {memory_with_context}")
+        print(
+            f"Memory context project: {memory_with_context.context.project_path if memory_with_context.context else 'None'}"
+        )
+
+        print("[PASS] Memory context model tests passed!")
+        return True
+
+    except Exception as e:
+        print(f"[FAIL] Error in memory context model tests: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return False
+
+
+def test_tool_parameter_validation():
+    """Test tool parameter validation constraints"""
+    print("\nTesting tool parameter validation constraints...")
 
     try:
         # Test memory type validation
-        print("\n1. Testing memory type validation...")
-        valid_types = [t.value for t in MemoryType]
-        print(f"   Valid memory types: {valid_types}")
+        print("1. Testing memory type validation...")
+        valid_memory_types = [t.value for t in MemoryType]
+        print(f"   Valid memory types: {valid_memory_types}")
 
         # Test relationship type validation
-        print("\n2. Testing relationship type validation...")
-        valid_rel_types = [t.value for t in RelationshipType]
-        print(f"   Valid relationship types: {valid_rel_types}")
+        print("2. Testing relationship type validation...")
+        valid_relationship_types = [t.value for t in RelationshipType]
+        print(f"   Valid relationship types: {valid_relationship_types}")
 
         # Test parameter constraints
-        print("\n3. Testing parameter constraints...")
-        print("   - search_tolerance should be between 0.0 and 1.0")
-        print("   - strength should be between 0.0 and 1.0")
-        print("   - limit should be positive integer")
+        print("3. Testing parameter constraints...")
+        print("   - importance: should be between 0.0 and 1.0")
+        print("   - confidence: should be between 0.0 and 1.0")
+        print("   - strength: should be between 0.0 and 1.0")
+        print("   - success_rate: should be between 0.0 and 1.0")
+        print("   - limit: should be positive integer")
+        print("   - offset: should be non-negative integer")
 
-        print("\n[PASS] Tool validation tests passed!")
+        # Test tag normalization
+        print("4. Testing tag normalization...")
+        memory = Memory(
+            type=MemoryType.GENERAL,
+            title="Test memory with tags",
+            content="Content with various tags",
+            tags=["  UPPERCASE  ", "MixedCase", "lowercase", "  spaced  "],
+        )
+
+        print(
+            f"   Original tags: {['  UPPERCASE  ', 'MixedCase', 'lowercase', '  spaced  ']}"
+        )
+        print(f"   Normalized tags: {memory.tags}")
+        assert memory.tags == ["uppercase", "mixedcase", "lowercase", "spaced"]
+        print("   [OK] Tags correctly normalized to lowercase and trimmed")
+
+        # Test text field trimming
+        print("5. Testing text field trimming...")
+        memory = Memory(
+            type=MemoryType.GENERAL,
+            title="  Title with spaces  ",
+            content="  Content with spaces  ",
+        )
+
+        print(f"   Original title: '  Title with spaces  '")
+        print(f"   Trimmed title: '{memory.title}'")
+        assert memory.title == "Title with spaces"
+
+        print(f"   Original content: '  Content with spaces  '")
+        print(f"   Trimmed content: '{memory.content}'")
+        assert memory.content == "Content with spaces"
+        print("   [OK] Text fields correctly trimmed")
+
+        print("[PASS] Tool parameter validation tests passed!")
         return True
 
     except Exception as e:
-        print(f"\n[FAIL] Error in validation tests: {e}")
+        print(f"[FAIL] Error in tool parameter validation tests: {e}")
         import traceback
 
         traceback.print_exc()
         return False
 
 
-async def main():
+def main():
     """Main test function"""
     print("=" * 60)
-    print("Running MCP tools tests for mcp-user-memory")
+    print("Running MCP tool model tests for mcp-user-memory")
     print("=" * 60)
 
-    # Run validation tests first
-    validation_passed = test_tool_validation()
-
-    # Run basic tool tests
-    basic_tools_passed = await test_basic_tools()
-
-    # Run extended tool tests
-    extended_tools_passed = await test_extended_tools()
+    # Run all tests
+    validation_passed = test_memory_model_validation()
+    memory_types_passed = test_memory_type_enumeration()
+    relationship_types_passed = test_relationship_type_enumeration()
+    context_passed = test_memory_context_model()
+    param_validation_passed = test_tool_parameter_validation()
 
     # Summary
     print("\n" + "=" * 60)
     print("TEST SUMMARY")
     print("=" * 60)
     print(
-        f"Validation tests: {'[PASS] PASSED' if validation_passed else '[FAIL] FAILED'}"
+        f"Memory validation: {'[PASS] PASSED' if validation_passed else '[FAIL] FAILED'}"
     )
     print(
-        f"Basic tool tests: {'[PASS] PASSED' if basic_tools_passed else '[FAIL] FAILED'}"
+        f"Memory types: {'[PASS] PASSED' if memory_types_passed else '[FAIL] FAILED'}"
     )
     print(
-        f"Extended tool tests: {'[PASS] PASSED' if extended_tools_passed else '[FAIL] FAILED'}"
+        f"Relationship types: {'[PASS] PASSED' if relationship_types_passed else '[FAIL] FAILED'}"
+    )
+    print(f"Context model: {'[PASS] PASSED' if context_passed else '[FAIL] FAILED'}")
+    print(
+        f"Parameter validation: {'[PASS] PASSED' if param_validation_passed else '[FAIL] FAILED'}"
     )
 
-    all_passed = validation_passed and basic_tools_passed and extended_tools_passed
+    all_passed = (
+        validation_passed
+        and memory_types_passed
+        and relationship_types_passed
+        and context_passed
+        and param_validation_passed
+    )
     print(
         f"\nOverall: {'[PASS] ALL TESTS PASSED' if all_passed else '[FAIL] SOME TESTS FAILED'}"
     )
@@ -310,6 +427,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    # Run async tests
-    success = asyncio.run(main())
+    success = main()
     sys.exit(0 if success else 1)

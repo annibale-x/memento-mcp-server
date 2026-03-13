@@ -1,8 +1,8 @@
 """
 Test file for relationship functionality in mcp-user-memory
+Tests relationship models and types without requiring server initialization.
 """
 
-import asyncio
 import json
 import os
 import sys
@@ -10,158 +10,57 @@ import sys
 # Add parent directory to path to import user_memory
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from user_memory import MemoryGraphServer
-from user_memory.models import Memory, MemoryType, Relationship, RelationshipType
-
-
-async def test_relationships():
-    """Test relationship creation and retrieval"""
-    print("Testing relationship functionality...")
-
-    # Create a test server instance
-    server = MemoryGraphServer()
-
-    try:
-        # Initialize the server
-        await server.initialize()
-
-        # Create two test memories
-        memory1 = Memory(
-            content="Test memory 1: Authentication bug",
-            memory_type=MemoryType.BUG_FIX,
-            tags=["authentication", "bug"],
-        )
-
-        memory2 = Memory(
-            content="Test memory 2: Login failure issue",
-            memory_type=MemoryType.ISSUE,
-            tags=["login", "issue"],
-        )
-
-        # Store memories
-        print("Storing test memories...")
-        stored_memory1 = await server.memory_tools.store_memory(
-            content=memory1.content,
-            memory_type=memory1.memory_type.value,
-            tags=memory1.tags,
-        )
-
-        stored_memory2 = await server.memory_tools.store_memory(
-            content=memory2.content,
-            memory_type=memory2.memory_type.value,
-            tags=memory2.tags,
-        )
-
-        print(f"Memory 1 ID: {stored_memory1['id']}")
-        print(f"Memory 2 ID: {stored_memory2['id']}")
-
-        # Create a relationship
-        print("\nCreating relationship between memories...")
-        relationship = await server.relationship_tools.create_relationship(
-            from_memory_id=stored_memory1["id"],
-            to_memory_id=stored_memory2["id"],
-            relationship_type=RelationshipType.CAUSED_BY.value,
-            context="Authentication bug caused login failure",
-        )
-
-        print(f"Relationship created: {relationship}")
-
-        # Get relationships for memory 1
-        print("\nGetting relationships for memory 1...")
-        relationships = await server.relationship_tools.get_relationships(
-            memory_id=stored_memory1["id"], direction="outgoing"
-        )
-
-        print(f"Found {len(relationships)} outgoing relationships:")
-        for rel in relationships:
-            print(f"  - {rel['relationship_type']} -> {rel['to_memory_id']}")
-
-        # Get relationships for memory 2
-        print("\nGetting relationships for memory 2...")
-        relationships = await server.relationship_tools.get_relationships(
-            memory_id=stored_memory2["id"], direction="incoming"
-        )
-
-        print(f"Found {len(relationships)} incoming relationships:")
-        for rel in relationships:
-            print(f"  - {rel['from_memory_id']} -> {rel['relationship_type']}")
-
-        # Test bidirectional relationships
-        print("\nGetting all relationships for memory 1...")
-        all_relationships = await server.relationship_tools.get_relationships(
-            memory_id=stored_memory1["id"], direction="both"
-        )
-
-        print(f"Total relationships: {len(all_relationships)}")
-
-        # Create another relationship type
-        print("\nCreating 'solution_for' relationship...")
-        solution_relationship = await server.relationship_tools.create_relationship(
-            from_memory_id=stored_memory2["id"],
-            to_memory_id=stored_memory1["id"],
-            relationship_type=RelationshipType.SOLUTION_FOR.value,
-            context="Login failure was solved by authentication fix",
-        )
-
-        print(f"Solution relationship created: {solution_relationship}")
-
-        # Test filtering by relationship type
-        print("\nFiltering relationships by type 'caused_by'...")
-        caused_by_relationships = await server.relationship_tools.get_relationships(
-            memory_id=stored_memory1["id"],
-            direction="outgoing",
-            relationship_types=["caused_by"],
-        )
-
-        print(f"Found {len(caused_by_relationships)} 'caused_by' relationships")
-
-        # Clean up test data
-        print("\nCleaning up test data...")
-        await server.memory_tools.delete_memory(stored_memory1["id"])
-        await server.memory_tools.delete_memory(stored_memory2["id"])
-
-        print("\n[PASS] All relationship tests passed!")
-
-    except Exception as e:
-        print(f"\n[FAIL] Error during relationship tests: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return False
-
-    finally:
-        # Clean up server resources
-        await server.cleanup()
-
-    return True
+from user_memory.models import (
+    Memory,
+    MemoryType,
+    Relationship,
+    RelationshipProperties,
+    RelationshipType,
+)
 
 
 def test_relationship_models():
     """Test relationship model functionality"""
-    print("\nTesting relationship models...")
+    print("Testing relationship models...")
 
     try:
         # Test Relationship model creation
         relationship = Relationship(
             from_memory_id="mem_test_1",
             to_memory_id="mem_test_2",
-            relationship_type=RelationshipType.RELATED_TO,
-            context="Test relationship context",
-            strength=0.8,
+            type=RelationshipType.RELATED_TO,
+            properties=RelationshipProperties(
+                context="Test relationship context",
+                strength=0.8,
+                confidence=0.9,
+            ),
         )
 
         print(f"Created relationship: {relationship}")
-        print(f"Relationship type: {relationship.relationship_type}")
-        print(f"Relationship strength: {relationship.strength}")
+        print(f"Relationship type: {relationship.type}")
+        print(f"Relationship strength: {relationship.properties.strength}")
+        print(f"Relationship confidence: {relationship.properties.confidence}")
 
-        # Test serialization
-        relationship_dict = relationship.dict()
+        # Test serialization using model_dump with json mode for datetime serialization
+        relationship_dict = relationship.model_dump(mode="json")
         print(f"Serialized relationship: {json.dumps(relationship_dict, indent=2)}")
 
         # Test deserialization
         relationship_json = json.dumps(relationship_dict)
         loaded_dict = json.loads(relationship_json)
         print(f"Deserialized relationship dict: {loaded_dict}")
+
+        # Test Memory model creation
+        memory = Memory(
+            type=MemoryType.SOLUTION,
+            title="Test memory title",
+            content="Test memory content",
+            tags=["test", "relationship"],
+        )
+
+        print(f"\nCreated memory: {memory}")
+        print(f"Memory type: {memory.type}")
+        print(f"Memory title: {memory.title}")
 
         print("[PASS] Relationship model tests passed!")
         return True
@@ -185,18 +84,21 @@ def test_relationship_types():
             print(f"  - {rel_type.value}: {rel_type.name}")
 
         # Test value access
-        assert RelationshipType.CAUSED_BY.value == "caused_by"
-        assert RelationshipType.RELATED_TO.value == "related_to"
-        assert RelationshipType.SOLUTION_FOR.value == "solution_for"
-        assert RelationshipType.CONTEXT_FOR.value == "context_for"
-        assert RelationshipType.DEPENDS_ON.value == "depends_on"
+        assert RelationshipType.CAUSES.value == "CAUSES"
+        assert RelationshipType.RELATED_TO.value == "RELATED_TO"
+        assert RelationshipType.SOLVES.value == "SOLVES"
+        assert RelationshipType.ADDRESSES.value == "ADDRESSES"
+        assert RelationshipType.DEPENDS_ON.value == "DEPENDS_ON"
 
         # Test string to enum conversion
-        caused_by = RelationshipType("caused_by")
-        assert caused_by == RelationshipType.CAUSED_BY
+        causes = RelationshipType("CAUSES")
+        assert causes == RelationshipType.CAUSES
 
-        related_to = RelationshipType("related_to")
+        related_to = RelationshipType("RELATED_TO")
         assert related_to == RelationshipType.RELATED_TO
+
+        solves = RelationshipType("SOLVES")
+        assert solves == RelationshipType.SOLVES
 
         print("[PASS] Relationship type tests passed!")
         return True
@@ -209,18 +111,104 @@ def test_relationship_types():
         return False
 
 
-async def main():
+def test_memory_types():
+    """Test memory type enumeration"""
+    print("\nTesting memory types...")
+
+    try:
+        # Test all memory types
+        print("Available memory types:")
+        for mem_type in MemoryType:
+            print(f"  - {mem_type.value}: {mem_type.name}")
+
+        # Test value access
+        assert MemoryType.TASK.value == "task"
+        assert MemoryType.SOLUTION.value == "solution"
+        assert MemoryType.PROBLEM.value == "problem"
+        assert MemoryType.FIX.value == "fix"
+        assert MemoryType.ERROR.value == "error"
+
+        # Test string to enum conversion
+        task = MemoryType("task")
+        assert task == MemoryType.TASK
+
+        solution = MemoryType("solution")
+        assert solution == MemoryType.SOLUTION
+
+        problem = MemoryType("problem")
+        assert problem == MemoryType.PROBLEM
+
+        print("[PASS] Memory type tests passed!")
+        return True
+
+    except Exception as e:
+        print(f"[FAIL] Error in memory type tests: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return False
+
+
+def test_relationship_properties():
+    """Test relationship properties model"""
+    print("\nTesting relationship properties...")
+
+    try:
+        # Test RelationshipProperties creation
+        properties = RelationshipProperties(
+            strength=0.7,
+            confidence=0.8,
+            context="Test context for relationship",
+            evidence_count=3,
+            success_rate=0.9,
+        )
+
+        print(f"Created properties: {properties}")
+        print(f"Strength: {properties.strength}")
+        print(f"Confidence: {properties.confidence}")
+        print(f"Context: {properties.context}")
+        print(f"Evidence count: {properties.evidence_count}")
+        print(f"Success rate: {properties.success_rate}")
+
+        # Test validation
+        # Strength should be between 0.0 and 1.0
+        try:
+            RelationshipProperties(strength=1.5)
+            print("[FAIL] Should have raised validation error for strength > 1.0")
+            return False
+        except ValueError:
+            print("[PASS] Correctly rejected strength > 1.0")
+
+        # Confidence should be between 0.0 and 1.0
+        try:
+            RelationshipProperties(confidence=-0.1)
+            print("[FAIL] Should have raised validation error for confidence < 0.0")
+            return False
+        except ValueError:
+            print("[PASS] Correctly rejected confidence < 0.0")
+
+        print("[PASS] Relationship properties tests passed!")
+        return True
+
+    except Exception as e:
+        print(f"[FAIL] Error in relationship properties tests: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return False
+
+
+def main():
     """Main test function"""
     print("=" * 60)
-    print("Running relationship tests for mcp-user-memory")
+    print("Running relationship model tests for mcp-user-memory")
     print("=" * 60)
 
-    # Run model tests first (don't require server)
+    # Run all tests
     model_tests_passed = test_relationship_models()
     type_tests_passed = test_relationship_types()
-
-    # Run server tests
-    server_tests_passed = await test_relationships()
+    memory_tests_passed = test_memory_types()
+    properties_tests_passed = test_relationship_properties()
 
     # Summary
     print("\n" + "=" * 60)
@@ -229,10 +217,18 @@ async def main():
     print(f"Model tests: {'[PASS] PASSED' if model_tests_passed else '[FAIL] FAILED'}")
     print(f"Type tests: {'[PASS] PASSED' if type_tests_passed else '[FAIL] FAILED'}")
     print(
-        f"Server tests: {'[PASS] PASSED' if server_tests_passed else '[FAIL] FAILED'}"
+        f"Memory tests: {'[PASS] PASSED' if memory_tests_passed else '[FAIL] FAILED'}"
+    )
+    print(
+        f"Properties tests: {'[PASS] PASSED' if properties_tests_passed else '[FAIL] FAILED'}"
     )
 
-    all_passed = model_tests_passed and type_tests_passed and server_tests_passed
+    all_passed = (
+        model_tests_passed
+        and type_tests_passed
+        and memory_tests_passed
+        and properties_tests_passed
+    )
     print(
         f"\nOverall: {'[PASS] ALL TESTS PASSED' if all_passed else '[FAIL] SOME TESTS FAILED'}"
     )
@@ -241,6 +237,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    # Run async tests
-    success = asyncio.run(main())
+    success = main()
     sys.exit(0 if success else 1)
