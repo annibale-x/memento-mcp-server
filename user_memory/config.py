@@ -150,18 +150,12 @@ class Config:
         Logging Configuration:
             MEMORY_LOG_LEVEL: Log level (DEBUG|INFO|WARNING|ERROR) [default: INFO]
 
-        Multi-Tenancy Configuration (Phase 1):
-            MEMORY_MULTI_TENANT_MODE: Enable multi-tenant features [default: false]
-            MEMORY_DEFAULT_TENANT: Default tenant ID for single-tenant mode [default: default]
-            MEMORY_REQUIRE_AUTH: Require authentication for operations [default: false]
-
-        Authentication Configuration (Future - Phase 3):
-            MEMORY_AUTH_PROVIDER: Authentication provider (none|jwt|oauth2) [default: none]
-            MEMORY_JWT_SECRET: JWT signing secret (required if auth_provider=jwt)
-            MEMORY_JWT_ALGORITHM: JWT algorithm [default: HS256]
-
-        Audit Configuration (Future - Phase 4):
-            MEMORY_ENABLE_AUDIT_LOG: Log all access events [default: false]
+        Feature Configuration:
+            MEMORY_AUTO_EXTRACT_ENTITIES: Automatically extract entities from memory content [default: true]
+            MEMORY_SESSION_BRIEFING: Enable session briefing feature [default: true]
+            MEMORY_BRIEFING_VERBOSITY: Briefing verbosity level [default: standard]
+            MEMORY_BRIEFING_RECENCY_DAYS: Number of days to consider for briefing [default: 7]
+            MEMORY_ALLOW_CYCLES: Allow cycles in relationship graph [default: false]
     """
 
     BACKEND = _EnvVar("MEMORY_BACKEND", default="sqlite")
@@ -233,16 +227,6 @@ class Config:
 
     ALLOW_RELATIONSHIP_CYCLES = _EnvVar("MEMORY_ALLOW_CYCLES", default=False, cast=bool)
 
-    MULTI_TENANT_MODE = _EnvVar("MEMORY_MULTI_TENANT_MODE", default=False, cast=bool)
-    DEFAULT_TENANT = _EnvVar("MEMORY_DEFAULT_TENANT", default="default")
-    REQUIRE_AUTH = _EnvVar("MEMORY_REQUIRE_AUTH", default=False, cast=bool)
-
-    AUTH_PROVIDER = _EnvVar("MEMORY_AUTH_PROVIDER", default="none")
-    JWT_SECRET = _EnvVar("MEMORY_JWT_SECRET", default=None)
-    JWT_ALGORITHM = _EnvVar("MEMORY_JWT_ALGORITHM", default="HS256")
-
-    ENABLE_AUDIT_LOG = _EnvVar("MEMORY_ENABLE_AUDIT_LOG", default=False, cast=bool)
-
     @classmethod
     def get_backend_type(cls) -> BackendType:
         """Get the configured backend type, falling back to AUTO for unknown values."""
@@ -276,16 +260,6 @@ class Config:
     def is_memgraph_configured(cls) -> bool:
         """Check if Memgraph backend is configured."""
         return cls.is_env_set("MEMGRAPH_URI")
-
-    @classmethod
-    def is_multi_tenant_mode(cls) -> bool:
-        """Check if multi-tenant mode is enabled."""
-        return cls.MULTI_TENANT_MODE
-
-    @classmethod
-    def get_default_tenant(cls) -> str:
-        """Get default tenant ID for single-tenant mode."""
-        return cls.DEFAULT_TENANT
 
     @classmethod
     def get_enabled_tools(cls) -> list[str]:
@@ -342,12 +316,4 @@ class Config:
                 "briefing_recency_days": cls.BRIEFING_RECENCY_DAYS,
             },
             "relationships": {"allow_cycles": cls.ALLOW_RELATIONSHIP_CYCLES},
-            "multi_tenancy": {
-                "enabled": cls.MULTI_TENANT_MODE,
-                "default_tenant": cls.DEFAULT_TENANT,
-                "require_auth": cls.REQUIRE_AUTH,
-                "auth_provider": cls.AUTH_PROVIDER,
-                "jwt_secret_configured": bool(cls.JWT_SECRET),
-                "audit_log_enabled": cls.ENABLE_AUDIT_LOG,
-            },
         }

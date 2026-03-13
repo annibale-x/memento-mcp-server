@@ -5,10 +5,11 @@ This module defines the core data structures used throughout the memory system,
 including memory types, relationships, and validation schemas.
 """
 
-from enum import Enum
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Union
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class MemoryType(str, Enum):
@@ -31,49 +32,49 @@ class MemoryType(str, Enum):
 
 class RelationshipType(str, Enum):
     """Types of relationships between memories."""
-    
+
     # Causal relationships
     CAUSES = "CAUSES"
     TRIGGERS = "TRIGGERS"
     LEADS_TO = "LEADS_TO"
     PREVENTS = "PREVENTS"
     BREAKS = "BREAKS"
-    
+
     # Solution relationships
     SOLVES = "SOLVES"
     ADDRESSES = "ADDRESSES"
     ALTERNATIVE_TO = "ALTERNATIVE_TO"
     IMPROVES = "IMPROVES"
     REPLACES = "REPLACES"
-    
+
     # Context relationships
     OCCURS_IN = "OCCURS_IN"
     APPLIES_TO = "APPLIES_TO"
     WORKS_WITH = "WORKS_WITH"
     REQUIRES = "REQUIRES"
     USED_IN = "USED_IN"
-    
+
     # Learning relationships
     BUILDS_ON = "BUILDS_ON"
     CONTRADICTS = "CONTRADICTS"
     CONFIRMS = "CONFIRMS"
     GENERALIZES = "GENERALIZES"
     SPECIALIZES = "SPECIALIZES"
-    
+
     # Similarity relationships
     SIMILAR_TO = "SIMILAR_TO"
     VARIANT_OF = "VARIANT_OF"
     RELATED_TO = "RELATED_TO"
     ANALOGY_TO = "ANALOGY_TO"
     OPPOSITE_OF = "OPPOSITE_OF"
-    
+
     # Workflow relationships
     FOLLOWS = "FOLLOWS"
     DEPENDS_ON = "DEPENDS_ON"
     ENABLES = "ENABLES"
     BLOCKS = "BLOCKS"
     PARALLEL_TO = "PARALLEL_TO"
-    
+
     # Quality relationships
     EFFECTIVE_FOR = "EFFECTIVE_FOR"
     INEFFECTIVE_FOR = "INEFFECTIVE_FOR"
@@ -85,44 +86,8 @@ class RelationshipType(str, Enum):
 class MemoryContext(BaseModel):
     """Context information for a memory.
 
-    This model supports both single-tenant (default) and multi-tenant deployments.
-    Multi-tenancy fields are optional and only validated/used when MEMORY_MULTI_TENANT_MODE=true.
-
-    Single-Tenant Mode (default):
-        - project_path provides memory scoping
-        - tenant_id, team_id, created_by are ignored
-        - visibility defaults to "project"
-
-    Multi-Tenant Mode (MEMORY_MULTI_TENANT_MODE=true):
-        - tenant_id is required for memory isolation
-        - team_id provides team-level scoping
-        - visibility controls access levels: private | project | team | public
-        - created_by tracks memory ownership for access control
-
-    Examples:
-        Single-tenant context:
-            >>> context = MemoryContext(project_path="/my/project")
-            >>> context.tenant_id is None
-            True
-
-        Multi-tenant team context:
-            >>> context = MemoryContext(
-            ...     tenant_id="acme-corp",
-            ...     team_id="backend",
-            ...     visibility="team",
-            ...     created_by="alice"
-            ... )
-            >>> context.visibility
-            'team'
-
-        Private memory:
-            >>> context = MemoryContext(
-            ...     tenant_id="acme-corp",
-            ...     visibility="private",
-            ...     created_by="bob"
-            ... )
-            >>> context.visibility
-            'private'
+    Provides scoping and metadata for memories, primarily through project_path.
+    All fields are optional to support various usage patterns.
     """
 
     model_config = ConfigDict(
@@ -133,28 +98,24 @@ class MemoryContext(BaseModel):
                     "session_id": "session-123",
                     "files_involved": ["main.py", "utils.py"],
                     "languages": ["python"],
-                    "frameworks": ["fastapi"]
+                    "frameworks": ["fastapi"],
                 },
                 {
-                    "tenant_id": "acme-corp",
-                    "team_id": "backend-team",
-                    "visibility": "team",
-                    "created_by": "alice",
                     "project_path": "/apps/api",
-                    "git_branch": "main"
+                    "git_branch": "main",
+                    "working_directory": "/home/user/projects/api",
+                    "user_id": "alice",
                 },
                 {
-                    "tenant_id": "acme-corp",
-                    "visibility": "private",
-                    "created_by": "bob",
+                    "project_path": "/personal/notes",
+                    "session_id": "notes-456",
                     "user_id": "bob",
-                    "project_path": "/personal/notes"
-                }
+                },
             ]
         }
     )
 
-    # === Existing fields (unchanged for backward compatibility) ===
+    # === Context fields ===
     project_path: Optional[str] = None
     files_involved: List[str] = Field(default_factory=list)
     languages: List[str] = Field(default_factory=list)
@@ -168,72 +129,52 @@ class MemoryContext(BaseModel):
     user_id: Optional[str] = None
     additional_metadata: Dict[str, Any] = Field(default_factory=dict)
 
-    # === New optional multi-tenancy fields (Phase 1) ===
-    tenant_id: Optional[str] = Field(
-        None,
-        description="Tenant/organization identifier. Required in multi-tenant mode."
-    )
-    team_id: Optional[str] = Field(
-        None,
-        description="Team identifier within tenant"
-    )
-    visibility: str = Field(
-        "project",
-        description="Memory visibility level: private | project | team | public"
-    )
-    created_by: Optional[str] = Field(
-        None,
-        description="User ID who created this memory (for audit/access control)"
-    )
-
-    @field_validator('visibility')
-    @classmethod
-    def validate_visibility(cls, v: str) -> str:
-        """Ensure visibility is one of the allowed values.
-
-        Args:
-            v: Visibility value to validate
-
-        Returns:
-            Validated visibility value
-
-        Raises:
-            ValueError: If visibility is not one of: private, project, team, public
-        """
-        valid_values = ["private", "project", "team", "public"]
-        if v not in valid_values:
-            raise ValueError(f"visibility must be one of {valid_values}, got '{v}'")
-        return v
-
 
 class Memory(BaseModel):
     """Core memory data structure.
 
     Represents a single memory entry in the system with metadata,
     content, relationships, and tracking information.
-
-    Attributes:
-        id: Unique identifier for the memory (auto-generated if not provided)
-        type: Type of memory (task, solution, problem, etc.)
-        title: Short descriptive title (1-200 characters)
-        content: Main content of the memory (required)
-        summary: Optional brief summary (max 500 characters)
-        tags: List of lowercase tags for categorization
-        context: Optional context information (project, files, etc.)
-        importance: Importance score from 0.0 to 1.0 (default 0.5)
-        confidence: Confidence score from 0.0 to 1.0 (default 0.8)
-        effectiveness: Optional effectiveness rating (0.0 to 1.0)
-        usage_count: Number of times this memory has been accessed
-        created_at: Timestamp when memory was created
-        updated_at: Timestamp when memory was last updated
-        last_accessed: Timestamp when memory was last accessed (optional)
-        version: Version number for optimistic concurrency control (Phase 1)
-        updated_by: User ID who last updated this memory (Phase 1)
-        relationships: Enriched field with related memory IDs by type
-        match_info: Enriched field with search match information
-        context_summary: Enriched field with relationship context
     """
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "id": "mem_abc123",
+                    "type": "solution",
+                    "title": "Fixed Redis timeout issue",
+                    "content": "Increased Redis connection timeout to 30 seconds...",
+                    "summary": "Redis timeout fix",
+                    "tags": ["redis", "timeout", "connection"],
+                    "importance": 0.8,
+                    "confidence": 0.9,
+                    "usage_count": 5,
+                    "created_at": "2024-01-15T10:30:00Z",
+                    "updated_at": "2024-01-15T10:30:00Z",
+                    "context": {"project_path": "/my/app", "git_branch": "main"},
+                },
+                {
+                    "id": "mem_def456",
+                    "type": "error",
+                    "title": "Database connection failed",
+                    "content": "Error: could not connect to PostgreSQL...",
+                    "tags": ["postgresql", "database", "error"],
+                    "importance": 0.9,
+                    "confidence": 0.8,
+                    "usage_count": 3,
+                    "created_at": "2024-01-14T14:20:00Z",
+                    "updated_at": "2024-01-14T14:20:00Z",
+                    "context": {
+                        "project_path": "/backend/api",
+                        "files_involved": ["database.py"],
+                    },
+                },
+            ]
+        }
+    )
+
+    # Core fields
     id: Optional[str] = None
     type: MemoryType
     title: str = Field(..., min_length=1, max_length=200)
@@ -241,23 +182,24 @@ class Memory(BaseModel):
     summary: Optional[str] = Field(None, max_length=500)
     tags: List[str] = Field(default_factory=list)
     context: Optional[MemoryContext] = None
+
+    # Scoring and metrics
     importance: float = Field(default=0.5, ge=0.0, le=1.0)
     confidence: float = Field(default=0.8, ge=0.0, le=1.0)
     effectiveness: Optional[float] = Field(None, ge=0.0, le=1.0)
     usage_count: int = Field(default=0, ge=0)
+
+    # Timestamps
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_accessed: Optional[datetime] = None
 
-    # Concurrency control fields (Phase 1 - Multi-tenancy support)
+    # Concurrency control
     version: int = Field(
-        default=1,
-        ge=1,
-        description="Version number for optimistic concurrency control"
+        default=1, ge=1, description="Version number for optimistic concurrency control"
     )
     updated_by: Optional[str] = Field(
-        None,
-        description="User ID who last updated this memory"
+        None, description="User ID who last updated this memory"
     )
 
     # Enriched search result fields (populated by search operations)
@@ -265,54 +207,21 @@ class Memory(BaseModel):
     match_info: Optional[Dict[str, Any]] = None
     context_summary: Optional[str] = None
 
-    @field_validator('tags')
+    @field_validator("tags")
     @classmethod
     def validate_tags(cls, v: List[str]) -> List[str]:
-        """Ensure tags are lowercase and non-empty.
-
-        Args:
-            v: List of tag strings to validate
-
-        Returns:
-            List of cleaned, lowercase, non-empty tags
-        """
+        """Ensure tags are lowercase and non-empty."""
         return [tag.lower().strip() for tag in v if tag.strip()]
 
-    @field_validator('title', 'content')
+    @field_validator("title", "content")
     @classmethod
     def validate_text_fields(cls, v: str) -> str:
-        """Ensure text fields are properly formatted.
-
-        Args:
-            v: Text field value to validate
-
-        Returns:
-            Stripped text field value
-        """
+        """Ensure text fields are properly formatted."""
         return v.strip()
 
 
 class RelationshipProperties(BaseModel):
-    """Properties for relationships between memories.
-
-    Stores metadata about the relationship including strength,
-    confidence, validation history, evidence tracking, and bi-temporal fields.
-
-    Attributes:
-        strength: Relationship strength from 0.0 to 1.0 (default 0.5)
-        confidence: Confidence in relationship from 0.0 to 1.0 (default 0.8)
-        context: Optional descriptive context for the relationship
-        evidence_count: Number of times this relationship has been validated
-        success_rate: Optional success rate (0.0 to 1.0)
-        created_at: Timestamp when relationship was created
-        last_validated: Timestamp when relationship was last validated
-        validation_count: Number of times this relationship has been validated
-        counter_evidence_count: Number of times counter-evidence was found
-        valid_from: When the fact became true (validity time)
-        valid_until: When the fact stopped being true (None = still valid)
-        recorded_at: When we learned this fact (transaction time)
-        invalidated_by: ID of relationship that superseded this one
-    """
+    """Properties for relationships between memories."""
 
     strength: float = Field(default=0.5, ge=0.0, le=1.0)
     confidence: float = Field(default=0.8, ge=0.0, le=1.0)
@@ -324,40 +233,25 @@ class RelationshipProperties(BaseModel):
     validation_count: int = Field(default=0, ge=0)
     counter_evidence_count: int = Field(default=0, ge=0)
 
-    # Bi-temporal tracking fields (Phase 2.2)
+    # Bi-temporal tracking fields
     valid_from: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        description="When the fact became true (validity time)"
+        description="When the fact became true (validity time)",
     )
     valid_until: Optional[datetime] = Field(
-        None,
-        description="When the fact stopped being true (None = still valid)"
+        None, description="When the fact stopped being true (None = still valid)"
     )
     recorded_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        description="When we learned this fact (transaction time)"
+        description="When we learned this fact (transaction time)",
     )
     invalidated_by: Optional[str] = Field(
-        None,
-        description="ID of relationship that superseded this one"
+        None, description="ID of relationship that superseded this one"
     )
 
 
 class Relationship(BaseModel):
-    """Relationship between two memories.
-
-    Represents a directed relationship from one memory to another,
-    with a specific type and associated properties.
-
-    Attributes:
-        id: Unique identifier for the relationship (auto-generated)
-        from_memory_id: ID of the source memory
-        to_memory_id: ID of the target memory
-        type: Type of relationship (SOLVES, CAUSES, RELATES_TO, etc.)
-        properties: Relationship metadata and tracking information
-        description: Optional human-readable description
-        bidirectional: Whether the relationship is bidirectional (default False)
-    """
+    """Relationship between two memories."""
 
     id: Optional[str] = None
     from_memory_id: str
@@ -367,112 +261,30 @@ class Relationship(BaseModel):
     description: Optional[str] = None
     bidirectional: bool = Field(default=False)
 
-    @field_validator('from_memory_id', 'to_memory_id')
+    @field_validator("from_memory_id", "to_memory_id")
     @classmethod
     def validate_memory_ids(cls, v: str) -> str:
-        """Ensure memory IDs are non-empty.
-
-        Args:
-            v: Memory ID to validate
-
-        Returns:
-            Stripped memory ID
-
-        Raises:
-            ValueError: If memory ID is empty or whitespace
-        """
+        """Ensure memory IDs are non-empty."""
         if not v or not v.strip():
-            raise ValueError('Memory ID cannot be empty')
+            raise ValueError("Memory ID cannot be empty")
         return v.strip()
 
 
 class MemoryNode(BaseModel):
-    """Neo4j node representation of a memory."""
-    
+    """Graph node representation of a memory."""
+
     memory: Memory
-    node_id: Optional[int] = None  # Neo4j internal node ID
+    node_id: Optional[int] = None  # Internal node ID for graph databases
     labels: List[str] = Field(default_factory=list)
-    
-    def to_neo4j_properties(self) -> Dict[str, Any]:
-        """Convert memory to Neo4j node properties.
-
-        Returns:
-            Dictionary of property names to values suitable for Neo4j storage
-        """
-        props = {
-            'id': self.memory.id,
-            'type': self.memory.type.value,
-            'title': self.memory.title,
-            'content': self.memory.content,
-            'tags': self.memory.tags,
-            'importance': self.memory.importance,
-            'confidence': self.memory.confidence,
-            'usage_count': self.memory.usage_count,
-            'created_at': self.memory.created_at.isoformat(),
-            'updated_at': self.memory.updated_at.isoformat(),
-        }
-        
-        # Add optional fields if present
-        if self.memory.summary:
-            props['summary'] = self.memory.summary
-        if self.memory.effectiveness is not None:
-            props['effectiveness'] = self.memory.effectiveness
-        if self.memory.last_accessed:
-            props['last_accessed'] = self.memory.last_accessed.isoformat()
-        
-        # Add context information if present
-        if self.memory.context:
-            import json
-            context_data = self.memory.context.model_dump()
-            for key, value in context_data.items():
-                if value is not None:
-                    if isinstance(value, datetime):
-                        props[f'context_{key}'] = value.isoformat()
-                    elif isinstance(value, list):
-                        # Store lists as native Neo4j arrays (only if simple types)
-                        if value and all(isinstance(v, (str, int, float, bool)) for v in value):
-                            props[f'context_{key}'] = value
-                        else:
-                            # Complex nested structures: use JSON serialization
-                            props[f'context_{key}'] = json.dumps(value)
-                    elif isinstance(value, dict):
-                        # Dicts must be serialized as JSON strings for Neo4j compatibility
-                        props[f'context_{key}'] = json.dumps(value)
-                    else:
-                        props[f'context_{key}'] = value
-
-        return props
 
 
 class SearchQuery(BaseModel):
-    """Search query parameters for memory retrieval.
-
-    Supports various filtering options including text search, type filtering,
-    metadata filters, and search tolerance modes.
-
-    Attributes:
-        query: Text query for content search (optional)
-        terms: Multiple search terms for multi-term queries
-        memory_types: Filter by specific memory types
-        tags: Filter by tags
-        project_path: Filter by project path
-        languages: Filter by programming languages
-        frameworks: Filter by frameworks
-        min_importance: Minimum importance threshold (0.0-1.0)
-        min_confidence: Minimum confidence threshold (0.0-1.0)
-        min_effectiveness: Minimum effectiveness threshold (0.0-1.0)
-        created_after: Only include memories created after this datetime
-        created_before: Only include memories created before this datetime
-        limit: Maximum number of results (1-1000, default 50)
-        offset: Number of results to skip for pagination (default 0)
-        include_relationships: Include relationship information in results
-        search_tolerance: Search mode - 'strict', 'normal', or 'fuzzy'
-        match_mode: Term matching mode - 'any' (OR) or 'all' (AND)
-        relationship_filter: Filter results by relationship types
-    """
+    """Search query parameters for memory retrieval."""
 
     query: Optional[str] = None
-    terms: List[str] = Field(default_factory=list, description="Multiple search terms for multi-term queries")
+    terms: List[str] = Field(
+        default_factory=list, description="Multiple search terms for multi-term queries"
+    )
     memory_types: List[MemoryType] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
     project_path: Optional[str] = None
@@ -487,59 +299,38 @@ class SearchQuery(BaseModel):
     offset: int = Field(default=0, ge=0)
     include_relationships: bool = Field(default=True)
     search_tolerance: Optional[str] = Field(default="normal")
-    match_mode: Optional[str] = Field(default="any", description="Match mode for terms: 'any' (OR) or 'all' (AND)")
-    relationship_filter: Optional[List[str]] = Field(default=None, description="Filter results by relationship types")
+    match_mode: Optional[str] = Field(
+        default="any", description="Match mode for terms: 'any' (OR) or 'all' (AND)"
+    )
+    relationship_filter: Optional[List[str]] = Field(
+        default=None, description="Filter results by relationship types"
+    )
 
-    @field_validator('tags', mode='before')
+    @field_validator("tags", mode="before")
     @classmethod
     def validate_tags(cls, v):
-        """Ensure tags are lowercase and non-empty.
-
-        Args:
-            v: List of tag strings to validate
-
-        Returns:
-            List of cleaned, lowercase, non-empty tags
-        """
+        """Ensure tags are lowercase and non-empty."""
         if v is None:
             return []
         return [tag.lower().strip() for tag in v if tag and tag.strip()]
 
-    @field_validator('search_tolerance')
+    @field_validator("search_tolerance")
     @classmethod
     def validate_search_tolerance(cls, v: Optional[str]) -> str:
-        """Validate search_tolerance parameter.
-
-        Args:
-            v: Search tolerance value to validate
-
-        Returns:
-            Validated search tolerance value
-
-        Raises:
-            ValueError: If value is not 'strict', 'normal', or 'fuzzy'
-        """
+        """Validate search_tolerance parameter."""
         if v is None:
             return "normal"
         valid_values = ["strict", "normal", "fuzzy"]
         if v not in valid_values:
-            raise ValueError(f"search_tolerance must be one of {valid_values}, got '{v}'")
+            raise ValueError(
+                f"search_tolerance must be one of {valid_values}, got '{v}'"
+            )
         return v
 
-    @field_validator('match_mode')
+    @field_validator("match_mode")
     @classmethod
     def validate_match_mode(cls, v: Optional[str]) -> str:
-        """Validate match_mode parameter.
-
-        Args:
-            v: Match mode value to validate
-
-        Returns:
-            Validated match mode value
-
-        Raises:
-            ValueError: If value is not 'any' or 'all'
-        """
+        """Validate match_mode parameter."""
         if v is None:
             return "any"
         valid_values = ["any", "all"]
@@ -549,18 +340,7 @@ class SearchQuery(BaseModel):
 
 
 class PaginatedResult(BaseModel):
-    """Paginated result wrapper for memory search operations.
-
-    Provides pagination metadata to help clients navigate large result sets.
-
-    Attributes:
-        results: List of memories in this page
-        total_count: Total number of memories matching the query
-        limit: Maximum number of results per page
-        offset: Number of results skipped
-        has_more: True if more results are available
-        next_offset: Offset for the next page (None if no more pages)
-    """
+    """Paginated result wrapper for memory search operations."""
 
     results: List[Memory]
     total_count: int = Field(ge=0)
@@ -576,29 +356,16 @@ class MemoryGraph(BaseModel):
     memories: List[Memory]
     relationships: List[Relationship]
     metadata: Dict[str, Any] = Field(default_factory=dict)
-    
+
     def get_memory_by_id(self, memory_id: str) -> Optional[Memory]:
-        """Get a memory by its ID.
-
-        Args:
-            memory_id: Unique identifier of the memory to retrieve
-
-        Returns:
-            Memory object if found, None otherwise
-        """
+        """Get a memory by its ID."""
         return next((m for m in self.memories if m.id == memory_id), None)
 
     def get_relationships_for_memory(self, memory_id: str) -> List[Relationship]:
-        """Get all relationships involving a specific memory.
-
-        Args:
-            memory_id: ID of the memory to find relationships for
-
-        Returns:
-            List of relationships where memory is source or target
-        """
+        """Get all relationships involving a specific memory."""
         return [
-            r for r in self.relationships
+            r
+            for r in self.relationships
             if r.from_memory_id == memory_id or r.to_memory_id == memory_id
         ]
 
@@ -614,52 +381,24 @@ class AnalysisResult(BaseModel):
 
 
 # Custom Exception Hierarchy
-
 class MemoryError(Exception):
-    """Base exception for all memory-related errors.
-
-    All custom exceptions in the memory system inherit from this base class,
-    allowing for consistent error handling and categorization.
-
-    Attributes:
-        message: Human-readable error message
-        details: Optional dictionary with additional error context
-    """
+    """Base exception for all memory-related errors."""
 
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
-        """Initialize memory error.
-
-        Args:
-            message: Human-readable error message
-            details: Optional dictionary with additional error context
-        """
         self.message = message
         self.details = details or {}
         super().__init__(self.message)
 
     def __str__(self) -> str:
-        """Return string representation of error."""
         if self.details:
             return f"{self.message} (Details: {self.details})"
         return self.message
 
 
 class MemoryNotFoundError(MemoryError):
-    """Raised when a requested memory does not exist.
-
-    Attributes:
-        memory_id: ID of the memory that was not found
-        message: Error message with memory ID
-        details: Optional additional context
-    """
+    """Raised when a requested memory does not exist."""
 
     def __init__(self, memory_id: str, details: Optional[Dict[str, Any]] = None):
-        """Initialize memory not found error.
-
-        Args:
-            memory_id: ID of the memory that was not found
-            details: Optional additional context
-        """
         self.memory_id = memory_id
         message = f"Memory not found: {memory_id}"
         super().__init__(message, details)
@@ -667,34 +406,41 @@ class MemoryNotFoundError(MemoryError):
 
 class RelationshipError(MemoryError):
     """Raised when there's an issue with relationship operations."""
+
     pass
 
 
 class ValidationError(MemoryError):
     """Raised when data validation fails."""
+
     pass
 
 
 class DatabaseConnectionError(MemoryError):
     """Raised when there's a database connection issue."""
+
     pass
 
 
 class SchemaError(MemoryError):
     """Raised when there's a schema-related issue."""
+
     pass
 
 
 class NotFoundError(MemoryError):
     """Alias for MemoryNotFoundError for consistency with workplan naming."""
+
     pass
 
 
 class BackendError(MemoryError):
     """Raised when there's a backend operation issue."""
+
     pass
 
 
 class ConfigurationError(MemoryError):
     """Raised when there's a configuration issue."""
+
     pass
