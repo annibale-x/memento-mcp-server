@@ -2,23 +2,38 @@
 Export and import utilities for MemoryGraph data.
 
 Supports JSON and Markdown export formats.
-Works with all backends (SQLite, Neo4j, Memgraph, FalkorDB, FalkorDBLite).
+Works with SQLite backend.
 """
 
 import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Callable, Set, Tuple, Union, Protocol, TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Protocol,
+    Set,
+    Tuple,
+    Union,
+)
 
 from ..models import (
-    Memory, MemoryType, MemoryContext, RelationshipType, RelationshipProperties,
-    SearchQuery, Relationship
+    Memory,
+    MemoryContext,
+    MemoryType,
+    Relationship,
+    RelationshipProperties,
+    RelationshipType,
+    SearchQuery,
 )
 from .pagination import paginate_memories
 
 if TYPE_CHECKING:
-    from ..database import MemoryDatabase
     from ..sqlite_database import SQLiteMemoryDatabase
 
 logger = logging.getLogger(__name__)
@@ -32,24 +47,20 @@ class MemoryDatabaseProtocol(Protocol):
         memory_id: str,
         relationship_types: Optional[List[RelationshipType]] = None,
         max_depth: int = 1,
-        limit: int = 100
+        limit: int = 100,
     ) -> List[Tuple[Memory, Relationship]]:
         """Get related memories for a given memory."""
         ...
 
     async def search_memories(
-        self,
-        query: SearchQuery,
-        limit: int = 10,
-        offset: int = 0
+        self, query: SearchQuery, limit: int = 10, offset: int = 0
     ) -> List[Memory]:
         """Search for memories."""
         ...
 
 
 async def _export_relationships(
-    db: MemoryDatabaseProtocol,
-    memories: List[Memory]
+    db: MemoryDatabaseProtocol, memories: List[Memory]
 ) -> List[Dict[str, Any]]:
     """
     Export all relationships for given memories using backend-agnostic methods.
@@ -65,14 +76,15 @@ async def _export_relationships(
 
     for memory in memories:
         try:
-            related = await db.get_related_memories(
-                memory_id=memory.id,
-                max_depth=1
-            )
+            related = await db.get_related_memories(memory_id=memory.id, max_depth=1)
 
             for related_memory, relationship in related:
                 # Use tuple as key for deduplication (from_id, to_id, type)
-                key = (relationship.from_memory_id, relationship.to_memory_id, relationship.type.value)
+                key = (
+                    relationship.from_memory_id,
+                    relationship.to_memory_id,
+                    relationship.type.value,
+                )
 
                 if key not in relationships_map:
                     rel_dict = {
@@ -83,12 +95,14 @@ async def _export_relationships(
                             "strength": relationship.properties.strength,
                             "confidence": relationship.properties.confidence,
                             "context": relationship.properties.context,
-                            "evidence_count": relationship.properties.evidence_count
-                        }
+                            "evidence_count": relationship.properties.evidence_count,
+                        },
                     }
                     relationships_map[key] = rel_dict
         except Exception as e:
-            logger.warning(f"Failed to export relationships for memory {memory.id}: {e}")
+            logger.warning(
+                f"Failed to export relationships for memory {memory.id}: {e}"
+            )
             continue
 
     return list(relationships_map.values())
@@ -97,7 +111,7 @@ async def _export_relationships(
 async def export_to_json(
     db: MemoryDatabaseProtocol,
     output_path: str,
-    progress_callback: Optional[Callable[[int, int], None]] = None
+    progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> Dict[str, Any]:
     """
     Export all memories and relationships to JSON format.
@@ -125,7 +139,9 @@ async def export_to_json(
             # We don't know total in advance without an extra query, so pass current count twice
             progress_callback(count, count)
 
-    async for batch in paginate_memories(db, batch_size=1000, progress_callback=progress_reporter):
+    async for batch in paginate_memories(
+        db, batch_size=1000, progress_callback=progress_reporter
+    ):
         all_memories.extend(batch)
 
     logger.info(f"Exported {len(all_memories)} memories")
@@ -148,14 +164,23 @@ async def export_to_json(
             "importance": memory.importance,
             "confidence": memory.confidence,
             "created_at": memory.created_at.isoformat(),
-            "updated_at": memory.updated_at.isoformat()
+            "updated_at": memory.updated_at.isoformat(),
         }
 
         # Add context if present
         if memory.context:
             memory_dict["context"] = {}
-            for field in ["project_path", "function_name", "class_name", "files_involved",
-                         "languages", "frameworks", "technologies", "environment", "additional_metadata"]:
+            for field in [
+                "project_path",
+                "function_name",
+                "class_name",
+                "files_involved",
+                "languages",
+                "frameworks",
+                "technologies",
+                "environment",
+                "additional_metadata",
+            ]:
                 value = getattr(memory.context, field, None)
                 if value is not None:
                     memory_dict["context"][field] = value
@@ -164,9 +189,9 @@ async def export_to_json(
 
     # Get backend name if available
     backend_type = "unknown"
-    if hasattr(db, 'backend') and hasattr(db.backend, 'backend_name'):
+    if hasattr(db, "backend") and hasattr(db.backend, "backend_name"):
         backend_type = db.backend.backend_name()
-    elif hasattr(db, 'connection') and hasattr(db.connection, 'backend_name'):
+    elif hasattr(db, "connection") and hasattr(db.connection, "backend_name"):
         backend_type = db.connection.backend_name()
 
     # Create export data structure (format v2.0 for universal export)
@@ -178,23 +203,25 @@ async def export_to_json(
         "memory_count": len(memories_data),
         "relationship_count": len(relationships_data),
         "memories": memories_data,
-        "relationships": relationships_data
+        "relationships": relationships_data,
     }
 
     # Write to file
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         json.dump(export_data, f, indent=2)
 
-    logger.info(f"Export complete: {len(memories_data)} memories and {len(relationships_data)} relationships to {output_path}")
+    logger.info(
+        f"Export complete: {len(memories_data)} memories and {len(relationships_data)} relationships to {output_path}"
+    )
 
     return {
         "memory_count": len(memories_data),
         "relationship_count": len(relationships_data),
         "backend_type": backend_type,
-        "output_path": output_path
+        "output_path": output_path,
     }
 
 
@@ -202,7 +229,7 @@ async def import_from_json(
     db: MemoryDatabaseProtocol,
     input_path: str,
     skip_duplicates: bool = False,
-    progress_callback: Optional[Callable[[int, int], None]] = None
+    progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> Dict[str, int]:
     """
     Import memories and relationships from JSON format.
@@ -227,7 +254,7 @@ async def import_from_json(
         ValueError: If JSON format is invalid
     """
     # Read JSON file
-    with open(input_path, 'r') as f:
+    with open(input_path, "r") as f:
         data = json.load(f)
 
     # Validate structure
@@ -265,7 +292,9 @@ async def import_from_json(
         from_id = rel_data.get("from_memory_id")
         to_id = rel_data.get("to_memory_id")
         if from_id not in memory_ids or to_id not in memory_ids:
-            logger.warning(f"Relationship references missing memory: {from_id} -> {to_id}")
+            logger.warning(
+                f"Relationship references missing memory: {from_id} -> {to_id}"
+            )
 
     imported_memories = 0
     skipped_memories = 0
@@ -276,7 +305,9 @@ async def import_from_json(
         try:
             # Check if memory already exists
             if skip_duplicates:
-                existing = await db.get_memory(mem_data["id"], include_relationships=False)
+                existing = await db.get_memory(
+                    mem_data["id"], include_relationships=False
+                )
                 if existing:
                     skipped_memories += 1
                     logger.debug(f"Skipping duplicate memory: {mem_data['id']}")
@@ -293,7 +324,7 @@ async def import_from_json(
                 summary=mem_data.get("summary"),
                 tags=mem_data.get("tags", []),
                 importance=mem_data.get("importance", 0.5),
-                confidence=mem_data.get("confidence", 0.8)
+                confidence=mem_data.get("confidence", 0.8),
             )
 
             # Add context if present
@@ -320,8 +351,12 @@ async def import_from_json(
     for idx, rel_data in enumerate(data["relationships"], 1):
         try:
             # Verify both memories exist
-            from_mem = await db.get_memory(rel_data["from_memory_id"], include_relationships=False)
-            to_mem = await db.get_memory(rel_data["to_memory_id"], include_relationships=False)
+            from_mem = await db.get_memory(
+                rel_data["from_memory_id"], include_relationships=False
+            )
+            to_mem = await db.get_memory(
+                rel_data["to_memory_id"], include_relationships=False
+            )
 
             if not from_mem or not to_mem:
                 logger.warning(f"Skipping relationship: one or both memories not found")
@@ -334,14 +369,14 @@ async def import_from_json(
                 strength=props_data.get("strength", 0.5),
                 confidence=props_data.get("confidence", 0.8),
                 context=props_data.get("context"),
-                evidence_count=props_data.get("evidence_count", 1)
+                evidence_count=props_data.get("evidence_count", 1),
             )
 
             await db.create_relationship(
                 from_memory_id=rel_data["from_memory_id"],
                 to_memory_id=rel_data["to_memory_id"],
                 relationship_type=RelationshipType(rel_data["type"]),
-                properties=properties
+                properties=properties,
             )
             imported_relationships += 1
 
@@ -358,14 +393,11 @@ async def import_from_json(
         "imported_memories": imported_memories,
         "imported_relationships": imported_relationships,
         "skipped_memories": skipped_memories,
-        "skipped_relationships": skipped_relationships
+        "skipped_relationships": skipped_relationships,
     }
 
 
-async def export_to_markdown(
-    db: MemoryDatabaseProtocol,
-    output_dir: str
-) -> None:
+async def export_to_markdown(db: MemoryDatabaseProtocol, output_dir: str) -> None:
     """
     Export all memories to Markdown files.
 
@@ -393,8 +425,10 @@ async def export_to_markdown(
 
     for memory in all_memories:
         # Create safe filename from title
-        safe_title = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in memory.title)
-        safe_title = safe_title.replace(' ', '_')
+        safe_title = "".join(
+            c if c.isalnum() or c in (" ", "-", "_") else "_" for c in memory.title
+        )
+        safe_title = safe_title.replace(" ", "_")
         filename = f"{safe_title}_{memory.id[:8]}.md"
 
         # Get relationships for this memory
@@ -410,7 +444,7 @@ async def export_to_markdown(
             f"confidence: {memory.confidence}",
             f"tags: [{', '.join(memory.tags)}]",
             f"created_at: {memory.created_at.isoformat()}",
-            f"updated_at: {memory.updated_at.isoformat()}"
+            f"updated_at: {memory.updated_at.isoformat()}",
         ]
 
         # Add context
@@ -418,9 +452,13 @@ async def export_to_markdown(
             if memory.context.project_path:
                 content_lines.append(f"project: {memory.context.project_path}")
             if memory.context.languages:
-                content_lines.append(f"languages: [{', '.join(memory.context.languages)}]")
+                content_lines.append(
+                    f"languages: [{', '.join(memory.context.languages)}]"
+                )
             if memory.context.technologies:
-                content_lines.append(f"technologies: [{', '.join(memory.context.technologies)}]")
+                content_lines.append(
+                    f"technologies: [{', '.join(memory.context.technologies)}]"
+                )
 
         content_lines.append("---")
         content_lines.append("")
@@ -447,6 +485,6 @@ async def export_to_markdown(
 
         # Write file
         file_path = output_path / filename
-        file_path.write_text('\n'.join(content_lines))
+        file_path.write_text("\n".join(content_lines))
 
     logger.info(f"Exported {len(all_memories)} memories to {output_dir}")

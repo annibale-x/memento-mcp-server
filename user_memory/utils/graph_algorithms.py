@@ -6,7 +6,8 @@ and other graph operations on memory relationships.
 """
 
 import logging
-from typing import Set, Optional
+from typing import Optional, Set
+
 from ..models import RelationshipType
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ async def has_cycle(
     from_memory_id: str,
     to_memory_id: str,
     relationship_type: RelationshipType,
-    max_depth: int = 100
+    max_depth: int = 100,
 ) -> bool:
     """
     Check if adding a relationship would create a cycle in the graph.
@@ -89,7 +90,7 @@ async def has_cycle(
             relationships = await memory_db.get_related_memories(
                 current_id,
                 relationship_types=[relationship_type],
-                max_depth=1  # Only immediate neighbors
+                max_depth=1,  # Only immediate neighbors
             )
 
             # Traverse each neighbor
@@ -100,9 +101,7 @@ async def has_cycle(
 
                 # Get the actual relationship to determine direction
                 rels = await _get_outgoing_relationships(
-                    memory_db,
-                    current_id,
-                    relationship_type
+                    memory_db, current_id, relationship_type
                 )
 
                 for target_id in rels:
@@ -133,9 +132,7 @@ async def has_cycle(
 
 
 async def _get_outgoing_relationships(
-    memory_db,
-    from_memory_id: str,
-    relationship_type: RelationshipType
+    memory_db, from_memory_id: str, relationship_type: RelationshipType
 ) -> list[str]:
     """
     Get target memory IDs for all outgoing relationships of a specific type.
@@ -149,37 +146,22 @@ async def _get_outgoing_relationships(
         List of target memory IDs
     """
     try:
-        # Query depends on database backend
         # For SQLite backend, query the relationships table directly
-        if hasattr(memory_db, 'backend'):
-            query = """
-                SELECT to_id FROM relationships
-                WHERE from_id = ? AND rel_type = ?
-            """
-            result = memory_db.backend.execute_sync(
-                query,
-                (from_memory_id, relationship_type.value)
-            )
-            return [row['to_id'] for row in result]
-        else:
-            # For Neo4j/other backends, use Cypher query
-            query = f"""
-                MATCH (m:Memory {{id: $from_id}})-[r:{relationship_type.value}]->(target:Memory)
-                RETURN target.id as to_id
-            """
-            result = await memory_db.connection.execute_read_query(
-                query,
-                {"from_id": from_memory_id}
-            )
-            return [row['to_id'] for row in result]
+        query = """
+            SELECT to_id FROM relationships
+            WHERE from_id = ? AND rel_type = ?
+        """
+        result = memory_db.backend.execute_sync(
+            query, (from_memory_id, relationship_type.value)
+        )
+        return [row["to_id"] for row in result]
     except Exception as e:
         logger.error(f"Error getting outgoing relationships: {e}")
         return []
 
 
 async def find_all_cycles(
-    memory_db,
-    relationship_type: Optional[RelationshipType] = None
+    memory_db, relationship_type: Optional[RelationshipType] = None
 ) -> list[list[str]]:
     """
     Find all cycles in the memory graph.

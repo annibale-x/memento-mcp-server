@@ -12,14 +12,16 @@ from typing import Any, Dict, Union
 
 from mcp.types import CallToolResult, TextContent
 
-from ..database import MemoryDatabase
 from ..models import Memory
+from ..sqlite_database import SQLiteMemoryDatabase
 from .error_handling import handle_tool_errors
 
 logger = logging.getLogger(__name__)
 
 
-def _get_memory_attr(memory: Union[Memory, Dict[str, Any]], attr: str, default: Any = None) -> Any:
+def _get_memory_attr(
+    memory: Union[Memory, Dict[str, Any]], attr: str, default: Any = None
+) -> Any:
     """Get attribute from Memory object or dict, handling both cases.
 
     Args:
@@ -43,8 +45,7 @@ def _get_memory_attr(memory: Union[Memory, Dict[str, Any]], attr: str, default: 
 
 @handle_tool_errors("get memory statistics")
 async def handle_get_memory_statistics(
-    memory_db: MemoryDatabase,
-    arguments: Dict[str, Any]
+    memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle get_memory_statistics tool call.
 
@@ -69,23 +70,26 @@ async def handle_get_memory_statistics(
             stats_text += f"- {mem_type}: {count}\n"
 
     if stats.get("total_relationships"):
-        stats_text += f"\nTotal Relationships: {stats['total_relationships']['count']}\n"
+        stats_text += (
+            f"\nTotal Relationships: {stats['total_relationships']['count']}\n"
+        )
 
     if stats.get("avg_importance"):
-        stats_text += f"Average Importance: {stats['avg_importance']['avg_importance']:.2f}\n"
+        stats_text += (
+            f"Average Importance: {stats['avg_importance']['avg_importance']:.2f}\n"
+        )
 
     if stats.get("avg_confidence"):
-        stats_text += f"Average Confidence: {stats['avg_confidence']['avg_confidence']:.2f}\n"
+        stats_text += (
+            f"Average Confidence: {stats['avg_confidence']['avg_confidence']:.2f}\n"
+        )
 
-    return CallToolResult(
-        content=[TextContent(type="text", text=stats_text)]
-    )
+    return CallToolResult(content=[TextContent(type="text", text=stats_text)])
 
 
 @handle_tool_errors("get recent activity")
 async def handle_get_recent_activity(
-    memory_db: MemoryDatabase,
-    arguments: Dict[str, Any]
+    memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle get_recent_activity tool call.
 
@@ -99,13 +103,15 @@ async def handle_get_recent_activity(
         CallToolResult with formatted activity summary or error message
     """
     # Check if database supports get_recent_activity
-    if not hasattr(memory_db, 'get_recent_activity'):
+    if not hasattr(memory_db, "get_recent_activity"):
         return CallToolResult(
-            content=[TextContent(
-                type="text",
-                text="Recent activity summary is not supported by this backend"
-            )],
-            isError=True
+            content=[
+                TextContent(
+                    type="text",
+                    text="Recent activity summary is not supported by this backend",
+                )
+            ],
+            isError=True,
         )
 
     days = arguments.get("days", 7)
@@ -114,6 +120,7 @@ async def handle_get_recent_activity(
     # Auto-detect project if not specified
     if not project:
         from ..utils.project_detection import detect_project_context
+
         project_info = detect_project_context()
         if project_info:
             project = project_info.get("project_path")
@@ -130,31 +137,35 @@ async def handle_get_recent_activity(
     result_text += f"**Total Memories**: {activity['total_count']}\n\n"
 
     # Memories by type
-    if activity['memories_by_type']:
+    if activity["memories_by_type"]:
         result_text += "**Breakdown by Type**:\n"
-        for mem_type, count in sorted(activity['memories_by_type'].items(), key=lambda x: x[1], reverse=True):
+        for mem_type, count in sorted(
+            activity["memories_by_type"].items(), key=lambda x: x[1], reverse=True
+        ):
             result_text += f"- {mem_type.replace('_', ' ').title()}: {count}\n"
         result_text += "\n"
 
     # Unresolved problems
-    if activity['unresolved_problems']:
-        result_text += f"**⚠️ Unresolved Problems ({len(activity['unresolved_problems'])})**:\n"
-        for problem in activity['unresolved_problems']:
-            title = _get_memory_attr(problem, 'title', 'Unknown')
-            importance = _get_memory_attr(problem, 'importance', 0.5)
-            summary = _get_memory_attr(problem, 'summary')
+    if activity["unresolved_problems"]:
+        result_text += (
+            f"**⚠️ Unresolved Problems ({len(activity['unresolved_problems'])})**:\n"
+        )
+        for problem in activity["unresolved_problems"]:
+            title = _get_memory_attr(problem, "title", "Unknown")
+            importance = _get_memory_attr(problem, "importance", 0.5)
+            summary = _get_memory_attr(problem, "summary")
             result_text += f"- **{title}** (importance: {importance:.1f})\n"
             if summary:
                 result_text += f"  {summary}\n"
         result_text += "\n"
 
     # Recent memories
-    if activity['recent_memories']:
+    if activity["recent_memories"]:
         result_text += f"**Recent Memories** (showing {min(10, len(activity['recent_memories']))}):\n"
-        for i, memory in enumerate(activity['recent_memories'][:10], 1):
-            title = _get_memory_attr(memory, 'title', 'Unknown')
-            mem_type = _get_memory_attr(memory, 'type', 'general')
-            summary = _get_memory_attr(memory, 'summary')
+        for i, memory in enumerate(activity["recent_memories"][:10], 1):
+            title = _get_memory_attr(memory, "title", "Unknown")
+            mem_type = _get_memory_attr(memory, "type", "general")
+            summary = _get_memory_attr(memory, "summary")
             result_text += f"{i}. **{title}** ({mem_type})\n"
             if summary:
                 result_text += f"   {summary}\n"
@@ -162,21 +173,18 @@ async def handle_get_recent_activity(
 
     # Next steps suggestion
     result_text += "**💡 Next Steps**:\n"
-    if activity['unresolved_problems']:
+    if activity["unresolved_problems"]:
         result_text += "- Review unresolved problems and consider solutions\n"
-        result_text += "- Use `get_memory(memory_id=\"...\")` for details\n"
+        result_text += '- Use `get_memory(memory_id="...")` for details\n'
     else:
         result_text += "- All problems have been addressed!\n"
 
-    return CallToolResult(
-        content=[TextContent(type="text", text=result_text)]
-    )
+    return CallToolResult(content=[TextContent(type="text", text=result_text)])
 
 
 @handle_tool_errors("search relationships by context")
 async def handle_search_relationships_by_context(
-    memory_db: MemoryDatabase,
-    arguments: Dict[str, Any]
+    memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle search_relationships_by_context tool call.
 
@@ -195,13 +203,15 @@ async def handle_search_relationships_by_context(
         CallToolResult with formatted relationship results or error message
     """
     # Check if database supports search_relationships_by_context method
-    if not hasattr(memory_db, 'search_relationships_by_context'):
+    if not hasattr(memory_db, "search_relationships_by_context"):
         return CallToolResult(
-            content=[TextContent(
-                type="text",
-                text="Context-based relationship search is not supported by this backend"
-            )],
-            isError=True
+            content=[
+                TextContent(
+                    type="text",
+                    text="Context-based relationship search is not supported by this backend",
+                )
+            ],
+            isError=True,
         )
 
     relationships = await memory_db.search_relationships_by_context(
@@ -211,19 +221,23 @@ async def handle_search_relationships_by_context(
         evidence=arguments.get("evidence"),
         components=arguments.get("components"),
         temporal=arguments.get("temporal"),
-        limit=arguments.get("limit", 20)
+        limit=arguments.get("limit", 20),
     )
 
     if not relationships:
         return CallToolResult(
-            content=[TextContent(
-                type="text",
-                text="No relationships found matching the specified context criteria"
-            )]
+            content=[
+                TextContent(
+                    type="text",
+                    text="No relationships found matching the specified context criteria",
+                )
+            ]
         )
 
     # Format results
-    result_text = f"**Found {len(relationships)} relationships matching context criteria**\n\n"
+    result_text = (
+        f"**Found {len(relationships)} relationships matching context criteria**\n\n"
+    )
 
     # Show applied filters
     filters_applied = []
@@ -257,6 +271,4 @@ async def handle_search_relationships_by_context(
             result_text += f"   - Context: {rel.properties.context}\n"
         result_text += "\n"
 
-    return CallToolResult(
-        content=[TextContent(type="text", text=result_text)]
-    )
+    return CallToolResult(content=[TextContent(type="text", text=result_text)])

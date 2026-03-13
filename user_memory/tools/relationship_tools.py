@@ -12,8 +12,8 @@ from typing import Any, Dict
 
 from mcp.types import CallToolResult, TextContent
 
-from ..database import MemoryDatabase
-from ..models import RelationshipType, RelationshipProperties
+from ..models import RelationshipProperties, RelationshipType
+from ..sqlite_database import SQLiteMemoryDatabase
 from ..utils.validation import validate_relationship_input
 from .error_handling import handle_tool_errors
 
@@ -22,8 +22,7 @@ logger = logging.getLogger(__name__)
 
 @handle_tool_errors("create relationship")
 async def handle_create_relationship(
-    memory_db: MemoryDatabase,
-    arguments: Dict[str, Any]
+    memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle create_relationship tool call.
 
@@ -50,34 +49,36 @@ async def handle_create_relationship(
     structured_context = None
     if user_context:
         from ..utils.context_extractor import extract_context_structure
+
         structure = extract_context_structure(user_context)
         structured_context = json.dumps(structure)  # Serialize to JSON string
 
     properties = RelationshipProperties(
         strength=arguments.get("strength", 0.5),
         confidence=arguments.get("confidence", 0.8),
-        context=structured_context  # Store JSON string
+        context=structured_context,  # Store JSON string
     )
 
     relationship_id = await memory_db.create_relationship(
         from_memory_id=arguments["from_memory_id"],
         to_memory_id=arguments["to_memory_id"],
         relationship_type=RelationshipType(arguments["relationship_type"]),
-        properties=properties
+        properties=properties,
     )
 
     return CallToolResult(
-        content=[TextContent(
-            type="text",
-            text=f"Relationship created successfully: {relationship_id}"
-        )]
+        content=[
+            TextContent(
+                type="text",
+                text=f"Relationship created successfully: {relationship_id}",
+            )
+        ]
     )
 
 
 @handle_tool_errors("get related memories")
 async def handle_get_related_memories(
-    memory_db: MemoryDatabase,
-    arguments: Dict[str, Any]
+    memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle get_related_memories tool call.
 
@@ -95,22 +96,23 @@ async def handle_get_related_memories(
     relationship_types = None
 
     if "relationship_types" in arguments:
-        relationship_types = [RelationshipType(t) for t in arguments["relationship_types"]]
+        relationship_types = [
+            RelationshipType(t) for t in arguments["relationship_types"]
+        ]
 
     max_depth = arguments.get("max_depth", 2)
 
     related_memories = await memory_db.get_related_memories(
-        memory_id=memory_id,
-        relationship_types=relationship_types,
-        max_depth=max_depth
+        memory_id=memory_id, relationship_types=relationship_types, max_depth=max_depth
     )
 
     if not related_memories:
         return CallToolResult(
-            content=[TextContent(
-                type="text",
-                text=f"No related memories found for: {memory_id}"
-            )]
+            content=[
+                TextContent(
+                    type="text", text=f"No related memories found for: {memory_id}"
+                )
+            ]
         )
 
     # Format results
@@ -118,8 +120,8 @@ async def handle_get_related_memories(
     for i, (memory, relationship) in enumerate(related_memories, 1):
         results_text += f"**{i}. {memory.title}** (ID: {memory.id})\n"
         results_text += f"Relationship: {relationship.type.value} (strength: {relationship.properties.strength})\n"
-        results_text += f"Type: {memory.type.value} | Importance: {memory.importance}\n\n"
+        results_text += (
+            f"Type: {memory.type.value} | Importance: {memory.importance}\n\n"
+        )
 
-    return CallToolResult(
-        content=[TextContent(type="text", text=results_text)]
-    )
+    return CallToolResult(content=[TextContent(type="text", text=results_text)])
