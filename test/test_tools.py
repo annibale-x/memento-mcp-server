@@ -1,5 +1,5 @@
 """
-Test file for MCP tools functionality in mcp-user-memory
+Test file for MCP tools functionality in mcp-context-server
 Tests tool-related models and validation without requiring server initialization.
 """
 
@@ -7,10 +7,10 @@ import json
 import os
 import sys
 
-# Add parent directory to path to import user_memory
+# Add parent directory to path to import context_server
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from user_memory.models import Memory, MemoryContext, MemoryType, RelationshipType
+from context_server.models import Memory, MemoryContext, MemoryType, RelationshipType
 
 
 def test_memory_model_validation():

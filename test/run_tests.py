@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test runner for mcp-user-memory project.
+Test runner for mcp-context-server project.
 
 This script runs all test files and provides a comprehensive test report.
 All output is in English.
@@ -21,8 +21,8 @@ from typing import Dict, List, Tuple
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
-    from user_memory import MemoryGraphServer
-    from user_memory.models import MemoryType, RelationshipType
+    from context_server import MemoryGraphServer
+    from context_server.models import MemoryType, RelationshipType
 
     IMPORT_SUCCESS = True
 except ImportError as e:
@@ -38,7 +38,7 @@ class TestRunner:
         self.output_file = output_file
         self.results = {
             "timestamp": datetime.now().isoformat(),
-            "project": "mcp-user-memory",
+            "project": "mcp-context-server",
             "tests": {},
             "summary": {
                 "total": 0,
@@ -216,7 +216,7 @@ class TestRunner:
 
         try:
             if not IMPORT_SUCCESS:
-                raise ImportError(f"Failed to import user_memory: {IMPORT_ERROR}")
+                raise ImportError(f"Failed to import context_server: {IMPORT_ERROR}")
 
             # Test basic imports
             test_result["details"]["imports"] = {
@@ -335,7 +335,7 @@ class TestRunner:
         """Run all available tests."""
         self.start_time = time.time()
         self.log("=" * 60)
-        self.log("Starting test suite for mcp-user-memory")
+        self.log("Starting test suite for mcp-context-server")
         self.log("=" * 60)
 
         # Run import test first
@@ -404,7 +404,7 @@ class TestRunner:
         summary = self.results["summary"]
         total_time = time.time() - self.start_time
 
-        self.log("\n" + "=" * 60)
+        self.log("=" * 60)
         self.log("TEST SUMMARY")
         self.log("=" * 60)
 
@@ -451,7 +451,7 @@ class TestRunner:
                         self.log(f"    WARNING: {warning}", "WARNING")
 
         # Final result
-        self.log("\n" + "=" * 60)
+        self.log("=" * 60)
         if summary["failed"] == 0:
             if sys.platform == "win32":
                 self.log("[PASS] ALL TESTS PASSED!")
@@ -476,7 +476,7 @@ class TestRunner:
 
 async def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(description="Run tests for mcp-user-memory")
+    parser = argparse.ArgumentParser(description="Run tests for mcp-context-server")
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose output"
     )

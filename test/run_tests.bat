@@ -1,5 +1,5 @@
 @echo off
-REM Test runner batch script for mcp-user-memory project
+REM Test runner batch script for mcp-context-server project
 REM Usage: run_tests.bat [options]
 
 setlocal enabledelayedexpansion
@@ -9,14 +9,17 @@ if "%CI%" == "" (
     for /F "tokens=1,2 delims=#" %%a in ('"prompt #$H#$E# & echo on & for %%b in (1) do rem"') do (
         set "DEL=%%a"
     )
+    echo.
     call :colorEcho 0A "============================================================"
+    echo.
 ) else (
     echo ============================================================
 )
 
-echo Starting test suite for mcp-user-memory
+echo Starting test suite for mcp-context-server
 if "%CI%" == "" (
     call :colorEcho 0A "============================================================"
+    echo.
 ) else (
     echo ============================================================
 )
@@ -80,6 +83,7 @@ set TEST_RESULT=%errorlevel%
 echo.
 if "%CI%" == "" (
     call :colorEcho 0A "============================================================"
+    echo.
 ) else (
     echo ============================================================
 )
@@ -97,13 +101,12 @@ if %TEST_RESULT% equ 0 (
         echo [FAIL] Some tests failed. Exit code: %TEST_RESULT%
     )
 )
-
+echo.
 if "%CI%" == "" (
     call :colorEcho 0A "============================================================"
 ) else (
     echo ============================================================
 )
-
 endlocal
 exit /b %TEST_RESULT%
 

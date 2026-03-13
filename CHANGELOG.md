@@ -1,14 +1,34 @@
 # Changelog
 
-All notable changes to the mcp-user-memory project will be documented in this file.
+All notable changes to the mcp-context-server project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-03-13
+
 ### Added
-- Initial changelog file
+- SimpleGraph class to replace NetworkX dependency
+- Lightweight in-memory graph structure for SQLite backend
+- JSON serialization support for SimpleGraph
+- Integration tests for SimpleGraph with SQLite backend
+
+### Changed
+- Replaced NetworkX dependency with custom SimpleGraph implementation
+- Updated SQLite backend to use SimpleGraph instead of NetworkX
+- Reduced external dependencies from 6 to 5 packages
+- Updated project documentation to reflect NetworkX removal
+
+### Fixed
+- JSON serialization issues with edge tuple keys
+- Graph loading when tables don't exist yet
+- Documentation inconsistencies regarding dependencies
+
+### Removed
+- NetworkX dependency (networkx>=3.0.0)
+- External graph library dependency
 
 ## [0.1.4] - 2026-03-13
 
@@ -44,8 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic configuration system
 
 ### Changed
-- Project renamed to mcp-user-memory
-- Focus on single-user, local storage use case
+- Project renamed to mcp-context-server
+- Focus on context-aware memory management for MCP servers
 - Simplified architecture for Zed editor compatibility
 
 ## [0.1.2] - 2026-03-11
@@ -97,7 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This fork focuses on simplicity and Zed editor integration
 - Only SQLite backend is supported
 - Advanced features have been removed in favor of core functionality
-- The project is now named "mcp-user-memory" to reflect its purpose
+- The project is now named "mcp-context-server" to reflect its purpose
 
 ## Acknowledgments
 

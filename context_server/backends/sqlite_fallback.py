@@ -2,8 +2,8 @@
 SQLite backend implementation for MemoryGraph.
 
 This module provides a zero-dependency backend using SQLite for persistence
-and NetworkX for graph operations. This enables the memory server to work
-without requiring external database servers.
+and SimpleGraph for in-memory graph operations. This enables the memory server to work
+without requiring external database servers or NetworkX.
 """
 
 import json
@@ -14,20 +14,16 @@ import uuid
 from pathlib import Path
 from typing import Any, Optional
 
-try:
-    import networkx as nx
-except ImportError:
-    nx = None
-
 from ..config import Config
 from ..models import DatabaseConnectionError, SchemaError
+from ..utils.simple_graph import SimpleGraph
 from .base import GraphBackend
 
 logger = logging.getLogger(__name__)
 
 
 class SQLiteFallbackBackend(GraphBackend):
-    """SQLite + NetworkX fallback implementation of the GraphBackend interface."""
+    """SQLite + SimpleGraph fallback implementation of the GraphBackend interface."""
 
     def __init__(self, db_path: Optional[str] = None):
         """
@@ -37,17 +33,13 @@ class SQLiteFallbackBackend(GraphBackend):
             db_path: Path to SQLite database file (defaults to ~/.memorygraph/memory.db)
 
         Raises:
-            DatabaseConnectionError: If NetworkX is not installed
+            DatabaseConnectionError: If SQLite connection fails
         """
-        if nx is None:
-            raise DatabaseConnectionError(
-                "NetworkX is required for SQLite fallback backend. "
-                "Install with: pip install networkx"
-            )
+        # No external dependencies required - SimpleGraph is built-in
 
         self.db_path: str = db_path if db_path is not None else Config.SQLITE_PATH
         self.conn: Optional[sqlite3.Connection] = None
-        self.graph: Optional[nx.DiGraph] = None  # type: ignore[misc,no-any-unimported]
+        self.graph: Optional[SimpleGraph] = None
         self._connected = False
 
         # Ensure directory exists
@@ -66,7 +58,7 @@ class SQLiteFallbackBackend(GraphBackend):
         try:
             self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
             self.conn.row_factory = sqlite3.Row  # Enable column access by name
-            self.graph = nx.DiGraph()
+            self.graph = SimpleGraph()
             self._connected = True
 
             # Load existing graph into memory
@@ -97,7 +89,7 @@ class SQLiteFallbackBackend(GraphBackend):
         write: bool = False,
     ) -> list[dict[str, Any]]:
         """
-        Execute a Cypher-like query translated to SQLite/NetworkX operations.
+        Execute a Cypher-like query translated to SQLite/SimpleGraph operations.
 
         Args:
             query: Cypher-style query string
@@ -109,6 +101,7 @@ class SQLiteFallbackBackend(GraphBackend):
 
         Raises:
             DatabaseConnectionError: If not connected
+            Exception: For query execution errors
             NotImplementedError: For complex Cypher queries
 
         Note:
@@ -131,7 +124,7 @@ class SQLiteFallbackBackend(GraphBackend):
             except sqlite3.Error as e:
                 raise DatabaseConnectionError(f"SQLite query failed: {e}")
 
-        # For data operations, translate to SQLite/NetworkX
+        # For data operations, translate to SQLite/SimpleGraph
         # This is a simplified implementation - full Cypher translation would be complex
         logger.warning(
             "Direct Cypher execution not supported in SQLite backend. Use database.py methods."
@@ -249,38 +242,65 @@ class SQLiteFallbackBackend(GraphBackend):
             raise SchemaError(f"Failed to initialize schema: {e}")
 
     async def _load_graph_to_memory(self) -> None:
-        """Load graph data from SQLite into NetworkX graph."""
+        """Load graph data from SQLite into SimpleGraph."""
         if not self.conn or not self.graph:
             return
 
         cursor = self.conn.cursor()
 
-        # Load nodes
-        cursor.execute("SELECT id, label, properties FROM nodes")
-        for row in cursor.fetchall():
-            node_id = row[0]
-            label = row[1]
-            properties = json.loads(row[2])
-            self.graph.add_node(node_id, label=label, **properties)
+        try:
+            # Check if nodes table exists
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='nodes'"
+            )
+            if not cursor.fetchone():
+                logger.debug("Nodes table does not exist yet, skipping graph load")
+                return
 
-        # Load relationships
-        cursor.execute(
-            "SELECT id, from_id, to_id, rel_type, properties FROM relationships"
-        )
-        for row in cursor.fetchall():
-            rel_id = row[0]
-            from_id = row[1]
-            to_id = row[2]
-            rel_type = row[3]
-            properties = json.loads(row[4])
-            self.graph.add_edge(from_id, to_id, id=rel_id, type=rel_type, **properties)
+            # Load nodes
+            cursor.execute("SELECT id, label, properties FROM nodes")
+            for row in cursor.fetchall():
+                node_id = row[0]
+                label = row[1]
+                properties = json.loads(row[2])
+                # Include label in properties for consistency
+                properties["label"] = label
+                self.graph.add_node(node_id, **properties)
 
-        logger.debug(
-            f"Loaded {self.graph.number_of_nodes()} nodes and {self.graph.number_of_edges()} edges into memory"
-        )
+            # Check if relationships table exists
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='relationships'"
+            )
+            if not cursor.fetchone():
+                logger.debug(
+                    "Relationships table does not exist yet, skipping relationships load"
+                )
+                return
+
+            # Load relationships
+            cursor.execute(
+                "SELECT id, from_id, to_id, rel_type, properties FROM relationships"
+            )
+            for row in cursor.fetchall():
+                rel_id = row[0]
+                from_id = row[1]
+                to_id = row[2]
+                rel_type = row[3]
+                properties = json.loads(row[4])
+                # Include relationship type and ID in properties
+                properties["id"] = rel_id
+                properties["type"] = rel_type
+                self.graph.add_edge(from_id, to_id, **properties)
+
+            logger.debug(
+                f"Loaded {self.graph.number_of_nodes()} nodes and {self.graph.number_of_edges()} edges into memory"
+            )
+        except sqlite3.Error as e:
+            logger.warning(f"Could not load graph from SQLite: {e}")
+            # Don't raise the error, just log it - empty graph is acceptable
 
     async def _sync_to_sqlite(self) -> None:
-        """Sync in-memory NetworkX graph to SQLite database."""
+        """Sync in-memory SimpleGraph to SQLite database."""
         if not self.conn or not self.graph:
             return
 

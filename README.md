@@ -1,663 +1,288 @@
+# MCP Context Server
+
+## Overview
+
+MCP Context Server is a context-aware memory management system for MCP (Model Context Protocol) clients like Zed Editor. It provides intelligent memory storage, retrieval, and relationship management with contextual awareness for development workflows.
+
+## Features
+
+- **Context-Aware Memory**: Store memories with project, file, language, and framework context
+- **Graph Relationships**: 35+ relationship types for connecting related memories
+- **Fuzzy Search**: Natural language querying with stemming and fuzzy matching
+- **SQLite Backend**: Simple, file-based storage with no external dependencies
+- **MCP Protocol**: Full compatibility with MCP clients including Zed Editor
+- **Bi-temporal Tracking**: Relationship validity with temporal metadata
+
 ## Quick Start
 
-### Claude Code CLI (30 seconds)
+### Installation
 
 ```bash
-# 1. Install (will use default SQLite database)
-pipx install memorygraphMCP
+# Install from local source
+pip install -e .
 
-# 1b. Optionally, you can specify a backend
-pipx install "memorygraphMCP[falkordblite]"
-
-# 2. Add to Claude Code (see docs/quickstart/ for other coding agents)
-claude mcp add --scope user memorygraph -- memorygraph
-
-# 3. Restart Claude Code (exit and run 'claude' again)
+# Or install directly
+pip install mcp-context-server
 ```
 
-**Verify it works:**
-```bash
-claude mcp list  # Should show memorygraph with "Connected"
-```
-
-Then in your coding agent you can ask it to remember important items: *"Remember this for later: Use pytest for Python testing"*
-
-![Memory Creation](docs/images/memory-creation.jpg)
-
-> **Other MCP clients?** See [Supported Clients](#supported-mcp-clients) below.
->
-> **Need pipx?** `pip install --user pipx && pipx ensurepath`
->
-> **Command not found?** Run `pipx ensurepath` and restart your terminal.
-
-**Important:** MemoryGraph provides memory tools, but your coding agent won't use them automatically. You need to prompt or configure it to store memories. See [Memory Best Practices](#memory-best-practices) below.
-
-**Quick setup:** Add this to your `~/.claude/CLAUDE.md` or `AGENTS.md` to enable automatic memory storage:
-```markdown
-## Memory Protocol
-
-### REQUIRED: Before Starting Work
-You MUST use `recall_memories` before any task. Query by project, tech, or task type.
-
-### REQUIRED: Automatic Storage Triggers
-Store memories on ANY of:
-- **Git commit** → what was fixed/added
-- **Bug fix** → problem + solution
-- **Version release** → summarize changes
-- **Architecture decision** → choice + rationale
-- **Pattern discovered** → reusable approach
-
-### Timing Mode (default: on-commit)
-`memory_mode: immediate | on-commit | session-end`
-
-### Memory Fields
-- **Type**: solution | problem | code_pattern | fix | error | workflow
-- **Title**: Specific, searchable (not generic)
-- **Content**: Accomplishment, decisions, patterns
-- **Tags**: project, tech, category (REQUIRED)
-- **Importance**: 0.8+ critical, 0.5-0.7 standard, 0.3-0.4 minor
-- **Relationships**: Link related memories when they exist
-
-Do NOT wait to be asked. Memory storage is automatic.
-```
-
-See [CLAUDE.md Examples](docs/examples/CLAUDE_MD_EXAMPLES.md) for more configuration templates.
-
-## Supported MCP Clients
-
-MemoryGraph works with any MCP-compliant AI coding tool:
-
-| Client | Type | Quick Start |
-|--------|------|-------------|
-| **Claude Code** | CLI/IDE | [Setup Guide](docs/CLAUDE_CODE_SETUP.md) |
-| **Claude Desktop** | Desktop App | [Setup Guide](docs/quickstart/CLAUDE_DESKTOP.md) |
-| **ChatGPT Desktop** | Desktop App | [Setup Guide](docs/quickstart/CHATGPT_DESKTOP.md) |
-| **Cursor AI** | IDE | [Setup Guide](docs/quickstart/CURSOR_SETUP.md) |
-| **Windsurf** | IDE | [Setup Guide](docs/quickstart/WINDSURF_SETUP.md) |
-| **VS Code + Copilot** | IDE (1.102+) | [Setup Guide](docs/quickstart/VSCODE_COPILOT_SETUP.md) |
-| **Continue.dev** | VS Code/JetBrains | [Setup Guide](docs/quickstart/CONTINUE_SETUP.md) |
-| **Cline** | VS Code | [Setup Guide](docs/quickstart/CLINE_SETUP.md) |
-| **Gemini CLI** | CLI | [Setup Guide](docs/quickstart/GEMINI_CLI_SETUP.md) |
-
-See [CONFIGURATION.md](docs/CONFIGURATION.md) for detailed compatibility info.
-
----
-
-## Why MemoryGraph?
-
-### Graph Relationships Make the Difference
-
-Research shows that naive vector search degrades on long-horizon and temporal tasks. Benchmarks such as Deep Memory Retrieval (DMR) and LongMemEval were introduced precisely because graph-based systems excel at temporal queries ("what did the user decide last week"), cross-session reasoning, and multi-hop questions requiring explicit relational paths.
-
-Graph memory captures entities, relationships, and temporal markers that traditional vector stores miss. For example: `Alice COMPLETED authentication_service`, `Bob BLOCKED_BY schema_conflicts` with timeline information about when events occurred.
-
-**Flat storage** (CLAUDE.md, vector stores):
-```
-Memory 1: "Fixed timeout by adding retry logic"
-Memory 2: "Retry logic caused memory leak"
-Memory 3: "Fixed memory leak with connection pooling"
-```
-No connection between these - search finds them separately. Best for static rules and prime directives.
-
-**Graph storage** (MemoryGraph):
-```
-[timeout_fix] --CAUSES--> [memory_leak] --SOLVED_BY--> [connection_pooling]
-     |                                                        |
-     +------------------SUPERSEDED_BY------------------------+
-```
-Query: "What happened with retry logic?" → Returns the full causal chain.
-
-### When to Use What
-
-| Use CLAUDE.md For | Use MemoryGraph For |
-|-------------------|---------------------|
-| "Always use 2-space indentation" | "Last time we used 4-space, it broke the linter" |
-| "Run tests before committing" | "The auth tests failed because of X, fixed by Y" |
-| Static rules, prime directives | Dynamic learnings with relationships |
-
-### Relationship Types
-
-MemoryGraph tracks 7 categories of relationships:
-- **Causal**: CAUSES, TRIGGERS, LEADS_TO, PREVENTS
-- **Solution**: SOLVES, ADDRESSES, ALTERNATIVE_TO, IMPROVES
-- **Context**: OCCURS_IN, APPLIES_TO, WORKS_WITH, REQUIRES
-- **Learning**: BUILDS_ON, CONTRADICTS, CONFIRMS
-- **Similarity**: SIMILAR_TO, VARIANT_OF, RELATED_TO
-- **Workflow**: FOLLOWS, DEPENDS_ON, ENABLES, BLOCKS
-- **Quality**: EFFECTIVE_FOR, PREFERRED_OVER, DEPRECATED_BY
-
----
-
-## Choose Your Mode
-
-| Feature | Core (Default) | Extended |
-|---------|----------------|----------|
-| Memory Storage | 9 tools | 12 tools |
-| Relationships | Yes | Yes |
-| Session Briefings | Yes | Yes |
-| Database Stats | - | Yes |
-| Complex Queries | - | Yes |
-| Contextual Search | - | Yes |
-| Backend | SQLite | SQLite |
-| Setup Time | 30 sec | 30 sec |
+### Basic Usage
 
 ```bash
-memorygraph                    # Core (default, 9 tools)
-memorygraph --profile extended # Extended (12 tools)
+# Start the server
+python -m context_server
+
+# Start with extended tool profile
+python -m context_server --profile extended
+
+# Show configuration
+python -m context_server --show-config
+
+# Health check
+python -m context_server --health
 ```
 
-### Core Mode (Default)
+### Configuration
 
-Provides all essential tools for daily use. Store memories, create relationships, search with fuzzy matching, and get session briefings. **This is all most users need.**
+Create `context-server.yaml` in your project root:
 
-### When to Use Extended Mode
+```yaml
+# Backend configuration
+backend: "sqlite"
+sqlite_path: "~/.mcp-context-server/context.db"
 
-Switch to extended mode when you need:
+# Tool configuration
+tool_profile: "extended"
+enable_advanced_tools: true
 
-- **Database statistics** (`get_memory_statistics`) - See total memories, breakdown by type, average importance scores, and graph metrics. Useful for understanding how your knowledge base is growing.
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
-- **Complex relationship queries** (`search_relationships_by_context`) - Search relationships by structured context fields like scope, conditions, and evidence. Example: "Find all partial implementations" or "Show relationships with experimental evidence."
+# Feature configuration
+features:
+  auto_extract_entities: true
+  session_briefing: true
+  briefing_verbosity: "standard"
+  briefing_recency_days: 7
+  allow_relationship_cycles: false
+```
 
-**Common extended mode scenarios:**
-- Auditing your memory graph before a major refactor
-- Analyzing patterns across hundreds of memories
-- Finding all conditionally-applied solutions
-- Generating reports on project knowledge coverage
+## Memory Types
+
+The server supports 13 memory types for different development scenarios:
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `task` | Development tasks | Project management |
+| `code_pattern` | Code patterns and idioms | Best practices |
+| `problem` | Problems and issues | Bug tracking |
+| `solution` | Solutions to problems | Knowledge base |
+| `project` | Project information | Project documentation |
+| `technology` | Technologies and frameworks | Tech stack tracking |
+| `error` | Error messages and stack traces | Debugging history |
+| `fix` | Fixes and workarounds | Solution repository |
+| `command` | Commands and scripts | Automation recipes |
+| `file_context` | File-specific context | File understanding |
+| `workflow` | Workflows and processes | Process documentation |
+| `general` | General information | Miscellaneous notes |
+| `conversation` | Conversation summaries | Meeting notes |
+
+## Relationship Types
+
+The system supports 35+ relationship types including:
+
+- **Causal**: `CAUSES`, `TRIGGERS`, `PREVENTS`
+- **Solution**: `SOLVES`, `ADDRESSES`, `MITIGATES`
+- **Context**: `RELATES_TO`, `DEPENDS_ON`, `USES`
+- **Learning**: `EXPLAINS`, `CLARIFIES`, `SIMPLIFIES`
+- **Temporal**: `PRECEDES`, `FOLLOWS`, `OCCURS_WITH`
+
+## Development
+
+### Project Structure
+
+```
+mcp-context-server/
+├── context_server/          # Core package
+│   ├── backends/           # Database backends
+│   ├── tools/              # MCP tool handlers
+│   ├── utils/              # Utility functions
+│   ├── models.py           # Data models
+│   ├── server.py           # MCP server implementation
+│   ├── sqlite_database.py  # SQLite operations
+│   └── __init__.py
+├── test/                   # Test suite
+│   ├── test_data/         # Test data files
+│   ├── test_relationships.py
+│   ├── test_tools.py
+│   └── run_tests.py
+├── docs/                   # Documentation
+├── pyproject.toml          # Project configuration
+├── README.md              # This file
+└── CHANGELOG.md           # Version history
+```
+
+### Running Tests
 
 ```bash
-# Enable extended mode in Claude Code
-claude mcp add --scope user memorygraph -- memorygraph --profile extended
+# Run all tests
+cd test && python run_tests.py
+
+# Run specific test files
+cd test && python test_relationships.py
+cd test && python test_tools.py
+
+# Run with verbose output
+cd test && python run_tests.py --verbose
 ```
 
-See [TOOL_PROFILES.md](docs/TOOL_PROFILES.md) for complete tool list and details.
-
----
-
-## Installation Options
-
-### pipx (Recommended)
+### Code Quality
 
 ```bash
-pipx install memorygraphMCP                      # Core mode (default, SQLite)
+# Format code
+black context_server/ test/
+
+# Sort imports
+isort context_server/ test/
+
+# Type checking
+mypy context_server/
+
+# Linting
+flake8 context_server/ test/
 ```
 
-### pip
+## Environment Variables
 
 ```bash
-pip install --user memorygraphMCP
+# Backend configuration
+export CONTEXT_BACKEND=sqlite
+export CONTEXT_SQLITE_PATH=~/.mcp-context-server/context.db
+
+# Tool configuration
+export CONTEXT_TOOL_PROFILE=extended
+export CONTEXT_ENABLE_ADVANCED_TOOLS=true
+
+# Logging
+export CONTEXT_LOG_LEVEL=INFO
+
+# Features
+export CONTEXT_AUTO_EXTRACT_ENTITIES=true
+export CONTEXT_SESSION_BRIEFING=true
+export CONTEXT_BRIEFING_VERBOSITY=standard
+export CONTEXT_BRIEFING_RECENCY_DAYS=7
+export CONTEXT_ALLOW_CYCLES=false
 ```
 
-### Docker
+## Integration with Zed Editor
 
-```bash
-docker compose up -d                           # SQLite
-```
-
-### uvx (Quick Test)
-
-```bash
-uvx memorygraph --version  # No install needed
-```
-
-| Method | Best For | Persistence |
-|--------|----------|-------------|
-| pipx | Most users | Yes |
-| pip | PATH already configured | Yes |
-| Docker | Teams, production | Yes |
-| uvx | Quick testing | No |
-
-See [CONFIGURATION.md](docs/CONFIGURATION.md) for detailed options.
-
----
-
-## Claude Code Web Support
-
-MemoryGraph works in Claude Code Web (remote) environments via project hooks.
-
-### Quick Setup
-
-Copy the hook files to your project:
-
-```bash
-# From memorygraph repo
-cp -r examples/claude-code-hooks/.claude /path/to/your/project/
-
-# Commit to your repo
-cd /path/to/your/project
-git add .claude/
-git commit -m "Add MemoryGraph auto-install hooks"
-```
-
-When you open this project in Claude Code Web, MemoryGraph installs automatically.
-
-### Persistent Storage (Optional)
-
-Remote environments are ephemeral. For persistent memories, you can export your memories
-before ending your session and import them in your next session:
-
-```bash
-# Export memories before ending session
-memorygraph export --output memories.json
-
-# Import memories in next session
-memorygraph import --input memories.json
-```
-
-See [Claude Code Web Setup](docs/claude-code-web.md) for detailed instructions.
-
----
-
-## Configuration
-
-### Claude Code CLI
-
-```bash
-# Core mode (default)
-claude mcp add --scope user memorygraph -- memorygraph
-
-# Extended mode
-claude mcp add --scope user memorygraph -- memorygraph --profile extended
-```
-
-### Other MCP Clients
+Add to your Zed MCP configuration:
 
 ```json
 {
   "mcpServers": {
-    "memorygraph": {
-      "command": "memorygraph",
-      "args": ["--profile", "extended"]
+    "context-server": {
+      "command": "python",
+      "args": ["-m", "context_server"],
+      "env": {
+        "CONTEXT_SQLITE_PATH": "~/.mcp-context-server/context.db"
+      }
     }
   }
 }
 ```
 
-See [CONFIGURATION.md](docs/CONFIGURATION.md) for all options.
+## API Examples
 
-### Recommended: Add to CLAUDE.md
+### Storing a Memory
 
-For best results, add this to your `CLAUDE.md` or project instructions:
+```python
+from context_server import Memory, MemoryType
 
-```markdown
-## Memory Tools
-When recalling past work or learnings, always start with `recall_memories`
-before using `search_memories`. The recall tool has optimized defaults
-for natural language queries (fuzzy matching, relationship context included).
+memory = Memory(
+    type=MemoryType.SOLUTION,
+    title="Fix for database connection issue",
+    content="Use connection pooling with max_connections=10",
+    tags=["database", "performance", "fix"],
+    context={
+        "project": "my-project",
+        "language": "python",
+        "framework": "django"
+    }
+)
 ```
 
-This helps Claude use the optimal tool for memory recall.
+### Creating Relationships
 
----
+```python
+from context_server import Relationship, RelationshipType
 
-## Usage
-
-### Store Memories
-
-```json
-{
-  "tool": "store_memory",
-  "content": "Use bcrypt for password hashing",
-  "memory_type": "CodePattern",
-  "tags": ["security", "authentication"]
-}
+relationship = Relationship(
+    from_memory_id="problem_123",
+    to_memory_id="solution_456",
+    type=RelationshipType.SOLVES,
+    properties={
+        "effectiveness": 0.95,
+        "implementation_time": "2 hours"
+    }
+)
 ```
-
-### Recall Memories (Recommended)
-
-```json
-{
-  "tool": "recall_memories",
-  "query": "authentication security"
-}
-```
-
-Returns fuzzy-matched results with relationship context and match quality hints.
-
-### Search Memories (Advanced)
-
-```json
-{
-  "tool": "search_memories",
-  "query": "authentication",
-  "search_tolerance": "strict",
-  "limit": 5
-}
-```
-
-Use when you need exact matching or advanced filtering.
-
-### Create Relationships
-
-```json
-{
-  "tool": "create_relationship",
-  "from_memory_id": "mem_123",
-  "to_memory_id": "mem_456",
-  "relationship_type": "SOLVES"
-}
-```
-
-![Memory Report](docs/images/memory-report.jpg)
-
-See [docs/examples/](docs/examples/) for more use cases.
-
----
-
-## Memory Best Practices
-
-### Why Memories Aren't Automatic
-
-MemoryGraph is an MCP tool provider, not an autonomous agent. This means:
-- **Claude needs to be prompted** to use the memory tools
-- **You control what gets stored** - nothing is saved without explicit instruction
-- **Configuration is key** - Add memory protocols to your CLAUDE.md for consistent behavior
-
-This design gives you full control over your memory graph, but requires setup to work effectively.
-
-### How to Encourage Memory Creation
-
-#### 1. Configure CLAUDE.md (Recommended)
-
-Add a memory protocol to `~/.claude/CLAUDE.md` for persistent behavior across all sessions:
-
-```markdown
-## Memory Protocol
-
-### REQUIRED: Before Starting Work
-You MUST use `recall_memories` before any task. Query by project, tech, or task type.
-
-### REQUIRED: Automatic Storage Triggers
-Store memories on ANY of:
-- **Git commit** → what was fixed/added
-- **Bug fix** → problem + solution
-- **Version release** → summarize changes
-- **Architecture decision** → choice + rationale
-- **Pattern discovered** → reusable approach
-
-### Timing Mode (default: on-commit)
-`memory_mode: immediate | on-commit | session-end`
-
-### Memory Fields
-- **Type**: solution | problem | code_pattern | fix | error | workflow
-- **Title**: Specific, searchable (not generic)
-- **Content**: Accomplishment, decisions, patterns
-- **Tags**: project, tech, category (REQUIRED)
-- **Importance**: 0.8+ critical, 0.5-0.7 standard, 0.3-0.4 minor
-- **Relationships**: Link related memories when they exist
-
-Do NOT wait to be asked. Memory storage is automatic.
-```
-
-#### 2. Use Trigger Phrases
-
-Claude responds well to explicit memory-related requests:
-
-**For storing**:
-- "Store this for later..."
-- "Remember that..."
-- "Save this pattern..."
-- "Record this decision..."
-- "Create a memory about..."
-
-**For recalling**:
-- "What do you remember about...?"
-- "Have we solved this before?"
-- "Recall any patterns for..."
-- "What did we decide about...?"
-
-**For session management**:
-- "Summarize and store what we accomplished today"
-- "Store a summary of this session"
-- "Catch me up on this project" (uses stored memories)
-
-#### 3. Establish Workflow Habits
-
-**Start of session**:
-```
-You: "What do you remember about the authentication system?"
-Claude: [Uses recall_memories to find relevant context]
-```
-
-**During work**:
-```
-You: "We fixed the Redis timeout by increasing the connection pool to 50. Store this solution."
-Claude: [Uses store_memory, then create_relationship to link to the problem]
-```
-
-**End of session**:
-```
-You: "Store a summary of what we accomplished today"
-Claude: [Creates a task-type memory with summary and links]
-```
-
-#### 4. Project-Specific Configuration
-
-For team projects or specific repositories, add `.claude/CLAUDE.md` to the project:
-
-```markdown
-## Project Memory Protocol
-
-This project uses MemoryGraph for team knowledge sharing.
-
-### When to Store
-- Solutions to project-specific problems
-- Architecture decisions and rationale
-- Deployment procedures and gotchas
-- Performance optimizations
-- Bug fixes and root causes
-
-### Tagging Convention
-Always include these tags:
-- Project name: "my-app"
-- Component: "auth", "api", "database", etc.
-- Type: "fix", "feature", "optimization", etc.
-
-### Example
-When fixing a bug:
-1. Store the problem (type: problem)
-2. Store the solution (type: solution)
-3. Link them: solution SOLVES problem
-4. Tag both with component and "bug-fix"
-```
-
-### Memory Types Guide
-
-Choose the right type for better organization:
-
-| Type | Use For | Example |
-|------|---------|---------|
-| **solution** | Working fixes and implementations | "Fixed N+1 query with eager loading" |
-| **problem** | Issues encountered | "Database deadlock under high concurrency" |
-| **code_pattern** | Reusable patterns | "Repository pattern for database access" |
-| **decision** | Architecture choices | "Chose PostgreSQL over MongoDB for transactions" |
-| **task** | Work completed | "Implemented user authentication" |
-| **technology** | Tool/framework knowledge | "FastAPI dependency injection best practices" |
-| **error** | Specific errors | "ImportError: module not found" |
-| **fix** | Error resolutions | "Added missing import statement" |
-
-### Relationship Types Guide
-
-Common relationship patterns:
-
-```markdown
-# Causal relationships
-problem --CAUSES--> error
-change --TRIGGERS--> bug
-
-# Solution relationships
-solution --SOLVES--> problem
-fix --ADDRESSES--> error
-pattern --IMPROVES--> code
-
-# Context relationships
-pattern --APPLIES_TO--> project
-solution --REQUIRES--> dependency
-pattern --WORKS_WITH--> technology
-
-# Learning relationships
-new_approach --BUILDS_ON--> old_approach
-finding --CONTRADICTS--> assumption
-result --CONFIRMS--> hypothesis
-```
-
-### Example Workflows
-
-**Debugging workflow**:
-```
-1. Encounter error → Store as type: error
-2. Find root cause → Store as type: problem, link: error TRIGGERS problem
-3. Implement fix → Store as type: solution, link: solution SOLVES problem
-4. Result: Complete chain for future reference
-```
-
-**Feature development workflow**:
-```
-1. Start: "Recall any patterns for user authentication"
-2. Implement: [Work on feature]
-3. Store: "Store this authentication pattern" → type: code_pattern
-4. Link: pattern APPLIES_TO project
-5. End: "Store summary of authentication implementation"
-```
-
-**Optimization workflow**:
-```
-1. Identify issue → Store as type: problem
-2. Test solutions → Store each as type: solution
-3. Compare → Link: best_solution IMPROVES other_solutions
-4. Document → Store decision with rationale
-```
-
-### More Examples and Templates
-
-For comprehensive CLAUDE.md configuration examples including:
-- Domain-specific setups (web dev, ML, DevOps)
-- Team collaboration protocols
-- Migration strategies from other systems
-
-See: [CLAUDE.md Configuration Examples](docs/examples/CLAUDE_MD_EXAMPLES.md)
-
----
-
-## Backends
-
-MemoryGraph supports SQLite backend for simple, local storage:
-
-| Backend | Type | Config | Zero-Config | Best For |
-|---------|------|--------|-------------|----------|
-| **sqlite** | Embedded | File path | ✅ | Default, simple use |
-
-SQLite provides:
-- **Zero setup**: Just install and run
-- **Local storage**: All data stays on your machine
-- **Cross-platform**: Works on Windows, macOS, Linux
-- **No dependencies**: Single file database
-
-See [CONFIGURATION.md](docs/CONFIGURATION.md) for setup details.
-
----
-
-## Simple Single-User Storage
-
-MemoryGraph is designed for single-user, local storage with SQLite:
-
-**Key Features:**
-- **Single-user focus**: All memories are stored locally for your personal use
-- **Simple setup**: No configuration needed for basic usage
-- **Privacy focused**: All data stays on your machine
-- **File-based**: Uses SQLite database file for easy backup and portability
-
-**Quick Start:**
-```bash
-# Just run the server
-memorygraph
-```
-
-**Backup and Restore:**
-```bash
-# Export your memories
-memorygraph export --output backup.json
-
-# Import memories
-memorygraph import --input backup.json
-```
-
-See [CONFIGURATION.md](docs/CONFIGURATION.md) for more details.
-
----
-
-## Architecture
-
-### Memory Types
-- **Task** - Development tasks and patterns
-- **CodePattern** - Reusable solutions
-- **Problem** - Issues encountered
-- **Solution** - How problems were resolved
-- **Project** - Codebase context
-- **Technology** - Framework/tool knowledge
-
-### Project Structure
-```
-memorygraph/
-├── src/memorygraph/     # Main source
-│   ├── server.py        # MCP server (11 tools)
-│   ├── backends/        # SQLite backend
-│   └── tools/           # Tool implementations
-├── tests/               # Tests
-└── docs/                # Documentation
-```
-
-See [schema.md](docs/schema.md) for complete data model.
-
----
 
 ## Troubleshooting
 
-**Command not found?**
+### Common Issues
+
+1. **Import Errors**: Ensure you're in the test directory or add parent to sys.path
+2. **JSON Serialization Errors**: Use `model_dump(mode='json')` for Pydantic models
+3. **Database Connection Issues**: Check `CONTEXT_SQLITE_PATH` environment variable
+4. **Test Failures on Windows**: Tests use ASCII indicators (`[PASS]`, `[FAIL]`) for compatibility
+
+### Debugging
+
 ```bash
-pipx ensurepath && source ~/.bashrc  # or ~/.zshrc
+# Run with debug logging
+set CONTEXT_LOG_LEVEL=DEBUG && python -m context_server
+
+# Check Python version
+python --version
+
+# Check installed packages
+pip list | grep mcp-context-server
 ```
-
-**MCP connection failed?**
-```bash
-memorygraph --version    # Check installation
-claude mcp list          # Check connection status
-```
-
-**Multiple version conflict?**
-```bash
-# Option A: Use full path to avoid venv conflicts (recommended)
-claude mcp add memorygraph -- ~/.local/bin/memorygraph
-
-# Option B: Create symlink for cleaner config (requires sudo once)
-sudo ln -s ~/.local/bin/memorygraph /usr/local/bin/memorygraph
-# Then use simple command
-claude mcp add memorygraph -- memorygraph
-```
-
-See [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for more solutions.
-
----
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `cd test && python run_tests.py`
+5. Submit a pull request
 
----
+### Commit Message Convention
+
+```
+feat: Add new memory type 'conversation'
+fix: Resolve JSON serialization error
+docs: Update installation instructions
+test: Add Windows compatibility tests
+refactor: Simplify relationship validation
+style: Format code with black
+chore: Update dependencies
+```
 
 ## License
 
-MIT License - see [LICENSE](LICENSE).
-
----
-
-## Links
-
-- [Documentation](docs/)
-- [GitHub Issues](https://github.com/gregorydickson/memorygraph/issues)
-- [Discussions](https://github.com/gregorydickson/memorygraph/discussions)
-
----
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
 
-This project is a simplified fork of the original MemoryGraph project by Gregory Dickson, adapted specifically for Zed editor integration with a focus on simplicity and local storage.
+- Built on the MCP (Model Context Protocol) specification
+- Inspired by MemoryGraph for graph-based memory management
+- Designed for seamless integration with Zed Editor
+
+## Links
+
+- [MCP Specification](https://spec.modelcontextprotocol.io/)
+- [Zed Editor](https://zed.dev/)
+- [GitHub Repository](https://github.com/yourusername/mcp-context-server)

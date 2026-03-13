@@ -1,7 +1,7 @@
 """
-MemoryGraph MCP Server for Zed Editor
+MCP Context Server for Zed Editor
 
-A graph-based MCP server that provides intelligent memory capabilities for Zed editor,
+A context-aware MCP server that provides intelligent memory capabilities for Zed editor,
 enabling persistent knowledge tracking, relationship mapping, and contextual development assistance.
 
 Supports SQLite backend only for simplified deployment with Zed editor.

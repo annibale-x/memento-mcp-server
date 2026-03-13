@@ -1,0 +1,39 @@
+# MCP Context Server Configuration File
+# This file configures the MCP Context Server for Zed editor
+# Hierarchy: Defaults → ~/.mcp-context-server/config.yaml → ./context-server.yaml → Environment Variables
+
+# Backend configuration
+backend: "sqlite" # Only sqlite is supported
+sqlite_path: "~/.mcp-context-server/context.db" # Path to SQLite database file
+
+# Tool configuration
+tool_profile: "extended" # Options: core, extended, advanced
+enable_advanced_tools: true # Enable advanced context analysis tools
+
+# Logging configuration
+logging:
+  level: "INFO" # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Feature configuration
+features:
+  auto_extract_entities: true # Automatically extract entities from memory content
+  session_briefing: true # Enable session briefing feature
+  briefing_verbosity: "standard" # Options: minimal, standard, detailed
+  briefing_recency_days: 7 # Number of days to consider for briefing
+  allow_relationship_cycles: false # Allow cycles in relationship graph
+
+
+# Example of environment variable overrides:
+# CONTEXT_BACKEND=sqlite
+# CONTEXT_SQLITE_PATH=/custom/path/context.db
+# CONTEXT_TOOL_PROFILE=advanced
+# CONTEXT_ENABLE_ADVANCED_TOOLS=true
+# CONTEXT_LOG_LEVEL=DEBUG
+# CONTEXT_AUTO_EXTRACT_ENTITIES=false
+# CONTEXT_SESSION_BRIEFING=false
+# CONTEXT_BRIEFING_VERBOSITY=detailed
+# CONTEXT_BRIEFING_RECENCY_DAYS=14
+# CONTEXT_ALLOW_CYCLES=true
+
+# Note: Environment variables take precedence over YAML configuration

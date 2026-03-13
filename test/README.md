@@ -1,8 +1,8 @@
-# Test Suite - mcp-user-memory
+# Test Suite - mcp-context-server
 
 ## Overview
 
-This directory contains the complete test suite for the `mcp-user-memory` project. The test suite is designed to validate the functionality of the MemoryGraph MCP server with SQLite backend, ensuring reliability and correctness for Zed editor integration.
+This directory contains the complete test suite for the `mcp-context-server` project. The test suite is designed to validate the functionality of the MemoryGraph MCP server with SQLite backend, ensuring reliability and correctness for Zed editor integration.
 
 ## Test Structure
 
@@ -118,7 +118,7 @@ All test output is in English. The test runner provides:
 ### Sample Output
 ```
 [14:30:25] [INFO] ============================================================
-[14:30:25] [INFO] Starting test suite for mcp-user-memory
+[14:30:25] [INFO] Starting test suite for mcp-context-server
 [14:30:25] [INFO] ============================================================
 [14:30:25] [INFO] Running import test...
 [14:30:25] [INFO]   [PASS] Import test: PASSED
@@ -145,7 +145,7 @@ Contains 6 sample memories with 6 relationships, covering:
 
 ### Test Database
 - Location: `test_data/test_memory.db`
-- SQLite database with schema compatible with mcp-user-memory
+- SQLite database with schema compatible with mcp-context-server
 - Automatically created if it doesn't exist
 - Excluded from git via `.gitignore` pattern `*.db`
 
@@ -165,8 +165,8 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from user_memory import MemoryGraphServer
-from user_memory.models import MemoryType, RelationshipType
+from context_server import MemoryGraphServer
+from context_server.models import MemoryType, RelationshipType
 
 async def main():
     """Main test function - REQUIRED for test runner"""
@@ -236,7 +236,7 @@ python -m pdb test_tools.py
 ## Dependencies
 
 - Python 3.10+
-- mcp-user-memory package (from parent directory)
+- mcp-context-server package (from parent directory)
 - SQLite3 (included with Python)
 
 ## License
@@ -245,4 +245,4 @@ Same as main project - MIT License.
 
 ## Acknowledgments
 
-Test suite developed as part of the mcp-user-memory simplification project for Zed editor integration.
+Test suite developed as part of the mcp-context-server simplification project for Zed editor integration.

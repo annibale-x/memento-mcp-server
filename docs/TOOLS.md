@@ -1,8 +1,8 @@
-# MCP Tools Reference - mcp-user-memory
+# MCP Tools Reference - mcp-context-server
 
 ## Overview
 
-This document provides a comprehensive reference for all MCP (Model Context Protocol) tools available in the mcp-user-memory server. This is a simplified version of MemoryGraph focused on SQLite-only backend for Zed editor integration.
+This document provides a comprehensive reference for all MCP (Model Context Protocol) tools available in the mcp-context-server server. This is a simplified version of MemoryGraph focused on SQLite-only backend for Zed editor integration.
 
 ## Core Tools (9 Tools)
 
