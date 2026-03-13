@@ -8,6 +8,7 @@ All output is in English.
 
 import argparse
 import asyncio
+import io
 import json
 import os
 import sys
@@ -52,7 +53,18 @@ class TestRunner:
     def log(self, message: str, level: str = "INFO"):
         """Log a message with timestamp."""
         timestamp = datetime.now().strftime("%H:%M:%S")
-        print(f"[{timestamp}] [{level}] {message}")
+        # Use ASCII-safe characters for Windows compatibility
+        safe_message = message
+        if sys.platform == "win32":
+            # Replace Unicode emojis with ASCII equivalents on Windows
+            safe_message = (
+                safe_message.replace("✅", "[PASS]")
+                .replace("❌", "[FAIL]")
+                .replace("⚠️", "[WARN]")
+                .replace("❓", "[UNKN]")
+                .replace("ℹ️", "[INFO]")
+            )
+        print(f"[{timestamp}] [{level}] {safe_message}")
 
     def log_verbose(self, message: str):
         """Log verbose message if enabled."""
@@ -123,7 +135,21 @@ class TestRunner:
 
         test_result["duration"] = time.time() - start_time
 
-        status_emoji = {"passed": "✅", "failed": "❌", "skipped": "⚠️", "unknown": "❓"}
+        # Use ASCII-safe status indicators
+        if sys.platform == "win32":
+            status_emoji = {
+                "passed": "[PASS]",
+                "failed": "[FAIL]",
+                "skipped": "[WARN]",
+                "unknown": "[UNKN]",
+            }
+        else:
+            status_emoji = {
+                "passed": "✅",
+                "failed": "❌",
+                "skipped": "⚠️",
+                "unknown": "❓",
+            }
 
         self.log(
             f"  {status_emoji[test_result['status']]} {test_file.name}: {test_result['status'].upper()} ({test_result['duration']:.2f}s)"
@@ -167,10 +193,16 @@ class TestRunner:
             test_result["details"]["server_instance"] = str(server)
 
             test_result["status"] = "passed"
-            self.log("  ✅ Import test: PASSED")
+            if sys.platform == "win32":
+                self.log("  [PASS] Import test: PASSED")
+            else:
+                self.log("  ✅ Import test: PASSED")
 
         except Exception as e:
-            self.log(f"  ❌ Import test: FAILED - {e}", "ERROR")
+            if sys.platform == "win32":
+                self.log(f"  [FAIL] Import test: FAILED - {e}", "ERROR")
+            else:
+                self.log(f"  ❌ Import test: FAILED - {e}", "ERROR")
             test_result["status"] = "failed"
             test_result["errors"].append(str(e))
             import traceback
@@ -237,12 +269,20 @@ class TestRunner:
                     )
 
             test_result["status"] = "passed"
-            self.log(
-                f"  ✅ JSON test: PASSED ({len(memories)} memories, {len(relationships)} relationships)"
-            )
+            if sys.platform == "win32":
+                self.log(
+                    f"  [PASS] JSON test: PASSED ({len(memories)} memories, {len(relationships)} relationships)"
+                )
+            else:
+                self.log(
+                    f"  ✅ JSON test: PASSED ({len(memories)} memories, {len(relationships)} relationships)"
+                )
 
         except Exception as e:
-            self.log(f"  ❌ JSON test: FAILED - {e}", "ERROR")
+            if sys.platform == "win32":
+                self.log(f"  [FAIL] JSON test: FAILED - {e}", "ERROR")
+            else:
+                self.log(f"  ❌ JSON test: FAILED - {e}", "ERROR")
             test_result["status"] = "failed"
             test_result["errors"].append(str(e))
 
@@ -327,21 +367,34 @@ class TestRunner:
         self.log("=" * 60)
 
         self.log(f"Total tests: {summary['total']}")
-        self.log(f"Passed:      {summary['passed']} ✅")
-        self.log(f"Failed:      {summary['failed']} ❌")
-        self.log(f"Skipped:     {summary['skipped']} ⚠️")
+        if sys.platform == "win32":
+            self.log(f"Passed:      {summary['passed']} [PASS]")
+            self.log(f"Failed:      {summary['failed']} [FAIL]")
+            self.log(f"Skipped:     {summary['skipped']} [WARN]")
+        else:
+            self.log(f"Passed:      {summary['passed']} ✅")
+            self.log(f"Failed:      {summary['failed']} ❌")
+            self.log(f"Skipped:     {summary['skipped']} ⚠️")
         self.log(f"Total time:  {total_time:.2f} seconds")
 
         # Print detailed results
         if self.verbose or summary["failed"] > 0:
             self.log("\nDetailed results:")
             for test_name, result in self.results["tests"].items():
-                status_emoji = {
-                    "passed": "✅",
-                    "failed": "❌",
-                    "skipped": "⚠️",
-                    "unknown": "❓",
-                }[result["status"]]
+                if sys.platform == "win32":
+                    status_emoji = {
+                        "passed": "[PASS]",
+                        "failed": "[FAIL]",
+                        "skipped": "[WARN]",
+                        "unknown": "[UNKN]",
+                    }[result["status"]]
+                else:
+                    status_emoji = {
+                        "passed": "✅",
+                        "failed": "❌",
+                        "skipped": "⚠️",
+                        "unknown": "❓",
+                    }[result["status"]]
 
                 self.log(
                     f"  {status_emoji} {test_name}: {result['status'].upper()} ({result['duration']:.2f}s)"
@@ -358,9 +411,15 @@ class TestRunner:
         # Final result
         self.log("\n" + "=" * 60)
         if summary["failed"] == 0:
-            self.log("✅ ALL TESTS PASSED!")
+            if sys.platform == "win32":
+                self.log("[PASS] ALL TESTS PASSED!")
+            else:
+                self.log("✅ ALL TESTS PASSED!")
         else:
-            self.log(f"❌ {summary['failed']} TEST(S) FAILED")
+            if sys.platform == "win32":
+                self.log(f"[FAIL] {summary['failed']} TEST(S) FAILED")
+            else:
+                self.log(f"❌ {summary['failed']} TEST(S) FAILED")
         self.log("=" * 60)
 
     def _save_results(self):

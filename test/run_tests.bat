@@ -86,15 +86,15 @@ if "%CI%" == "" (
 
 if %TEST_RESULT% equ 0 (
     if "%CI%" == "" (
-        call :colorEcho 0A "✅ All tests passed successfully!"
+        call :colorEcho 0A "[PASS] All tests passed successfully!"
     ) else (
-        echo ✅ All tests passed successfully!
+        echo [PASS] All tests passed successfully!
     )
 ) else (
     if "%CI%" == "" (
-        call :colorEcho 0C "❌ Some tests failed. Exit code: %TEST_RESULT%"
+        call :colorEcho 0C "[FAIL] Some tests failed. Exit code: %TEST_RESULT%"
     ) else (
-        echo ❌ Some tests failed. Exit code: %TEST_RESULT%
+        echo [FAIL] Some tests failed. Exit code: %TEST_RESULT%
     )
 )
 
