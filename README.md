@@ -1,4 +1,4 @@
-# MCP Context Server
+# MCP Context Server (mcp-context-keeper)
 
 ## Overview
 
@@ -6,12 +6,14 @@ MCP Context Server is a context-aware memory management system for MCP (Model Co
 
 ## Features
 
+- **Persistent Memory**: Long-term knowledge storage with `_persistent` suffix tools (distinct from session memory)
 - **Context-Aware Memory**: Store memories with project, file, language, and framework context
 - **Graph Relationships**: 35+ relationship types for connecting related memories
 - **Fuzzy Search**: Natural language querying with stemming and fuzzy matching
 - **SQLite Backend**: Simple, file-based storage with no external dependencies
 - **MCP Protocol**: Full compatibility with MCP clients including Zed Editor
 - **Bi-temporal Tracking**: Relationship validity with temporal metadata
+- **Usage Guidance**: Built-in guide tool to distinguish persistent vs session memory usage
 
 ## Quick Start
 
@@ -40,6 +42,35 @@ python -m context_server --show-config
 # Health check
 python -m context_server --health
 ```
+
+### Getting Help with Tool Usage
+
+When using with other MCP context servers (like Serena Context Server), use the built-in guide tool to avoid confusion:
+
+```bash
+# Get comprehensive guidance on persistent vs session memory
+python -m context_server --profile extended
+
+# Then call from your MCP client:
+{
+  "tool": "help_memory_tools_usage",
+  "topic": "distinction"
+}
+```
+
+### Important: Persistent Memory Convention
+
+All MCP tools in this server use the `_persistent` suffix to distinguish them from session memory tools (like those in Serena Context Server):
+
+- **Persistent Memory Tools** (`_persistent` suffix): Long-term, cross-session, global knowledge
+  - `store_persistent_memory`, `get_persistent_memory`, `search_persistent_memories`
+  - Use for: solutions, patterns, architecture decisions, reusable code
+
+- **Session Memory Tools** (no suffix): Temporary, project-specific, session-only context
+  - `store_memory`, `get_memory`, `search_memories` (in Serena Context Server)
+  - Use for: current file context, temporary variables, undo history
+
+**Always use `help_memory_tools_usage` when unsure which tool to use!**
 
 ### Configuration
 
@@ -88,6 +119,39 @@ The server supports 13 memory types for different development scenarios:
 | `general` | General information | Miscellaneous notes |
 | `conversation` | Conversation summaries | Meeting notes |
 
+## Tool Profiles
+
+The server supports three tool profiles:
+
+### Core Profile (10 tools)
+Essential tools including the guide tool for distinguishing persistent vs session memory:
+- `help_memory_tools_usage` - Usage guidance and distinction help
+- `store_persistent_memory` - Store long-term solutions
+- `get_persistent_memory` - Retrieve cross-session knowledge
+- `search_persistent_memories` - Search global patterns
+- Plus 6 more core tools
+
+### Extended Profile (13 tools)
+Core tools + advanced search and statistics tools
+
+### Advanced Profile (20 tools)
+Extended tools + graph analysis and pattern detection tools
+
+## Avoiding Tool Confusion
+
+When using multiple MCP context servers, follow these rules:
+
+1. **Check for `_persistent` suffix** for long-term storage
+2. **Use the guide tool** when unsure: `help_memory_tools_usage`
+3. **Session memory** (no suffix) is for temporary, project-specific context
+4. **Persistent memory** (`_persistent` suffix) is for reusable, cross-session knowledge
+
+Common mistakes to avoid:
+- ❌ Using `store_memory` (Serena) for bug fix solutions
+- ✅ Use `store_persistent_memory` instead
+- ❌ Using `get_memory` (Serena) for cross-session patterns
+- ✅ Use `get_persistent_memory` instead
+
 ## Relationship Types
 
 The system supports 35+ relationship types including:
@@ -97,6 +161,38 @@ The system supports 35+ relationship types including:
 - **Context**: `RELATES_TO`, `DEPENDS_ON`, `USES`
 - **Learning**: `EXPLAINS`, `CLARIFIES`, `SIMPLIFIES`
 - **Temporal**: `PRECEDES`, `FOLLOWS`, `OCCURS_WITH`
+
+## API Examples
+
+### Using Persistent Memory (Correct)
+```json
+{
+  "tool": "store_persistent_memory",
+  "type": "solution",
+  "title": "Fixed JWT authentication",
+  "content": "Increased token expiration to 30 minutes...",
+  "tags": ["jwt", "authentication", "security"],
+  "importance": 0.8
+}
+```
+
+### Getting Usage Guidance
+```json
+{
+  "tool": "help_memory_tools_usage",
+  "topic": "distinction"
+}
+```
+
+### Searching Persistent Knowledge
+```json
+{
+  "tool": "search_persistent_memories",
+  "tags": ["redis", "database"],
+  "memory_types": ["solution", "pattern"],
+  "limit": 5
+}
+```
 
 ## Development
 

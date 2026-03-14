@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-03-15
+
+### Added
+- `help_memory_tools_usage` tool for comprehensive guidance on persistent vs session memory usage
+- Clear distinction guidance to prevent confusion with Serena Context Server tools
+- Decision matrices and practical examples for tool selection
+- Renamed guide tool from `get_persistent_memory_guide` to `help_memory_tools_usage` for better LLM discoverability
+- Best practices documentation for persistent memory usage
+
+### Changed
+- Updated tool count: Core profile now has 10 tools (including guide tool)
+- Enhanced documentation with persistent vs session memory distinction
+- Improved README.md with usage guidance and common mistakes to avoid
+
+### Fixed
+- Potential confusion between persistent memory tools (`_persistent` suffix) and session memory tools (no suffix)
+- Documentation inconsistencies regarding tool naming conventions
+- Integration guidance for using multiple MCP context servers together
+
+
 ## [0.1.6] - 2026-03-14
 
 ### Added

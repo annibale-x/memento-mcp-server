@@ -34,6 +34,7 @@ _CORE_TOOLS = [
     "get_related_persistent_memories",
     "recall_persistent_memories",
     "get_persistent_recent_activity",
+    "help_memory_tools_usage",
 ]
 
 _EXTENDED_EXTRA_TOOLS = [

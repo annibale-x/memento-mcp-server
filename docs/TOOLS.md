@@ -17,11 +17,29 @@ Core tools + 3 additional tools for advanced search and statistics.
 ### Advanced Profile (19 Tools)
 Extended tools + 7 advanced tools for graph analysis and pattern detection.
 
-## Core Tools (9 Tools)
+## Core Tools (10 Tools)
+
+### Guide Tool
+
+#### 1. `help_memory_tools_usage`
+**Description**: Get comprehensive guidance on using persistent memory tools and distinguishing them from session memory tools. Critical for avoiding confusion between persistent (cross-session) and session (project-specific) memory tools.
+
+**Parameters**:
+- `topic` (string, optional): Specific topic to get guidance on: "distinction", "examples", "best_practices", or "all" (default)
+
+**Returns**: Comprehensive guide with examples, decision matrices, and best practices
+
+**Example**:
+```json
+{
+  "tool": "help_memory_tools_usage",
+  "topic": "distinction"
+}
+```
 
 ### Memory Management Tools
 
-#### 1. `store_persistent_memory`
+#### 2. `store_persistent_memory`
 **Description**: Store a new persistent memory in the graph database. Use for long-term knowledge that should survive across ALL sessions.
 
 **Parameters**:
@@ -46,7 +64,8 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-#### 2. `recall_persistent_memories`
+#### 3. `recall_persistent_memories`
+
 **Description**: Recall persistent memories using natural language queries with fuzzy matching. Optimized for conceptual queries and general exploration.
 
 **Parameters**:
@@ -68,7 +87,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-#### 3. `search_persistent_memories`
+#### 4. `search_persistent_memories`
 **Description**: Advanced search with fine-grained filters for precise retrieval of persistent memories. Use for acronyms, proper nouns, known tags, and exact technical terms.
 
 **Parameters**:
@@ -92,7 +111,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-#### 4. `get_persistent_memory`
+#### 5. `get_persistent_memory`
 **Description**: Retrieve a specific persistent memory by ID.
 
 **Parameters**:
@@ -110,7 +129,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-#### 5. `update_persistent_memory`
+#### 6. `update_persistent_memory`
 **Description**: Update an existing persistent memory.
 
 **Parameters**:
@@ -133,7 +152,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-#### 6. `delete_persistent_memory`
+#### 7. `delete_persistent_memory`
 **Description**: Delete a persistent memory and all its relationships.
 
 **Parameters**:
@@ -151,7 +170,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 
 ### Relationship Tools
 
-#### 7. `create_persistent_relationship`
+#### 8. `create_persistent_relationship`
 **Description**: Create a relationship between two persistent memories.
 
 **Parameters**:
@@ -175,7 +194,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-#### 8. `get_related_persistent_memories`
+#### 9. `get_related_persistent_memories`
 **Description**: Get relationships for a persistent memory.
 
 **Parameters**:
@@ -197,7 +216,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 
 ### Utility Tools
 
-#### 9. `get_persistent_recent_activity`
+#### 10. `get_persistent_recent_activity`
 **Description**: Get summary of recent persistent memory activity.
 
 **Parameters**:
@@ -217,7 +236,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 
 ## Extended Tools (3 Additional Tools)
 
-### 10. `get_persistent_memory_statistics`
+### 11. `get_persistent_memory_statistics`
 **Description**: Get statistics about the persistent memory database.
 
 **Parameters**: None
@@ -231,7 +250,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-### 11. `search_persistent_relationships_by_context`
+### 12. `search_persistent_relationships_by_context`
 **Description**: Search persistent relationships by structured context fields.
 
 **Parameters**:
@@ -254,7 +273,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-### 12. `persistent_contextual_search`
+### 13. `persistent_contextual_search`
 **Description**: Search only within the context of a given persistent memory (scoped search).
 
 **Parameters**:
@@ -276,7 +295,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 
 ## Advanced Tools (7 Additional Tools)
 
-### 13. `analyze_persistent_memory_graph`
+### 14. `analyze_persistent_memory_graph`
 **Description**: Get comprehensive analytics and metrics for the persistent memory graph.
 
 **Parameters**: None
@@ -290,7 +309,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-### 14. `find_persistent_patterns`
+### 15. `find_persistent_patterns`
 **Description**: Find patterns in persistent memories and relationships.
 
 **Parameters**:
@@ -308,7 +327,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-### 15. `suggest_persistent_relationships`
+### 16. `suggest_persistent_relationships`
 **Description**: Get intelligent suggestions for relationship types between two persistent memories.
 
 **Parameters**:
@@ -326,7 +345,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-### 16. `get_persistent_memory_clusters`
+### 17. `get_persistent_memory_clusters`
 **Description**: Detect clusters of densely connected persistent memories.
 
 **Parameters**:
@@ -344,7 +363,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-### 17. `get_persistent_central_memories`
+### 18. `get_persistent_central_memories`
 **Description**: Find persistent memories that connect different clusters (knowledge bridges).
 
 **Parameters**: None
@@ -358,7 +377,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-### 18. `find_path_between_persistent_memories`
+### 19. `find_path_between_persistent_memories`
 **Description**: Find the shortest path between two persistent memories through relationships.
 
 **Parameters**:
@@ -379,7 +398,7 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
 }
 ```
 
-### 19. `get_persistent_memory_network`
+### 20. `get_persistent_memory_network`
 **Description**: Get the complete network structure of persistent memories and relationships.
 
 **Parameters**: None
@@ -392,6 +411,12 @@ Extended tools + 7 advanced tools for graph analysis and pattern detection.
   "tool": "get_persistent_memory_network"
 }
 ```
+
+## Tool Count Summary
+
+- **Core Profile**: 10 tools (including guide tool)
+- **Extended Profile**: 13 tools (core + 3 extended)
+- **Advanced Profile**: 20 tools (extended + 7 advanced)
 
 ## Relationship Types
 
@@ -536,6 +561,36 @@ python -m context_server --profile extended
 - Undo/redo history
 - Ephemeral calculations
 - Short-term context that doesn't need persistence
+
+## Getting Started with Guidance
+
+For new users or when confused about which tool to use:
+
+1. **Start with the guide tool**:
+   ```json
+   {
+     "tool": "help_memory_tools_usage",
+     "topic": "distinction"
+   }
+   ```
+
+2. **Review examples**:
+   ```json
+   {
+     "tool": "help_memory_tools_usage",
+     "topic": "examples"
+   }
+   ```
+
+3. **Learn best practices**:
+   ```json
+   {
+     "tool": "help_memory_tools_usage",
+     "topic": "best_practices"
+   }
+   ```
+
+The guide tool provides decision matrices, common mistakes to avoid, and practical examples to ensure correct usage of persistent memory tools.
 
 ## Troubleshooting
 

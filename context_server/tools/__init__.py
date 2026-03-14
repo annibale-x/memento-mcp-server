@@ -6,12 +6,16 @@ This package contains modular tool handlers organized by functionality:
 - relationship_tools: Create and query relationships
 - search_tools: Search, recall, and contextual search for memories
 - activity_tools: Activity summaries and statistics
+- guide_tools: Guidance and best practices for persistent memory usage
 """
 
 from .activity_tools import (
     handle_get_memory_statistics,
     handle_get_recent_activity,
     handle_search_relationships_by_context,
+)
+from .guide_tools import (
+    handle_help_memory_tools_usage,
 )
 from .memory_tools import (
     handle_delete_memory,
@@ -46,4 +50,6 @@ __all__ = [
     "handle_get_memory_statistics",
     "handle_get_recent_activity",
     "handle_search_relationships_by_context",
+    # Guide tools
+    "handle_help_memory_tools_usage",
 ]

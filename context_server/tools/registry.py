@@ -22,6 +22,9 @@ from .activity_tools import (
     handle_get_recent_activity,
     handle_search_relationships_by_context,
 )
+from .guide_tools import (
+    handle_help_memory_tools_usage,
+)
 from .memory_tools import (
     handle_delete_memory,
     handle_get_memory,
@@ -53,6 +56,7 @@ TOOL_HANDLERS: Dict[str, ToolHandler] = {
     "create_persistent_relationship": handle_create_relationship,
     "get_related_persistent_memories": handle_get_related_memories,
     "get_persistent_memory_statistics": handle_get_memory_statistics,
+    "help_memory_tools_usage": handle_help_memory_tools_usage,
     "get_persistent_recent_activity": handle_get_recent_activity,
     "search_persistent_relationships_by_context": handle_search_relationships_by_context,
 }

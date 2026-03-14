@@ -9,34 +9,48 @@ python -m context_server --health
 
 Lista dei 19 Tool Esposti (Extended + Advanced):
 
-### Core Tools (9):
-1. **`store_memory`** - Store a new memory with context and metadata
-2. **`get_memory`** - Retrieve a specific memory by ID
-3. **`search_memories`** - Search memories using natural language queries
-4. **`update_memory`** - Update an existing memory
-5. **`delete_memory`** - Delete a memory by ID
-6. **`create_relationship`** - Create relationships between memories
-7. **`get_related_memories`** - Get memories related to a specific memory
-8. **`recall_memories`** - Primary tool for finding past memories (fuzzy matching)
-9. **`get_recent_activity`** - Get recent memory activity
+### Core Tools (10):
+1. **`help_memory_tools_usage`** - Get guidance on using persistent memory tools and distinguishing from session memory
+2. **`store_persistent_memory`** - Store a new persistent memory with context and metadata
+3. **`get_persistent_memory`** - Retrieve a specific persistent memory by ID
+4. **`search_persistent_memories`** - Search persistent memories using natural language queries
+5. **`update_persistent_memory`** - Update an existing persistent memory
+6. **`delete_persistent_memory`** - Delete a persistent memory by ID
+7. **`create_persistent_relationship`** - Create relationships between persistent memories
+8. **`get_related_persistent_memories`** - Get persistent memories related to a specific memory
+9. **`recall_persistent_memories`** - Primary tool for finding past persistent memories (fuzzy matching)
+10. **`get_persistent_recent_activity`** - Get recent persistent memory activity
 
 ### Extended Extra Tools (3):
-10. **`get_memory_statistics`** - Get statistics about stored memories
-11. **`search_relationships_by_context`** - Search relationships by context
-12. **`contextual_search`** - Context-aware memory search
+11. **`get_persistent_memory_statistics`** - Get statistics about stored persistent memories
+12. **`search_persistent_relationships_by_context`** - Search persistent relationships by context
+13. **`persistent_contextual_search`** - Context-aware persistent memory search
 
 ### Advanced Tools (7):
-13. **`analyze_memory_graph`** - Analyze the memory relationship graph
-14. **`find_patterns`** - Find patterns in memories
-15. **`suggest_relationships`** - Suggest potential relationships between memories
-16. **`get_memory_clusters`** - Get clusters of related memories
-17. **`get_central_memories`** - Find central/important memories in the graph
-18. **`find_path_between_memories`** - Find connection paths between memories
-19. **`get_memory_network`** - Get the network structure of memories
+14. **`analyze_persistent_memory_graph`** - Analyze the persistent memory relationship graph
+15. **`find_persistent_patterns`** - Find patterns in persistent memories
+16. **`suggest_persistent_relationships`** - Suggest potential relationships between persistent memories
+17. **`get_persistent_memory_clusters`** - Get clusters of related persistent memories
+18. **`get_persistent_central_memories`** - Find central/important persistent memories in the graph
+19. **`find_path_between_persistent_memories`** - Find connection paths between persistent memories
+20. **`get_persistent_memory_network`** - Get the network structure of persistent memories
 
-**Totale: 19 tool**
+**Totale: 20 tool**
 
-Se vuoi solo i 12 tool del profilo "extended" (senza advanced), devi impostare `CONTEXT_ENABLE_ADVANCED_TOOLS=false` nella configurazione Zed.
+Se vuoi solo i 13 tool del profilo "extended" (senza advanced), devi impostare `CONTEXT_ENABLE_ADVANCED_TOOLS=false` nella configurazione Zed.
+
+## IMPORTANTE: Convenzione di denominazione `_persistent`
+
+Tutti i tool di mcp-context-keeper utilizzano il suffisso `_persistent` per distinguerli dai tool di session memory di Serena Context Server:
+
+- **Tool persistenti** (`_persistent` suffix): Memoria a lungo termine, cross-session, globale
+- **Tool di sessione** (senza suffix): Memoria temporanea, project-specific, session-only
+
+**Esempio di confusione da evitare:**
+- ❌ `store_memory` (Serena) per soluzioni a lungo termine
+- ✅ `store_persistent_memory` (mcp-context-keeper) per soluzioni a lungo termine
+
+Usa `help_memory_tools_usage` per una guida completa sulla distinzione.
 
 
 # CROSS COMPILATION

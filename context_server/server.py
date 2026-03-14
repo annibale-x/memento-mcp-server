@@ -74,6 +74,70 @@ class MemoryGraphServer:
         # Basic tools (defined inline below)
         basic_tools = [
             Tool(
+                name="help_memory_tools_usage",
+                description="""Get comprehensive guidance on using persistent memory tools and distinguishing them from session memory tools.
+
+CRITICAL DISTINCTION: Persistent memory vs Session memory
+
+PERSISTENT MEMORY (mcp-context-keeper tools with '_persistent' suffix):
+- Long-term knowledge that survives across ALL sessions
+- Global scope: accessible from any project or session
+- Use for: solutions, patterns, architecture decisions, reusable code snippets
+- Examples: store_persistent_memory, get_persistent_memory, search_persistent_memories
+
+SESSION MEMORY (Serena Context Server tools without suffix):
+- Temporary context for current project/session
+- Project-scoped: only accessible within current project
+- Use for: current file context, temporary variables, undo/redo history
+- Examples: store_memory, get_memory, search_memories (NO '_persistent' suffix)
+
+WHEN TO USE WHICH:
+─────────────────────────────────────────────────────────────
+| Scenario                     | Use Persistent | Use Session |
+|──────────────────────────────|────────────────|─────────────|
+| Bug fix solution             | ✅ store_persistent_memory | ❌ |
+| Current file context         | ❌ | ✅ store_memory |
+| Architecture decision        | ✅ store_persistent_memory | ❌ |
+| Temporary calculation        | ❌ | ✅ store_memory |
+| Reusable code pattern        | ✅ store_persistent_memory | ❌ |
+| Project-specific variable    | ❌ | ✅ store_memory |
+| Technology evaluation        | ✅ store_persistent_memory | ❌ |
+| Session undo history         | ❌ | ✅ store_memory |
+
+COMMON CONFUSIONS TO AVOID:
+1. ❌ store_memory (Serena) for long-term solutions → Use ✅ store_persistent_memory
+2. ❌ get_memory (Serena) for cross-session knowledge → Use ✅ get_persistent_memory
+3. ❌ search_memories (Serena) for global patterns → Use ✅ search_persistent_memories
+
+BEST PRACTICES:
+1. Always check for '_persistent' suffix for long-term storage
+2. Tag acronyms in persistent memories: tags=["jwt", "api", "redis"]
+3. Use importance scores (0.0-1.0) to prioritize persistent memories
+4. Create relationships between related persistent memories
+5. Use session memory only for ephemeral, project-specific context
+
+EXAMPLES:
+- store_persistent_memory(type="solution", title="JWT auth fix", ...)  # ✅ Correct
+- store_memory(type="solution", title="JWT auth fix", ...)            # ❌ WRONG (uses session memory)
+
+Returns: Comprehensive guide with examples and best practices.""",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "topic": {
+                            "type": "string",
+                            "description": "Optional specific topic to get guidance on (e.g., 'distinction', 'examples', 'best_practices')",
+                            "enum": [
+                                "distinction",
+                                "examples",
+                                "best_practices",
+                                "all",
+                            ],
+                        },
+                    },
+                },
+            ),
+            Tool(
                 name="recall_persistent_memories",
                 description="""Primary tool for finding persistent memories using natural language queries.
 
@@ -129,6 +193,7 @@ FALLBACK: If recall returns no relevant results, try search_persistent_memories 
                             "description": "Number of results to skip for pagination (default: 0)",
                         },
                     },
+                    "required": ["query"],
                 },
             ),
             Tool(
