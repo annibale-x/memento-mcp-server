@@ -93,11 +93,11 @@ LESS EFFECTIVE FOR:
 - Exact technical terms
 
 EXAMPLES:
-- recall_memories(query="timeout fix") - find timeout-related solutions
-- recall_memories(query="how does auth work") - conceptual query
-- recall_memories(project_path="/app") - memories from specific project
+- recall_persistent_memories(query="timeout fix") - find timeout-related solutions
+- recall_persistent_memories(query="how does auth work") - conceptual query
+- recall_persistent_memories(project_path="/app") - memories from specific project
 
-FALLBACK: If recall returns no relevant results, try search_memories with tags filter.""",
+FALLBACK: If recall returns no relevant results, try search_persistent_memories with tags filter.""",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -156,7 +156,7 @@ EXAMPLES:
 - store_persistent_memory(type="solution", title="Fixed Redis timeout", content="Increased timeout to 30s...", tags=["redis"], importance=0.8)
 - store_persistent_memory(type="error", title="OAuth2 auth failure", content="Error details...", tags=["auth", "oauth2"])
 
-Returns memory_id. Use create_relationship to link related memories.""",
+Returns memory_id. Use create_persistent_relationship to link related memories.""",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -200,10 +200,10 @@ Returns memory_id. Use create_relationship to link related memories.""",
                 name="get_persistent_memory",
                 description="""Retrieve a specific persistent memory by ID.
 
-Use when you have a memory_id from search results or store_memory.
+Use when you have a memory_id from search results or store_persistent_memory.
 Set include_relationships=true (default) to see connected memories.
 
-EXAMPLE: get_memory(memory_id="abc-123")""",
+EXAMPLE: get_persistent_memory(memory_id="abc-123")""",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -239,12 +239,12 @@ PARAMETERS:
 NOTE: Tags are automatically normalized to lowercase for case-insensitive matching.
 
 EXAMPLES:
-- search_memories(tags=["jwt", "auth"]) - find JWT-related memories
-- search_memories(tags=["dcad"]) - find DCAD memories by tag
-- search_memories(query="timeout", memory_types=["solution"]) - timeout solutions
-- search_memories(tags=["redis"], min_importance=0.7) - important Redis memories
+- search_persistent_memories(tags=["jwt", "auth"]) - find JWT-related memories
+- search_persistent_memories(tags=["dcad"]) - find DCAD memories by tag
+- search_persistent_memories(query="timeout", memory_types=["solution"]) - timeout solutions
+- search_persistent_memories(tags=["redis"], min_importance=0.7) - important Redis memories
 
-For conceptual/natural language queries, use recall_memories instead.""",
+For conceptual/natural language queries, use recall_persistent_memories instead.""",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -353,8 +353,8 @@ For conceptual/natural language queries, use recall_memories instead.""",
 Common types: SOLVES (solution→problem), CAUSES (cause→effect), ADDRESSES (fix→error), REQUIRES (dependent→dependency), RELATED_TO (general)
 
 EXAMPLES:
-- create_relationship(from_memory_id="sol-1", to_memory_id="prob-1", relationship_type="SOLVES")
-- create_relationship(from_memory_id="err-1", to_memory_id="fix-1", relationship_type="CAUSES", context="Config error caused timeout")
+- create_persistent_relationship(from_memory_id="sol-1", to_memory_id="prob-1", relationship_type="SOLVES")
+- create_persistent_relationship(from_memory_id="err-1", to_memory_id="fix-1", relationship_type="CAUSES", context="Config error caused timeout")
 
 Optional: strength (0-1), confidence (0-1), context (description)""",
                 inputSchema={
@@ -399,8 +399,8 @@ Optional: strength (0-1), confidence (0-1), context (description)""",
 Filter by relationship_types (e.g., ["SOLVES"], ["CAUSES"]) and max_depth (default 1).
 
 EXAMPLES:
-- get_related_memories(memory_id="prob-1", relationship_types=["SOLVES"]) - find solutions
-- get_related_memories(memory_id="err-1", relationship_types=["CAUSES"], max_depth=2) - find root causes""",
+- get_related_persistent_memories(memory_id="prob-1", relationship_types=["SOLVES"]) - find solutions
+- get_related_persistent_memories(memory_id="err-1", relationship_types=["CAUSES"], max_depth=2) - find root causes""",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -435,8 +435,8 @@ EXAMPLES:
 Returns: memory counts by type, recent memories (up to 20), unresolved problems.
 
 EXAMPLES:
-- get_recent_activity(days=7) - last week's activity
-- get_recent_activity(days=30, project="/app") - last month for specific project""",
+- get_persistent_recent_activity(days=7) - last week's activity
+- get_persistent_recent_activity(days=30, project="/app") - last month for specific project""",
                 inputSchema={
                     "type": "object",
                     "properties": {
