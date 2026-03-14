@@ -1,5 +1,12 @@
 # Changelog
 
+* 2026-03-14: v0.1.12 - Zed MCP integration fix and character encoding issues (Hannibal)
+  * Fixed Zed MCP server integration by resolving hidden character issues in configuration
+  * Identified and resolved copy-paste invisible character problems in environment variables
+  * Enhanced Windows compatibility with proper UTF-8 encoding for tool descriptions
+  * Improved error handling for MCP protocol communication with Zed editor
+  * Added comprehensive debugging tools for Zed MCP integration testing
+
 * 2026-03-14: v0.1.11 - Complete test suite reconstruction and bug fixes (Hannibal)
   * Fixed 18 failing tests in the test suite (from 18 to 0 failures)
   * Resolved event loop issues in CLI health check and export/import tests
