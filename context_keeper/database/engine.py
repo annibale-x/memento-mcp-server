@@ -1,9 +1,9 @@
 """
 SQLite backend implementation for Context Keeper.
 
-This module provides a zero-dependency backend using SQLite for persistence
-and SimpleGraph for in-memory graph operations. This enables the context keeper to work
-without requiring external database servers or NetworkX.
+This module provides a zero-dependency backend using SQLite for persistence.
+This enables the context keeper to work without requiring external database
+servers or NetworkX.
 """
 
 import json
@@ -13,16 +13,17 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Optional
 
+import aiosqlite
+
 from ..config import Config
 from ..models import DatabaseConnectionError, SchemaError
-from ..utils.simple_graph import SimpleGraph
 from .base import GraphBackend
 
 logger = logging.getLogger(__name__)
 
 
 class SQLiteBackend(GraphBackend):
-    """SQLite + SimpleGraph implementation of the GraphBackend interface."""
+    """SQLite implementation of the GraphBackend interface."""
 
     def __init__(self, db_path: Optional[str] = None):
         """
@@ -34,12 +35,10 @@ class SQLiteBackend(GraphBackend):
         Raises:
             DatabaseConnectionError: If SQLite connection fails
         """
-        # No external dependencies required - SimpleGraph is built-in
-
         self.db_path: str = db_path if db_path is not None else Config.SQLITE_PATH
-        self.conn: Optional[sqlite3.Connection] = None
-        self.graph: Optional[SimpleGraph] = None
+        self.conn: Optional[aiosqlite.Connection] = None
         self._connected = False
+        self._supports_fts = False
 
         # Ensure directory exists
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
@@ -55,13 +54,19 @@ class SQLiteBackend(GraphBackend):
             DatabaseConnectionError: If connection fails
         """
         try:
-            self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
-            self.conn.row_factory = sqlite3.Row  # Enable column access by name
-            self.graph = SimpleGraph()
+            self.conn = await aiosqlite.connect(self.db_path)
+            self.conn.row_factory = aiosqlite.Row  # Enable column access by name
             self._connected = True
 
-            # Load existing graph into memory
-            await self._load_graph_to_memory()
+            # Check FTS support once
+            try:
+                async with self.conn.execute(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='nodes_fts'"
+                ) as cursor:
+                    result = await cursor.fetchone()
+                    self._supports_fts = bool(result[0] > 0) if result else False
+            except Exception:
+                self._supports_fts = False
 
             logger.info(f"Successfully connected to SQLite database at {self.db_path}")
             return True
@@ -73,11 +78,8 @@ class SQLiteBackend(GraphBackend):
     async def disconnect(self) -> None:
         """Close the database connection."""
         if self.conn:
-            # Sync graph to SQLite before closing
-            await self._sync_to_sqlite()
-            self.conn.close()
+            await self.conn.close()
             self.conn = None
-            self.graph = None
             self._connected = False
             logger.info("SQLite connection closed")
 
@@ -88,7 +90,7 @@ class SQLiteBackend(GraphBackend):
         write: bool = False,
     ) -> list[dict[str, Any]]:
         """
-        Execute a Cypher-like query translated to SQLite/SimpleGraph operations.
+        Execute a Cypher-like query translated to SQLite operations.
 
         Args:
             query: Cypher-style query string
@@ -116,14 +118,9 @@ class SQLiteBackend(GraphBackend):
 
         # For schema operations, we can execute directly
         if query.strip().upper().startswith(("CREATE", "DROP", "ALTER")):
-            try:
-                cursor = self.conn.cursor()
-                # SQLite doesn't support Cypher, so we'll handle schema separately
-                return []
-            except sqlite3.Error as e:
-                raise DatabaseConnectionError(f"SQLite query failed: {e}")
+            return []
 
-        # For data operations, translate to SQLite/SimpleGraph
+        # For data operations, translate to SQLite
         # This is a simplified implementation - full Cypher translation would be complex
         logger.warning(
             "Direct Cypher execution not supported in SQLite backend. Use database.py methods."
@@ -142,11 +139,9 @@ class SQLiteBackend(GraphBackend):
         if not self.conn:
             raise SchemaError("Schema operation failed: not connected to database")
 
-        cursor = self.conn.cursor()
-
         try:
             # Create nodes table
-            cursor.execute("""
+            await self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS nodes (
                     id TEXT PRIMARY KEY,
                     label TEXT NOT NULL,
@@ -157,7 +152,7 @@ class SQLiteBackend(GraphBackend):
             """)
 
             # Create relationships table (with bi-temporal fields)
-            cursor.execute("""
+            await self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS relationships (
                     id TEXT PRIMARY KEY,
                     from_id TEXT NOT NULL,
@@ -179,38 +174,40 @@ class SQLiteBackend(GraphBackend):
             """)
 
             # Create indexes
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_nodes_label ON nodes(label)")
-            cursor.execute(
+            await self.conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_nodes_label ON nodes(label)"
+            )
+            await self.conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_nodes_created ON nodes(created_at)"
             )
-            cursor.execute(
+            await self.conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_rel_from ON relationships(from_id)"
             )
-            cursor.execute(
+            await self.conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_rel_to ON relationships(to_id)"
             )
-            cursor.execute(
+            await self.conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_rel_type ON relationships(rel_type)"
             )
 
             # Temporal indexes (Phase 2.2)
-            cursor.execute("""
+            await self.conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_relationships_temporal
                 ON relationships(valid_from, valid_until)
             """)
-            cursor.execute("""
+            await self.conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_relationships_current
                 ON relationships(valid_until)
                 WHERE valid_until IS NULL
             """)
-            cursor.execute("""
+            await self.conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_relationships_recorded
                 ON relationships(recorded_at)
             """)
 
             # Create FTS5 virtual table for full-text search
             try:
-                cursor.execute("""
+                await self.conn.execute("""
                     CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
                         id,
                         title,
@@ -221,91 +218,24 @@ class SQLiteBackend(GraphBackend):
                     )
                 """)
                 logger.debug("Created FTS5 table for full-text search")
-            except sqlite3.Error as e:
+            except Exception as e:
                 logger.warning(
                     f"Could not create FTS5 table (may not be available): {e}"
                 )
 
             # Version index for optimistic locking
-            cursor.execute("""
+            await self.conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_memory_version
                 ON nodes(json_extract(properties, '$.version'))
                 WHERE label = 'Memory'
             """)
 
-            self.conn.commit()
+            await self.conn.commit()
             logger.info("Schema initialization completed")
 
-        except sqlite3.Error as e:
-            self.conn.rollback()
+        except Exception as e:
+            await self.conn.rollback()
             raise SchemaError(f"Failed to initialize schema: {e}")
-
-    async def _load_graph_to_memory(self) -> None:
-        """Load graph data from SQLite into SimpleGraph."""
-        if not self.conn or not self.graph:
-            return
-
-        cursor = self.conn.cursor()
-
-        try:
-            # Check if nodes table exists
-            cursor.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='nodes'"
-            )
-            if not cursor.fetchone():
-                logger.debug("Nodes table does not exist yet, skipping graph load")
-                return
-
-            # Load nodes
-            cursor.execute("SELECT id, label, properties FROM nodes")
-            for row in cursor.fetchall():
-                node_id = row[0]
-                label = row[1]
-                properties = json.loads(row[2])
-                # Include label in properties for consistency
-                properties["label"] = label
-                self.graph.add_node(node_id, **properties)
-
-            # Check if relationships table exists
-            cursor.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='relationships'"
-            )
-            if not cursor.fetchone():
-                logger.debug(
-                    "Relationships table does not exist yet, skipping relationships load"
-                )
-                return
-
-            # Load relationships
-            cursor.execute(
-                "SELECT id, from_id, to_id, rel_type, properties FROM relationships"
-            )
-            for row in cursor.fetchall():
-                rel_id = row[0]
-                from_id = row[1]
-                to_id = row[2]
-                rel_type = row[3]
-                properties = json.loads(row[4])
-                # Include relationship type and ID in properties
-                properties["id"] = rel_id
-                properties["type"] = rel_type
-                self.graph.add_edge(from_id, to_id, **properties)
-
-            logger.debug(
-                f"Loaded {self.graph.number_of_nodes()} nodes and {self.graph.number_of_edges()} edges into memory"
-            )
-        except sqlite3.Error as e:
-            logger.warning(f"Could not load graph from SQLite: {e}")
-            # Don't raise the error, just log it - empty graph is acceptable
-
-    async def _sync_to_sqlite(self) -> None:
-        """Sync in-memory SimpleGraph to SQLite database."""
-        if not self.conn or not self.graph:
-            return
-
-        # This is a simplified sync - in production, we'd track changes
-        # For now, we'll rely on direct SQLite operations for writes
-        logger.debug("Graph sync to SQLite (using direct operations)")
 
     async def health_check(self) -> dict[str, Any]:
         """
@@ -322,15 +252,18 @@ class SQLiteBackend(GraphBackend):
 
         if self._connected and self.conn:
             try:
-                cursor = self.conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM nodes WHERE label = 'Memory'")
-                count = cursor.fetchone()[0]
+                async with self.conn.execute(
+                    "SELECT COUNT(*) FROM nodes WHERE label = 'Memory'"
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    count = row[0] if row else 0
 
                 health_info["statistics"] = {"memory_count": count}
 
                 # Get SQLite version
-                cursor.execute("SELECT sqlite_version()")
-                health_info["version"] = cursor.fetchone()[0]
+                async with self.conn.execute("SELECT sqlite_version()") as cursor:
+                    row = await cursor.fetchone()
+                    health_info["version"] = row[0] if row else "unknown"
 
                 # Get database size
                 db_size = (
@@ -355,18 +288,7 @@ class SQLiteBackend(GraphBackend):
         Returns:
             True if FTS5 is available in SQLite
         """
-        if not self.conn:
-            return False
-
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='nodes_fts'"
-            )
-            result = cursor.fetchone()
-            return bool(result[0] > 0) if result else False
-        except Exception:
-            return False
+        return self._supports_fts
 
     def supports_transactions(self) -> bool:
         """Check if this backend supports ACID transactions."""
@@ -393,62 +315,3 @@ class SQLiteBackend(GraphBackend):
         backend = cls(db_path)
         await backend.connect()
         return backend
-
-    # Helper methods for direct database operations
-
-    def _validate_connection(self) -> bool:
-        """
-        Validate the SQLite connection is still usable.
-
-        Returns:
-            True if connection is valid, False otherwise
-        """
-        if not self.conn:
-            return False
-        try:
-            self.conn.execute("SELECT 1")
-            return True
-        except Exception:
-            return False
-
-    def execute_sync(
-        self, query: str, parameters: Optional[tuple[Any, ...]] = None
-    ) -> list[dict[str, Any]]:
-        """
-        Execute a synchronous SQL query (for internal use).
-
-        Args:
-            query: SQL query string
-            parameters: Query parameters as tuple
-
-        Returns:
-            List of result rows as dictionaries
-        """
-        if not self._validate_connection():
-            raise DatabaseConnectionError(
-                "SQLite connection is not valid. Call connect() first."
-            )
-
-        cursor = self.conn.cursor()
-        if parameters:
-            cursor.execute(query, parameters)
-        else:
-            cursor.execute(query)
-
-        # Convert rows to dictionaries
-        columns = [desc[0] for desc in cursor.description] if cursor.description else []
-        results = []
-        for row in cursor.fetchall():
-            results.append(dict(zip(columns, row)))
-
-        return results
-
-    def commit(self) -> None:
-        """Commit current transaction."""
-        if self.conn:
-            self.conn.commit()
-
-    def rollback(self) -> None:
-        """Rollback current transaction."""
-        if self.conn:
-            self.conn.rollback()

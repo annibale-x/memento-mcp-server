@@ -1,5 +1,13 @@
 # Changelog
 
+* 2026-03-14: v0.1.9 - Code quality analysis and dead code removal (Hannibal)
+  * Removed unused `SimpleGraph` and graph algorithms classes
+  * Removed unused `MemoryNode` and graph-related models
+  * Removed unused utilities like `datetime_utils.py` and `error_handling.py`
+  * Migrated inline tools definitions from `server.py` to `tools/definitions.py`
+  * Fixed test suite by using explicit asserts instead of return values
+  * Cleaned up leftover testing artifacts and databases
+
 All notable changes to the mcp-context-keeper project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

@@ -9,7 +9,8 @@ import json
 import logging
 import re
 import sqlite3
-from datetime import datetime, timezone
+import aiosqlite
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -48,7 +49,7 @@ class SQLiteMemoryDatabase:
 
     # Helper methods for SQLite operations
 
-    def _execute_sql(self, query: str, params: Tuple = ()) -> List[Dict[str, Any]]:
+    async def _execute_sql(self, query: str, params: Tuple = ()) -> List[Dict[str, Any]]:
         """
         Execute a SQL query and return results as dictionaries.
 
@@ -65,18 +66,17 @@ class SQLiteMemoryDatabase:
         if not self.conn:
             raise BackendError("Database connection not available")
 
-        cursor = self.conn.cursor()
-        cursor.execute(query, params)
+        async with self.conn.execute(query, params) as cursor:
+            # Convert rows to dictionaries
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            results = []
+            rows = await cursor.fetchall()
+            for row in rows:
+                results.append(dict(zip(columns, row)))
 
-        # Convert rows to dictionaries
-        columns = [desc[0] for desc in cursor.description] if cursor.description else []
-        results = []
-        for row in cursor.fetchall():
-            results.append(dict(zip(columns, row)))
+            return results
 
-        return results
-
-    def _execute_write(self, query: str, params: Tuple = ()) -> None:
+    async def _execute_write(self, query: str, params: Tuple = ()) -> None:
         """
         Execute a write SQL query.
 
@@ -87,8 +87,7 @@ class SQLiteMemoryDatabase:
         if not self.conn:
             raise BackendError("Database connection not available")
 
-        cursor = self.conn.cursor()
-        cursor.execute(query, params)
+        await self.conn.execute(query, params)
 
     def _properties_to_memory(
         self, memory_id: str, properties: Dict[str, Any]
@@ -195,7 +194,7 @@ class SQLiteMemoryDatabase:
                 INSERT INTO nodes (id, label, properties)
                 VALUES (?, ?, ?)
             """
-            self._execute_write(query, (memory.id, "Memory", json.dumps(properties)))
+            await self._execute_write(query, (memory.id, "Memory", json.dumps(properties)))
 
             # Update FTS table if available
             if self.backend.supports_fulltext_search():
@@ -204,10 +203,10 @@ class SQLiteMemoryDatabase:
                         INSERT INTO nodes_fts (rowid, id, title, content, summary)
                         VALUES (?, ?, ?, ?, ?)
                     """
-                    cursor = self.conn.cursor()
-                    cursor.execute("SELECT last_insert_rowid()")
-                    rowid = cursor.fetchone()[0]
-                    self._execute_write(
+                    async with self.conn.execute("SELECT last_insert_rowid()") as cursor:
+                        row = await cursor.fetchone()
+                        rowid = row[0]
+                    await self._execute_write(
                         fts_query,
                         (
                             rowid,
@@ -217,18 +216,18 @@ class SQLiteMemoryDatabase:
                             memory.summary or "",
                         ),
                     )
-                except sqlite3.Error as e:
+                except aiosqlite.Error as e:
                     logger.warning(f"Could not update FTS table: {e}")
 
-            self.conn.commit()
+            await self.conn.commit()
             logger.debug(f"Stored memory: {memory.id}")
             return memory
 
-        except sqlite3.Error as e:
-            self.conn.rollback()
+        except aiosqlite.Error as e:
+            await self.conn.rollback()
             raise BackendError(f"Failed to store memory: {e}")
         except Exception as e:
-            self.conn.rollback()
+            await self.conn.rollback()
             raise BackendError(f"Failed to store memory: {str(e)}")
 
     async def get_memory_by_id(self, memory_id: str) -> Optional[Memory]:
@@ -249,7 +248,7 @@ class SQLiteMemoryDatabase:
                 SELECT properties FROM nodes
                 WHERE id = ? AND label = 'Memory'
             """
-            results = self._execute_sql(query, (memory_id,))
+            results = await self._execute_sql(query, (memory_id,))
 
             if not results:
                 return None
@@ -257,7 +256,7 @@ class SQLiteMemoryDatabase:
             properties = json.loads(results[0]["properties"])
             return self._properties_to_memory(memory_id, properties)
 
-        except sqlite3.Error as e:
+        except aiosqlite.Error as e:
             raise BackendError(f"Failed to get memory: {e}")
         except Exception as e:
             raise BackendError(f"Failed to get memory: {str(e)}")
@@ -285,7 +284,7 @@ class SQLiteMemoryDatabase:
 
             # Get current version for optimistic locking
             current_properties = json.loads(
-                self._execute_sql(
+                await self._execute_sql(
                     "SELECT properties FROM nodes WHERE id = ? AND label = 'Memory'",
                     (memory.id,),
                 )[0]["properties"]
@@ -314,7 +313,7 @@ class SQLiteMemoryDatabase:
                 SET properties = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ? AND label = 'Memory'
             """
-            self._execute_write(query, (json.dumps(properties), memory.id))
+            await self._execute_write(query, (json.dumps(properties), memory.id))
 
             # Update FTS table if available
             if self.backend.supports_fulltext_search():
@@ -324,7 +323,7 @@ class SQLiteMemoryDatabase:
                         SET title = ?, content = ?, summary = ?
                         WHERE id = ?
                     """
-                    self._execute_write(
+                    await self._execute_write(
                         fts_query,
                         (
                             memory.title or "",
@@ -333,18 +332,18 @@ class SQLiteMemoryDatabase:
                             memory.id,
                         ),
                     )
-                except sqlite3.Error as e:
+                except aiosqlite.Error as e:
                     logger.warning(f"Could not update FTS table: {e}")
 
-            self.conn.commit()
+            await self.conn.commit()
             logger.debug(f"Updated memory: {memory.id}")
             return memory
 
-        except sqlite3.Error as e:
-            self.conn.rollback()
+        except aiosqlite.Error as e:
+            await self.conn.rollback()
             raise BackendError(f"Failed to update memory: {e}")
         except Exception as e:
-            self.conn.rollback()
+            await self.conn.rollback()
             raise BackendError(f"Failed to update memory: {str(e)}")
 
     async def delete_memory(self, memory_id: str) -> bool:
@@ -368,25 +367,25 @@ class SQLiteMemoryDatabase:
 
             # Delete from nodes table (relationships will be cascade deleted)
             query = "DELETE FROM nodes WHERE id = ? AND label = 'Memory'"
-            self._execute_write(query, (memory_id,))
+            await self._execute_write(query, (memory_id,))
 
             # Delete from FTS table if available
             if self.backend.supports_fulltext_search():
                 try:
                     fts_query = "DELETE FROM nodes_fts WHERE id = ?"
-                    self._execute_write(fts_query, (memory_id,))
-                except sqlite3.Error as e:
+                    await self._execute_write(fts_query, (memory_id,))
+                except aiosqlite.Error as e:
                     logger.warning(f"Could not delete from FTS table: {e}")
 
-            self.conn.commit()
+            await self.conn.commit()
             logger.debug(f"Deleted memory: {memory_id}")
             return True
 
-        except sqlite3.Error as e:
-            self.conn.rollback()
+        except aiosqlite.Error as e:
+            await self.conn.rollback()
             raise BackendError(f"Failed to delete memory: {e}")
         except Exception as e:
-            self.conn.rollback()
+            await self.conn.rollback()
             raise BackendError(f"Failed to delete memory: {str(e)}")
 
     async def search_memories(self, query: SearchQuery) -> PaginatedResult:
@@ -431,7 +430,7 @@ class SQLiteMemoryDatabase:
                 next_offset=next_offset,
             )
 
-        except sqlite3.Error as e:
+        except aiosqlite.Error as e:
             raise BackendError(f"Failed to search memories: {e}")
         except Exception as e:
             raise BackendError(f"Failed to search memories: {str(e)}")
@@ -462,8 +461,8 @@ class SQLiteMemoryDatabase:
         limit = query.limit or 100
 
         # Execute queries
-        results = self._execute_sql(fts_query, (search_terms, limit))
-        count_result = self._execute_sql(count_query, (search_terms,))
+        results = await self._execute_sql(fts_query, (search_terms, limit))
+        count_result = await self._execute_sql(count_query, (search_terms,))
         total_count = count_result[0]["COUNT(*)"] if count_result else 0
 
         # Convert to Memory objects
@@ -515,7 +514,7 @@ class SQLiteMemoryDatabase:
 
         # Get total count
         count_query = f"SELECT COUNT(*) FROM nodes WHERE {where_sql}"
-        count_result = self._execute_sql(count_query, params)
+        count_result = await self._execute_sql(count_query, params)
         total_count = count_result[0]["COUNT(*)"] if count_result else 0
 
         # Get results with limit
@@ -528,7 +527,7 @@ class SQLiteMemoryDatabase:
         """
         params.append(limit)
 
-        results = self._execute_sql(search_query, params)
+        results = await self._execute_sql(search_query, params)
 
         # Convert to Memory objects
         memories = []
@@ -605,41 +604,56 @@ class SQLiteMemoryDatabase:
             if not Config.ALLOW_CYCLES:
                 await self._check_for_cycles(relationship)
 
-            # Prepare properties JSON
-            properties = {
-                "strength": relationship.strength or 0.5,
-                "confidence": relationship.confidence or 0.8,
-                "context": relationship.context or "",
-                "created_at": relationship.created_at.isoformat()
-                if relationship.created_at
-                else datetime.now(timezone.utc).isoformat(),
-            }
+            # Prepare properties JSON (exclude temporal fields, keep them only as columns)
+            # Prepare properties dict
+            props_dict = relationship.properties.model_dump()
+
+            # Handle temporal fields
+            valid_from = relationship.properties.valid_from.isoformat() if relationship.properties.valid_from else datetime.now(timezone.utc).isoformat()
+            valid_until = relationship.properties.valid_until.isoformat() if relationship.properties.valid_until else None
+            recorded_at = relationship.properties.recorded_at.isoformat() if relationship.properties.recorded_at else datetime.now(timezone.utc).isoformat()
+            created_at = relationship.properties.created_at.isoformat() if relationship.properties.created_at else datetime.now(timezone.utc).isoformat()
+            invalidated_by = relationship.properties.invalidated_by
 
             # Insert into relationships table
             query = """
-                INSERT INTO relationships (id, from_id, to_id, rel_type, properties)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO relationships (
+                    id, from_id, to_id, rel_type, properties, created_at,
+                    valid_from, valid_until, recorded_at, invalidated_by
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
-            self._execute_write(
+            
+            # Serialize props with correct datetimes
+            for k, v in props_dict.items():
+                if isinstance(v, datetime):
+                    props_dict[k] = v.isoformat()
+            
+            await self._execute_write(
                 query,
                 (
                     relationship.id,
                     relationship.from_memory_id,
                     relationship.to_memory_id,
                     relationship.type.value,
-                    json.dumps(properties),
+                    json.dumps(props_dict),
+                    created_at,
+                    valid_from,
+                    valid_until,
+                    recorded_at,
+                    invalidated_by,
                 ),
             )
 
-            self.conn.commit()
+            await self.conn.commit()
             logger.debug(f"Stored relationship: {relationship.id}")
             return relationship
 
-        except sqlite3.Error as e:
-            self.conn.rollback()
+        except aiosqlite.Error as e:
+            await self.conn.rollback()
             raise BackendError(f"Failed to store relationship: {e}")
         except Exception as e:
-            self.conn.rollback()
+            await self.conn.rollback()
             raise BackendError(f"Failed to store relationship: {str(e)}")
 
     async def _check_for_cycles(self, relationship: Relationship) -> None:
@@ -662,7 +676,7 @@ class SQLiteMemoryDatabase:
             SELECT COUNT(*) FROM relationships
             WHERE from_id = ? AND to_id = ? AND rel_type = ?
         """
-        results = self._execute_sql(
+        results = await self._execute_sql(
             query,
             (
                 relationship.to_memory_id,
@@ -691,11 +705,12 @@ class SQLiteMemoryDatabase:
         """
         try:
             query = """
-                SELECT id, from_id, to_id, rel_type, properties
+                SELECT id, from_id, to_id, rel_type, properties,
+                       created_at, valid_from, valid_until, recorded_at, invalidated_by
                 FROM relationships
                 WHERE from_id = ? OR to_id = ?
             """
-            results = self._execute_sql(query, (memory_id, memory_id))
+            results = await self._execute_sql(query, (memory_id, memory_id))
 
             relationships = []
             for row in results:
@@ -703,25 +718,39 @@ class SQLiteMemoryDatabase:
                     properties = json.loads(row["properties"])
                     rel_type = RelationshipType(row["rel_type"])
 
-                    # Parse dates
-                    created_at = None
-                    if properties.get("created_at"):
+                    def parse_date(date_str):
+                        if not date_str:
+                            return None
                         try:
-                            created_at = datetime.fromisoformat(
-                                properties["created_at"]
-                            )
+                            return datetime.fromisoformat(date_str)
                         except (ValueError, TypeError):
-                            created_at = datetime.now(timezone.utc)
+                            return None
+
+                    created_at = parse_date(row["created_at"]) or datetime.now(timezone.utc)
+                    valid_from = parse_date(row["valid_from"]) or datetime.now(timezone.utc)
+                    valid_until = parse_date(row["valid_until"])
+                    recorded_at = parse_date(row["recorded_at"]) or datetime.now(timezone.utc)
 
                     relationship = Relationship(
                         id=row["id"],
                         from_memory_id=row["from_id"],
                         to_memory_id=row["to_id"],
                         type=rel_type,
-                        strength=properties.get("strength", 0.5),
-                        confidence=properties.get("confidence", 0.8),
-                        context=properties.get("context", ""),
-                        created_at=created_at,
+                        properties=RelationshipProperties(
+                            strength=properties.get("strength", 0.5),
+                            confidence=properties.get("confidence", 0.8),
+                            context=properties.get("context", ""),
+                            evidence_count=properties.get("evidence_count", 1),
+                            success_rate=properties.get("success_rate", None),
+                            validation_count=properties.get("validation_count", 0),
+                            counter_evidence_count=properties.get("counter_evidence_count", 0),
+                            created_at=created_at,
+                            valid_from=valid_from,
+                            valid_until=valid_until,
+                            recorded_at=recorded_at,
+                            last_validated=parse_date(properties.get("last_validated")) or datetime.now(timezone.utc),
+                            invalidated_by=row["invalidated_by"],
+                        ),
                     )
                     relationships.append(relationship)
                 except Exception as e:
@@ -729,7 +758,7 @@ class SQLiteMemoryDatabase:
 
             return relationships
 
-        except sqlite3.Error as e:
+        except aiosqlite.Error as e:
             raise BackendError(f"Failed to get relationships: {e}")
         except Exception as e:
             raise BackendError(f"Failed to get relationships: {str(e)}")
@@ -750,24 +779,24 @@ class SQLiteMemoryDatabase:
         try:
             # Check if relationship exists
             query = "SELECT COUNT(*) FROM relationships WHERE id = ?"
-            results = self._execute_sql(query, (relationship_id,))
+            results = await self._execute_sql(query, (relationship_id,))
 
             if not results or results[0]["COUNT(*)"] == 0:
                 return False
 
             # Delete relationship
             delete_query = "DELETE FROM relationships WHERE id = ?"
-            self._execute_write(delete_query, (relationship_id,))
+            await self._execute_write(delete_query, (relationship_id,))
 
-            self.conn.commit()
+            await self.conn.commit()
             logger.debug(f"Deleted relationship: {relationship_id}")
             return True
 
-        except sqlite3.Error as e:
-            self.conn.rollback()
+        except aiosqlite.Error as e:
+            await self.conn.rollback()
             raise BackendError(f"Failed to delete relationship: {e}")
         except Exception as e:
-            self.conn.rollback()
+            await self.conn.rollback()
             raise BackendError(f"Failed to delete relationship: {str(e)}")
 
     async def initialize_schema(self) -> None:
@@ -777,3 +806,344 @@ class SQLiteMemoryDatabase:
         This is a no-op since the SQLiteBackend already creates the schema.
         """
         logger.debug("Schema already initialized by SQLiteBackend")
+
+    async def invalidate_relationship(self, relationship_id: str, invalidated_by: str = None) -> None:
+        """
+        Invalidate a relationship by setting valid_until to now.
+
+        Args:
+            relationship_id: ID of the relationship to invalidate
+            invalidated_by: Optional ID of relationship that supersedes this one
+
+        Raises:
+            BackendError: If database operation fails
+        """
+        try:
+            # Check if relationship exists
+            query = "SELECT id FROM relationships WHERE id = ?"
+            result = await self._execute_sql(query, (relationship_id,))
+
+            if not result:
+                raise BackendError(f"Relationship not found: {relationship_id}")
+
+            # Set valid_until to now
+            now = datetime.now(timezone.utc).isoformat()
+            update_query = """
+                UPDATE relationships
+                SET valid_until = ?, invalidated_by = ?
+                WHERE id = ?
+            """
+            await self._execute_write(update_query, (now, invalidated_by, relationship_id))
+
+            await self.conn.commit()
+            logger.info(f"Invalidated relationship: {relationship_id}")
+
+        except aiosqlite.Error as e:
+            await self.conn.rollback()
+            raise BackendError(f"Failed to invalidate relationship: {e}")
+        except Exception as e:
+            await self.conn.rollback()
+            if isinstance(e, BackendError):
+                raise
+            raise BackendError(f"Failed to invalidate relationship: {str(e)}")
+
+    async def get_relationship_history(
+        self,
+        memory_id: str,
+        relationship_types: List[RelationshipType] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[Relationship]:
+        """
+        Get full history of relationships for a memory, including invalidated ones.
+
+        Args:
+            memory_id: ID of the memory to get history for
+            relationship_types: Optional filter by relationship types
+            limit: Maximum number of results to return (default: 100)
+            offset: Number of results to skip for pagination (default: 0)
+
+        Returns:
+            List of Relationship objects, ordered chronologically by valid_from
+
+        Raises:
+            BackendError: If database operation fails
+        """
+        try:
+            # Build query
+            where_conditions = ["(from_id = ? OR to_id = ?)"]
+            params = [memory_id, memory_id]
+
+            if relationship_types:
+                type_placeholders = ",".join("?" * len(relationship_types))
+                where_conditions.append(f"rel_type IN ({type_placeholders})")
+                params.extend([rt.value for rt in relationship_types])
+
+            where_clause = " AND ".join(where_conditions)
+
+            query = f"""
+                SELECT
+                    id, from_id, to_id, rel_type, properties,
+                    created_at, valid_from, valid_until, recorded_at, invalidated_by
+                FROM relationships
+                WHERE {where_clause}
+                ORDER BY valid_from ASC
+                LIMIT ? OFFSET ?
+            """
+
+            params.extend([limit, offset])
+            results = await self._execute_sql(query, tuple(params))
+
+            relationships = []
+            for row in results:
+                try:
+                    properties = json.loads(row["properties"])
+                    rel_type = RelationshipType(row["rel_type"])
+
+                    def parse_date(date_str):
+                        if not date_str:
+                            return None
+                        try:
+                            return datetime.fromisoformat(date_str)
+                        except (ValueError, TypeError):
+                            return None
+                    
+                    created_at = parse_date(row["created_at"]) or datetime.now(timezone.utc)
+                    valid_from = parse_date(row["valid_from"]) or datetime.now(timezone.utc)
+                    valid_until = parse_date(row["valid_until"])
+                    recorded_at = parse_date(row["recorded_at"]) or datetime.now(timezone.utc)
+
+                    relationship = Relationship(
+                        id=row["id"],
+                        from_memory_id=row["from_id"],
+                        to_memory_id=row["to_id"],
+                        type=rel_type,
+                        properties=RelationshipProperties(
+                            strength=properties.get("strength", 0.5),
+                            confidence=properties.get("confidence", 0.8),
+                            context=properties.get("context", ""),
+                            evidence_count=properties.get("evidence_count", 1),
+                            success_rate=properties.get("success_rate", None),
+                            validation_count=properties.get("validation_count", 0),
+                            counter_evidence_count=properties.get("counter_evidence_count", 0),
+                            created_at=created_at,
+                            valid_from=valid_from,
+                            valid_until=valid_until,
+                            recorded_at=recorded_at,
+                            last_validated=parse_date(properties.get("last_validated")) or datetime.now(timezone.utc),
+                            invalidated_by=row["invalidated_by"],
+                        ),
+                    )
+                    relationships.append(relationship)
+                except Exception as e:
+                    logger.warning(f"Failed to parse relationship {row['id']}: {e}")
+
+            logger.info(f"Found {len(relationships)} relationships in history for {memory_id}")
+            return relationships
+
+        except aiosqlite.Error as e:
+            raise BackendError(f"Failed to get relationship history: {e}")
+        except Exception as e:
+            raise BackendError(f"Failed to get relationship history: {str(e)}")
+
+    async def what_changed(self, since: datetime) -> Dict[str, List[Relationship]]:
+        """
+        Get all relationship changes since a given time.
+
+        Args:
+            since: DateTime to query changes from
+
+        Returns:
+            Dictionary with "new_relationships" and "invalidated_relationships" lists
+
+        Raises:
+            BackendError: If database operation fails
+        """
+        try:
+            since_str = since.isoformat()
+
+            # Query for new relationships (recorded_at >= since)
+            new_query = """
+                SELECT
+                    id, from_id, to_id, rel_type, properties,
+                    created_at, valid_from, valid_until, recorded_at, invalidated_by
+                FROM relationships
+                WHERE recorded_at >= ?
+                ORDER BY recorded_at DESC
+            """
+            new_results = await self._execute_sql(new_query, (since_str,))
+
+            # Query for invalidated relationships (valid_until set since)
+            invalidated_query = """
+                SELECT
+                    id, from_id, to_id, rel_type, properties,
+                    created_at, valid_from, valid_until, recorded_at, invalidated_by
+                FROM relationships
+                WHERE valid_until IS NOT NULL AND valid_until >= ?
+                ORDER BY valid_until DESC
+            """
+            invalidated_results = await self._execute_sql(invalidated_query, (since_str,))
+
+            def _parse_relationships(results):
+                relationships = []
+                for row in results:
+                    try:
+                        properties = json.loads(row["properties"])
+                        rel_type = RelationshipType(row["rel_type"])
+
+                        def parse_date(date_str):
+                            if not date_str:
+                                return None
+                            try:
+                                return datetime.fromisoformat(date_str)
+                            except (ValueError, TypeError):
+                                return None
+                        
+                        created_at = parse_date(row["created_at"]) or datetime.now(timezone.utc)
+                        valid_from = parse_date(row["valid_from"]) or datetime.now(timezone.utc)
+                        valid_until = parse_date(row["valid_until"])
+                        recorded_at = parse_date(row["recorded_at"]) or datetime.now(timezone.utc)
+
+                        relationship = Relationship(
+                            id=row["id"],
+                            from_memory_id=row["from_id"],
+                            to_memory_id=row["to_id"],
+                            type=rel_type,
+                            strength=properties.get("strength", 0.5),
+                            confidence=properties.get("confidence", 0.8),
+                            context=properties.get("context", ""),
+                            created_at=created_at,
+                            valid_from=valid_from,
+                            valid_until=valid_until,
+                            recorded_at=recorded_at,
+                            invalidated_by=row["invalidated_by"],
+                        )
+                        relationships.append(relationship)
+                    except Exception as e:
+                        logger.warning(f"Failed to parse relationship {row['id']}: {e}")
+                return relationships
+
+            new_relationships = _parse_relationships(new_results)
+            invalidated_relationships = _parse_relationships(invalidated_results)
+
+            logger.info(
+                f"Found {len(new_relationships)} new and {len(invalidated_relationships)} invalidated relationships since {since}"
+            )
+            return {
+                "new_relationships": new_relationships,
+                "invalidated_relationships": invalidated_relationships,
+            }
+
+        except aiosqlite.Error as e:
+            raise BackendError(f"Failed to get changes: {e}")
+        except Exception as e:
+            raise BackendError(f"Failed to get changes: {str(e)}")
+
+    async def get_recent_activity(self, days: int = 7, project: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get recent activity summary for session briefing.
+
+        Args:
+            days: Number of days to look back (default: 7)
+            project: Optional project path filter
+
+        Returns:
+            Dictionary containing activity details
+
+        Raises:
+            BackendError: If database operation fails
+        """
+        try:
+            # Calculate cutoff date
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            cutoff_iso = cutoff_date.isoformat()
+
+            # Build WHERE conditions
+            where_conditions = [
+                "label = 'Memory'",
+                "json_extract(properties, '$.created_at') >= ?",
+            ]
+            params = [cutoff_iso]
+
+            if project:
+                where_conditions.append("json_extract(properties, '$.context_project_path') = ?")
+                params.append(project)
+
+            where_clause = " AND ".join(where_conditions)
+
+            # Get total count
+            count_query = f"SELECT COUNT(*) as count FROM nodes WHERE {where_clause}"
+            count_result = await self._execute_sql(count_query, tuple(params))
+            total_count = count_result[0]["count"] if count_result else 0
+
+            # Get memories by type
+            type_query = f"""
+                SELECT
+                    json_extract(properties, '$.type') as type,
+                    COUNT(*) as count
+                FROM nodes
+                WHERE {where_clause}
+                GROUP BY json_extract(properties, '$.type')
+            """
+            type_result = await self._execute_sql(type_query, tuple(params))
+            memories_by_type = {row["type"]: row["count"] for row in type_result} if type_result else {}
+
+            # Get recent memories
+            recent_query = f"""
+                SELECT id, properties
+                FROM nodes
+                WHERE {where_clause}
+                ORDER BY json_extract(properties, '$.created_at') DESC
+                LIMIT 20
+            """
+            recent_result = await self._execute_sql(recent_query, tuple(params))
+
+            recent_memories = []
+            for row in recent_result:
+                try:
+                    properties = json.loads(row["properties"])
+                    memory = self._properties_to_memory(row["id"], properties)
+                    recent_memories.append(memory)
+                except Exception:
+                    pass
+
+            # Find unresolved problems
+            unresolved_query = f"""
+                SELECT n.id, n.properties
+                FROM nodes n
+                WHERE {where_clause}
+                    AND json_extract(n.properties, '$.type') IN ('problem', 'error')
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM relationships r
+                        WHERE r.to_id = n.id
+                            AND r.rel_type IN ('SOLVES', 'FIXES', 'ADDRESSES')
+                            AND (r.valid_until IS NULL OR r.valid_until > CURRENT_TIMESTAMP)
+                    )
+                ORDER BY CAST(json_extract(n.properties, '$.importance') AS REAL) DESC
+                LIMIT 10
+            """
+            unresolved_result = await self._execute_sql(unresolved_query, tuple(params))
+
+            unresolved_problems = []
+            for row in unresolved_result:
+                try:
+                    properties = json.loads(row["properties"])
+                    memory = self._properties_to_memory(row["id"], properties)
+                    unresolved_problems.append(memory)
+                except Exception:
+                    pass
+
+            return {
+                "total_count": total_count,
+                "memories_by_type": memories_by_type,
+                "recent_memories": recent_memories,
+                "unresolved_problems": unresolved_problems,
+                "days": days,
+                "project": project,
+            }
+
+        except aiosqlite.Error as e:
+            raise BackendError(f"Failed to get recent activity: {e}")
+        except Exception as e:
+            raise BackendError(f"Failed to get recent activity: {str(e)}")

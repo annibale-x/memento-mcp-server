@@ -7,7 +7,7 @@ enabling persistent knowledge tracking, relationship mapping, and contextual dev
 Supports SQLite backend only for simplified deployment with Zed editor.
 """
 
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 __author__ = "Hannibal"
 __email__ = "annibale.x@gmail.com"
 
@@ -18,7 +18,6 @@ from .models import (
     Memory,
     MemoryContext,
     MemoryError,
-    MemoryNode,
     MemoryNotFoundError,
     MemoryType,
     NotFoundError,
@@ -36,7 +35,6 @@ __all__ = [
     "MemoryType",
     "Relationship",
     "RelationshipType",
-    "MemoryNode",
     "MemoryContext",
     "MemoryError",
     "MemoryNotFoundError",

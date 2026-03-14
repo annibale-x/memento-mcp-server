@@ -3,7 +3,7 @@
 # Hierarchy: Defaults → ~/.mcp-context-keeper/config.yaml → ./context-keeper.yaml → Environment Variables
 
 # Database configuration
-sqlite_path: "~/.mcp-context-keeper/context.db" # Path to SQLite database file
+sqlite_path: ".db" # Path to SQLite database file
 
 # Tool configuration
 tool_profile: "extended" # Options: core, extended, advanced

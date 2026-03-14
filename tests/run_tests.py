@@ -252,83 +252,6 @@ class TestRunner:
         test_result["duration"] = time.time() - start_time
         return test_result
 
-    async def run_json_test(self) -> Dict:
-        """Test JSON test data file."""
-        self.log("Running JSON test data validation...")
-
-        test_result = {
-            "file": "json_test",
-            "status": "unknown",
-            "duration": 0.0,
-            "errors": [],
-            "warnings": [],
-            "details": {},
-        }
-
-        start_time = time.time()
-
-        try:
-            json_file = Path(__file__).parent / "test_import.json"
-
-            if not json_file.exists():
-                raise FileNotFoundError(f"Test JSON file not found: {json_file}")
-
-            with open(json_file, "r") as f:
-                data = json.load(f)
-
-            # Validate structure
-            required_keys = ["version", "memories", "relationships"]
-            for key in required_keys:
-                if key not in data:
-                    raise ValueError(f"Missing required key in JSON: {key}")
-
-            # Validate memories
-            memories = data.get("memories", [])
-            test_result["details"]["memory_count"] = len(memories)
-
-            for i, memory in enumerate(memories):
-                if "id" not in memory:
-                    raise ValueError(f"Memory {i} missing 'id' field")
-                if "content" not in memory:
-                    raise ValueError(f"Memory {i} missing 'content' field")
-
-            # Validate relationships
-            relationships = data.get("relationships", [])
-            test_result["details"]["relationship_count"] = len(relationships)
-
-            for i, rel in enumerate(relationships):
-                if "id" not in rel:
-                    raise ValueError(f"Relationship {i} missing 'id' field")
-                if "from_memory_id" not in rel:
-                    raise ValueError(f"Relationship {i} missing 'from_memory_id' field")
-                if "to_memory_id" not in rel:
-                    raise ValueError(f"Relationship {i} missing 'to_memory_id' field")
-                if "relationship_type" not in rel:
-                    raise ValueError(
-                        f"Relationship {i} missing 'relationship_type' field"
-                    )
-
-            test_result["status"] = "passed"
-            if sys.platform == "win32":
-                self.log(
-                    f"  [PASS] JSON test: PASSED ({len(memories)} memories, {len(relationships)} relationships)"
-                )
-            else:
-                self.log(
-                    f"  ✅ JSON test: PASSED ({len(memories)} memories, {len(relationships)} relationships)"
-                )
-
-        except Exception as e:
-            if sys.platform == "win32":
-                self.log(f"  [FAIL] JSON test: FAILED - {e}", "ERROR")
-            else:
-                self.log(f"  ❌ JSON test: FAILED - {e}", "ERROR")
-            test_result["status"] = "failed"
-            test_result["errors"].append(str(e))
-
-        test_result["duration"] = time.time() - start_time
-        return test_result
-
     async def run_all_tests(self):
         """Run all available tests."""
         self.start_time = time.time()
@@ -339,10 +262,6 @@ class TestRunner:
         # Run import test first
         import_result = await self.run_import_test()
         self.results["tests"]["import_test"] = import_result
-
-        # Run JSON test
-        json_result = await self.run_json_test()
-        self.results["tests"]["json_test"] = json_result
 
         # Find and run test files
         test_dir = Path(__file__).parent

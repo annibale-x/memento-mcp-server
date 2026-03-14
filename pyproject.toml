@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-context-keeper"
-version = "0.1.8"
+version = "0.1.9"
 description = "MCP Context Keeper per gestione contestuale della memoria"
 authors = [
     {name = "Hannibal", email = "annibale.x@gmail.com"}
@@ -15,7 +15,8 @@ dependencies = [
     "pydantic>=2.10.0",
     "python-dotenv>=1.0.0",
     "typing-extensions>=4.0.0",
-    "pyyaml>=6.0.0"
+    "pyyaml>=6.0.0",
+    "aiosqlite>=0.20.0"
 ]
 
 [tool.setuptools.packages.find]
