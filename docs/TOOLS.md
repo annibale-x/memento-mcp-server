@@ -4,114 +4,137 @@
 
 This document provides a comprehensive reference for all MCP (Model Context Protocol) tools available in the mcp-context-server server. This is a simplified version of MemoryGraph focused on SQLite-only backend for Zed editor integration.
 
+**IMPORTANT NAMING CONVENTION**: All tools use the `_persistent` suffix to distinguish them from session-based memory tools (like Serena Context Server). Use these tools for long-term knowledge that survives across sessions.
+
+## Tool Profiles
+
+### Core Profile (9 Tools)
+Default profile with essential memory management tools for persistent storage.
+
+### Extended Profile (12 Tools)
+Core tools + 3 additional tools for advanced search and statistics.
+
+### Advanced Profile (19 Tools)
+Extended tools + 7 advanced tools for graph analysis and pattern detection.
+
 ## Core Tools (9 Tools)
 
 ### Memory Management Tools
 
-#### 1. `store_memory`
-**Description**: Store a new memory in the graph database.
+#### 1. `store_persistent_memory`
+**Description**: Store a new persistent memory in the graph database. Use for long-term knowledge that should survive across ALL sessions.
 
 **Parameters**:
-- `content` (string, required): The content of the memory
-- `memory_type` (string, optional): Type of memory (default: "note")
-- `context` (string, optional): Context information
-- `tags` (array of strings, optional): Tags for categorization
-- `metadata` (object, optional): Additional metadata
+- `type` (string, required): Type of memory (solution, problem, error, fix, pattern, decision, task, code_pattern, technology, command, workflow, general)
+- `title` (string, required): Short descriptive title for the memory (max 500 chars)
+- `content` (string, required): Detailed content of the memory (max 50KB)
+- `tags` (array of strings, optional): Tags for categorization (max 50 tags, 100 chars each)
+- `importance` (number, optional): Importance score (0.0-1.0)
+- `context` (object, optional): Context information for the memory
 
 **Returns**: Memory ID and creation timestamp
 
 **Example**:
 ```json
 {
-  "tool": "store_memory",
-  "content": "Fixed authentication bug in login controller",
-  "memory_type": "bug_fix",
-  "tags": ["authentication", "bug", "backend"],
-  "context": "Working on user authentication system"
+  "tool": "store_persistent_memory",
+  "type": "solution",
+  "title": "Fixed Redis timeout",
+  "content": "Increased timeout to 30s and added connection pooling...",
+  "tags": ["redis", "database", "performance"],
+  "importance": 0.8
 }
 ```
 
-#### 2. `recall_memories`
-**Description**: Recall memories based on a query.
+#### 2. `recall_persistent_memories`
+**Description**: Recall persistent memories using natural language queries with fuzzy matching. Optimized for conceptual queries and general exploration.
 
 **Parameters**:
-- `query` (string, required): Search query
-- `limit` (number, optional): Maximum number of results (default: 10)
+- `query` (string, required): Natural language query
 - `memory_types` (array of strings, optional): Filter by memory types
+- `project_path` (string, optional): Filter by project path
+- `limit` (integer, optional): Maximum results per page (default: 20)
+- `offset` (integer, optional): Results to skip for pagination
 
 **Returns**: List of matching memories with relevance scores
 
 **Example**:
 ```json
 {
-  "tool": "recall_memories",
-  "query": "authentication bug",
-  "limit": 5,
-  "memory_types": ["bug_fix", "issue"]
+  "tool": "recall_persistent_memories",
+  "query": "how to fix timeout issues",
+  "memory_types": ["solution", "fix"],
+  "limit": 5
 }
 ```
 
-#### 3. `search_memories`
-**Description**: Advanced search with semantic matching.
+#### 3. `search_persistent_memories`
+**Description**: Advanced search with fine-grained filters for precise retrieval of persistent memories. Use for acronyms, proper nouns, known tags, and exact technical terms.
 
 **Parameters**:
-- `query` (string, required): Search query
-- `search_tolerance` (number, optional): Search tolerance (0.0-1.0, default: 0.7)
-- `limit` (number, optional): Maximum number of results (default: 10)
-- `include_context` (boolean, optional): Include context in search (default: true)
+- `query` (string, optional): Text to search in memory content
+- `terms` (array of strings, optional): Multiple search terms
+- `tags` (array of strings, optional): Filter by exact tag match
+- `memory_types` (array of strings, optional): Filter by memory types
+- `min_importance` (number, optional): Minimum importance score
+- `search_tolerance` (string, optional): "strict", "normal", or "fuzzy"
+- `match_mode` (string, optional): "any" or "all"
 
 **Returns**: List of memories with similarity scores
 
 **Example**:
 ```json
 {
-  "tool": "search_memories",
-  "query": "user login authentication",
-  "search_tolerance": 0.8,
-  "limit": 10
+  "tool": "search_persistent_memories",
+  "tags": ["jwt", "auth"],
+  "memory_types": ["solution", "pattern"],
+  "min_importance": 0.7
 }
 ```
 
-#### 4. `get_memory`
-**Description**: Retrieve a specific memory by ID.
+#### 4. `get_persistent_memory`
+**Description**: Retrieve a specific persistent memory by ID.
 
 **Parameters**:
 - `memory_id` (string, required): ID of the memory to retrieve
+- `include_relationships` (boolean, optional): Include related memories
 
 **Returns**: Complete memory object with all properties
 
 **Example**:
 ```json
 {
-  "tool": "get_memory",
-  "memory_id": "mem_123456"
+  "tool": "get_persistent_memory",
+  "memory_id": "mem_abc123",
+  "include_relationships": true
 }
 ```
 
-#### 5. `update_memory`
-**Description**: Update an existing memory.
+#### 5. `update_persistent_memory`
+**Description**: Update an existing persistent memory.
 
 **Parameters**:
 - `memory_id` (string, required): ID of the memory to update
+- `title` (string, optional): Updated title
 - `content` (string, optional): Updated content
+- `summary` (string, optional): Updated summary
 - `tags` (array of strings, optional): Updated tags
-- `context` (string, optional): Updated context
-- `metadata` (object, optional): Updated metadata
+- `importance` (number, optional): Updated importance score
 
 **Returns**: Updated memory object
 
 **Example**:
 ```json
 {
-  "tool": "update_memory",
-  "memory_id": "mem_123456",
+  "tool": "update_persistent_memory",
+  "memory_id": "mem_abc123",
   "content": "Fixed authentication bug and added rate limiting",
-  "tags": ["authentication", "bug", "backend", "security"]
+  "tags": ["authentication", "security", "rate-limiting"]
 }
 ```
 
-#### 6. `delete_memory`
-**Description**: Delete a memory from the graph.
+#### 6. `delete_persistent_memory`
+**Description**: Delete a persistent memory and all its relationships.
 
 **Parameters**:
 - `memory_id` (string, required): ID of the memory to delete
@@ -121,226 +144,406 @@ This document provides a comprehensive reference for all MCP (Model Context Prot
 **Example**:
 ```json
 {
-  "tool": "delete_memory",
-  "memory_id": "mem_123456"
+  "tool": "delete_persistent_memory",
+  "memory_id": "mem_abc123"
 }
 ```
 
 ### Relationship Tools
 
-#### 7. `create_relationship`
-**Description**: Create a relationship between two memories.
+#### 7. `create_persistent_relationship`
+**Description**: Create a relationship between two persistent memories.
 
 **Parameters**:
 - `from_memory_id` (string, required): Source memory ID
 - `to_memory_id` (string, required): Target memory ID
 - `relationship_type` (string, required): Type of relationship
-- `context` (string, optional): Context for the relationship
 - `strength` (number, optional): Relationship strength (0.0-1.0)
+- `confidence` (number, optional): Confidence in relationship (0.0-1.0)
+- `context` (string, optional): Context description
 
 **Returns**: Relationship ID and details
 
 **Example**:
 ```json
 {
-  "tool": "create_relationship",
-  "from_memory_id": "mem_123456",
-  "to_memory_id": "mem_789012",
-  "relationship_type": "caused_by",
-  "context": "Authentication bug caused login failure"
+  "tool": "create_persistent_relationship",
+  "from_memory_id": "mem_sol_123",
+  "to_memory_id": "mem_prob_456",
+  "relationship_type": "SOLVES",
+  "context": "Redis timeout fix solves connection pool issue"
 }
 ```
 
-#### 8. `get_relationships`
-**Description**: Get relationships for a memory.
+#### 8. `get_related_persistent_memories`
+**Description**: Get relationships for a persistent memory.
 
 **Parameters**:
 - `memory_id` (string, required): Memory ID to get relationships for
-- `direction` (string, optional): Relationship direction ("incoming", "outgoing", "both", default: "both")
 - `relationship_types` (array of strings, optional): Filter by relationship types
+- `max_depth` (integer, optional): Maximum relationship depth (1-5)
 
-**Returns**: List of relationships
+**Returns**: List of related memories and relationships
 
 **Example**:
 ```json
 {
-  "tool": "get_relationships",
-  "memory_id": "mem_123456",
-  "direction": "outgoing",
-  "relationship_types": ["caused_by", "related_to"]
+  "tool": "get_related_persistent_memories",
+  "memory_id": "mem_prob_456",
+  "relationship_types": ["SOLVES", "ADDRESSES"],
+  "max_depth": 2
 }
 ```
 
 ### Utility Tools
 
-#### 9. `export_memories`
-**Description**: Export memories to JSON format.
+#### 9. `get_persistent_recent_activity`
+**Description**: Get summary of recent persistent memory activity.
 
 **Parameters**:
-- `format` (string, optional): Export format ("json", "ndjson", default: "json")
-- `include_relationships` (boolean, optional): Include relationships (default: true)
-- `memory_ids` (array of strings, optional): Specific memory IDs to export
+- `days` (integer, optional): Number of days to look back (1-365, default: 7)
+- `project` (string, optional): Filter by project path
 
-**Returns**: Exported data in specified format
+**Returns**: Memory counts by type, recent memories, unresolved problems
 
 **Example**:
 ```json
 {
-  "tool": "export_memories",
-  "format": "json",
-  "include_relationships": true
+  "tool": "get_persistent_recent_activity",
+  "days": 7,
+  "project": "/apps/api"
 }
 ```
 
-## Extended Tools (12 Tools - When enabled)
+## Extended Tools (3 Additional Tools)
 
-When running in extended mode, the following additional tools are available:
-
-### 10. `import_memories`
-**Description**: Import memories from JSON format.
-
-**Parameters**:
-- `data` (string, required): JSON data to import
-- `format` (string, optional): Import format ("json", "ndjson", default: "json")
-- `merge_strategy` (string, optional): Merge strategy ("skip", "overwrite", "merge", default: "skip")
-
-### 11. `get_memory_stats`
-**Description**: Get statistics about memories.
-
-**Parameters**:
-- `time_range` (object, optional): Time range filter
-- `group_by` (string, optional): Group by field ("type", "day", "week", "month")
-
-### 12. `health_check`
-**Description**: Check server health and database status.
+### 10. `get_persistent_memory_statistics`
+**Description**: Get statistics about the persistent memory database.
 
 **Parameters**: None
+
+**Returns**: Database statistics including total memories, relationships, memory types distribution
+
+**Example**:
+```json
+{
+  "tool": "get_persistent_memory_statistics"
+}
+```
+
+### 11. `search_persistent_relationships_by_context`
+**Description**: Search persistent relationships by structured context fields.
+
+**Parameters**:
+- `scope` (string, optional): "partial", "full", or "conditional"
+- `conditions` (array of strings, optional): Filter by conditions
+- `has_evidence` (boolean, optional): Filter by evidence presence
+- `evidence` (array of strings, optional): Filter by evidence types
+- `components` (array of strings, optional): Filter by components
+- `temporal` (string, optional): Filter by temporal information
+
+**Returns**: List of relationships matching context criteria
+
+**Example**:
+```json
+{
+  "tool": "search_persistent_relationships_by_context",
+  "scope": "full",
+  "has_evidence": true,
+  "components": ["auth", "database"]
+}
+```
+
+### 12. `persistent_contextual_search`
+**Description**: Search only within the context of a given persistent memory (scoped search).
+
+**Parameters**:
+- `memory_id` (string, required): Memory ID to use as context root
+- `query` (string, required): Search query within context
+- `max_depth` (integer, optional): Maximum relationship depth (1-5, default: 2)
+
+**Returns**: Matches found only within related memories
+
+**Example**:
+```json
+{
+  "tool": "persistent_contextual_search",
+  "memory_id": "mem_prob_456",
+  "query": "timeout configuration",
+  "max_depth": 2
+}
+```
+
+## Advanced Tools (7 Additional Tools)
+
+### 13. `analyze_persistent_memory_graph`
+**Description**: Get comprehensive analytics and metrics for the persistent memory graph.
+
+**Parameters**: None
+
+**Returns**: Graph metrics, relationship system statistics, database statistics
+
+**Example**:
+```json
+{
+  "tool": "analyze_persistent_memory_graph"
+}
+```
+
+### 14. `find_persistent_patterns`
+**Description**: Find patterns in persistent memories and relationships.
+
+**Parameters**:
+- `min_pattern_size` (integer, optional): Minimum pattern size (default: 3)
+- `min_support` (number, optional): Minimum support threshold (0.0-1.0, default: 0.5)
+
+**Returns**: Detected patterns and their support scores
+
+**Example**:
+```json
+{
+  "tool": "find_persistent_patterns",
+  "min_pattern_size": 3,
+  "min_support": 0.6
+}
+```
+
+### 15. `suggest_persistent_relationships`
+**Description**: Get intelligent suggestions for relationship types between two persistent memories.
+
+**Parameters**:
+- `from_memory_id` (string, required): Source memory ID
+- `to_memory_id` (string, required): Target memory ID
+
+**Returns**: List of suggested relationship types with confidence scores
+
+**Example**:
+```json
+{
+  "tool": "suggest_persistent_relationships",
+  "from_memory_id": "mem_sol_123",
+  "to_memory_id": "mem_prob_456"
+}
+```
+
+### 16. `get_persistent_memory_clusters`
+**Description**: Detect clusters of densely connected persistent memories.
+
+**Parameters**:
+- `min_cluster_size` (integer, optional): Minimum memories per cluster (default: 3)
+- `min_density` (number, optional): Minimum cluster density (0.0-1.0, default: 0.3)
+
+**Returns**: Detected clusters with size and density metrics
+
+**Example**:
+```json
+{
+  "tool": "get_persistent_memory_clusters",
+  "min_cluster_size": 3,
+  "min_density": 0.4
+}
+```
+
+### 17. `get_persistent_central_memories`
+**Description**: Find persistent memories that connect different clusters (knowledge bridges).
+
+**Parameters**: None
+
+**Returns**: Central memories with betweenness centrality scores
+
+**Example**:
+```json
+{
+  "tool": "get_persistent_central_memories"
+}
+```
+
+### 18. `find_path_between_persistent_memories`
+**Description**: Find the shortest path between two persistent memories through relationships.
+
+**Parameters**:
+- `from_memory_id` (string, required): Starting memory ID
+- `to_memory_id` (string, required): Target memory ID
+- `max_depth` (integer, optional): Maximum path length (1-10, default: 5)
+- `relationship_types` (array of strings, optional): Filter by relationship types
+
+**Returns**: Path information including found status and hops
+
+**Example**:
+```json
+{
+  "tool": "find_path_between_persistent_memories",
+  "from_memory_id": "mem_sol_123",
+  "to_memory_id": "mem_root_789",
+  "max_depth": 5
+}
+```
+
+### 19. `get_persistent_memory_network`
+**Description**: Get the complete network structure of persistent memories and relationships.
+
+**Parameters**: None
+
+**Returns**: Network structure including nodes, edges, and topological properties
+
+**Example**:
+```json
+{
+  "tool": "get_persistent_memory_network"
+}
+```
 
 ## Relationship Types
 
 ### Core Relationship Types
 
-1. **caused_by** - A memory was caused by another memory
-2. **related_to** - Memories are related but not causally
-3. **solution_for** - A memory provides a solution for another memory
-4. **context_for** - A memory provides context for another memory
-5. **depends_on** - A memory depends on another memory
+1. **SOLVES** - A solution solves a problem
+2. **CAUSES** - A cause leads to an effect
+3. **ADDRESSES** - A fix addresses an error
+4. **REQUIRES** - A dependency requires another component
+5. **RELATED_TO** - General relationship between memories
+6. **DEPENDS_ON** - Technical dependency
+7. **IMPLEMENTS** - Implementation of a pattern or design
+8. **EXTENDS** - Extension or enhancement
+9. **REFINES** - Refinement or improvement
+10. **DOCUMENTS** - Documentation relationship
 
 ### Extended Relationship Types
 
-6. **learned_from** - Knowledge was learned from another memory
-7. **improves** - A memory improves upon another memory
-8. **references** - A memory references another memory
-9. **similar_to** - Memories are similar in content or context
+11. **LEARNED_FROM** - Knowledge learned from experience
+12. **IMPROVES** - Improvement over previous version
+13. **REFERENCES** - Reference to external resource
+14. **SIMILAR_TO** - Similarity in content or context
+15. **CONTRASTS_WITH** - Contrast or difference
+16. **PRECEDES** - Temporal precedence
+17. **FOLLOWS** - Temporal following
+18. **VALIDATES** - Validation or verification
+19. **INVALIDATES** - Invalidation or contradiction
 
 ## Memory Types
 
 ### Standard Types
 
-1. **note** - General note or observation
-2. **bug_fix** - Bug fix or solution
-3. **issue** - Problem or issue encountered
-4. **decision** - Architectural or design decision
-5. **learning** - Something learned
-6. **todo** - Task to be done
-7. **reference** - Reference material or link
-
-### Extended Types
-
-8. **configuration** - Configuration details
-9. **command** - Command or script
-10. **error** - Error message or stack trace
-11. **optimization** - Performance optimization
-12. **security** - Security-related information
+1. **solution** - Solution to a problem
+2. **problem** - Problem or issue
+3. **error** - Error or exception
+4. **fix** - Fix or workaround
+5. **pattern** - Design or code pattern
+6. **decision** - Architectural or design decision
+7. **task** - Task or todo item
+8. **code_pattern** - Code implementation pattern
+9. **technology** - Technology or tool
+10. **command** - Command or script
+11. **workflow** - Workflow or process
+12. **general** - General note or observation
 
 ## Configuration
 
 ### Server Modes
 
-1. **Core Mode** (Default): 9 basic tools for essential memory management
-2. **Extended Mode**: 12 tools including import/export and statistics
+1. **Core Mode** (Default): 9 basic tools for essential persistent memory management
+2. **Extended Mode**: 12 tools including advanced search and statistics
+3. **Advanced Mode**: 19 tools including graph analysis and pattern detection
 
-### Configuration File (`memorygraph.yaml`)
+### Environment Variables
+
+```
+CONTEXT_TOOL_PROFILE=core|extended|advanced
+CONTEXT_ENABLE_ADVANCED_TOOLS=true|false
+CONTEXT_SQLITE_PATH=~/.mcp-context-server/context.db
+CONTEXT_LOG_LEVEL=DEBUG|INFO|WARNING|ERROR
+```
+
+### Configuration File (`context-server.yaml`)
 
 ```yaml
-server:
-  mode: "core"  # or "extended"
-  host: "localhost"
-  port: 8080
-
-database:
-  path: "./memory.db"  # SQLite database path
-  auto_init: true
-
+backend: "sqlite"
+tool_profile: "extended"
+enable_advanced_tools: true
+sqlite_path: "~/.mcp-context-server/context.db"
 logging:
   level: "INFO"
-  file: "./memorygraph.log"
+features:
+  auto_extract_entities: true
+  session_briefing: true
+  briefing_verbosity: "standard"
+  briefing_recency_days: 7
+  allow_relationship_cycles: false
 ```
 
 ## Usage Examples
 
-### Basic Memory Storage
+### Basic Persistent Memory Storage
 ```bash
-# Store a memory
-curl -X POST http://localhost:8080/tools/store_memory \
-  -H "Content-Type: application/json" \
-  -d '{
-    "content": "Implemented user authentication with JWT",
-    "memory_type": "decision",
-    "tags": ["authentication", "security", "backend"]
-  }'
+# Store a persistent memory
+python -m context_server --profile extended
+
+# Then use MCP client to call:
+{
+  "tool": "store_persistent_memory",
+  "type": "solution",
+  "title": "Fixed authentication with JWT",
+  "content": "Implemented JWT token validation with 30-minute expiration...",
+  "tags": ["authentication", "jwt", "security"]
+}
 ```
 
-### Search and Recall
+### Search and Recall Persistent Memories
 ```bash
-# Search for authentication-related memories
-curl -X POST http://localhost:8080/tools/search_memories \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "authentication JWT implementation",
-    "limit": 5
-  }'
+# Search for persistent authentication memories
+{
+  "tool": "search_persistent_memories",
+  "tags": ["authentication", "jwt"],
+  "memory_types": ["solution", "pattern"],
+  "limit": 5
+}
 ```
 
-### Creating Relationships
+### Creating Persistent Relationships
 ```bash
-# Link a bug fix to the original issue
-curl -X POST http://localhost:8080/tools/create_relationship \
-  -H "Content-Type: application/json" \
-  -d '{
-    "from_memory_id": "mem_fix_123",
-    "to_memory_id": "mem_issue_456",
-    "relationship_type": "solution_for",
-    "context": "Fixed JWT validation issue"
-  }'
+# Link a persistent solution to a problem
+{
+  "tool": "create_persistent_relationship",
+  "from_memory_id": "mem_sol_jwt",
+  "to_memory_id": "mem_prob_auth",
+  "relationship_type": "SOLVES",
+  "context": "JWT implementation solves authentication issues"
+}
 ```
 
 ## Best Practices
 
-1. **Consistent Tagging**: Use consistent tags for similar topics
-2. **Clear Context**: Always provide context when storing memories
-3. **Relationship Mapping**: Create relationships to connect related memories
-4. **Regular Export**: Regularly export memories for backup
-5. **Memory Types**: Use appropriate memory types for categorization
+1. **Use _persistent Suffix**: Always use tools with `_persistent` suffix for long-term storage
+2. **Tag Acronyms**: Include acronyms as tags (e.g., `["jwt", "api", "redis"]`)
+3. **Clear Context**: Provide context for relationships and memories
+4. **Importance Scoring**: Use importance scores (0.0-1.0) to prioritize memories
+5. **Regular Maintenance**: Use statistics tools to monitor database health
+
+## When to Use Persistent vs Session Memory
+
+### Use Persistent Memory Tools (`_persistent` suffix):
+- Long-term solutions and patterns
+- Reusable code snippets and commands
+- Architecture decisions and design patterns
+- Important bug fixes and workarounds
+- Technology evaluations and comparisons
+- Knowledge that should survive across sessions
+
+### Use Session Memory Tools (Serena, no suffix):
+- Temporary session state
+- Current file context
+- Project-specific variables
+- Undo/redo history
+- Ephemeral calculations
+- Short-term context that doesn't need persistence
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Database Connection**: Ensure SQLite database path is accessible
-2. **Memory Not Found**: Verify memory ID exists
-3. **Relationship Errors**: Check that both memory IDs exist
-4. **Import/Export**: Validate JSON format before import
+1. **Tool Not Found**: Ensure you're using the correct `_persistent` suffix
+2. **Database Connection**: Check SQLite database path permissions
+3. **Memory Not Found**: Verify memory ID exists in persistent storage
+4. **Relationship Errors**: Ensure both memory IDs exist before creating relationships
 
 ### Health Check
-```bash
-curl http://localhost:8080/health
-```
-
-## License
-
-MIT License - See LICENSE file for details.
-
-## Acknowledgments
-
-This project is a simplified fork of the original MemoryGraph project by Gregory Dickson, adapted specifically for Zed editor integration with a focus on simplicity and local storage.
