@@ -1,426 +1,240 @@
 #!/usr/bin/env python3
 """
-Test runner for mcp-context-keeper project.
+Test runner for mcp-context-keeper project using pytest.
 
-This script runs all test files and provides a comprehensive test report.
-All output is in English.
+This script runs the complete test suite with clean, professional output.
+All output is in English without emojis or colors.
+
+Usage:
+    python run_tests.py [options] [test_files...]
+
+Examples:
+    python run_tests.py                     # Run all tests
+    python run_tests.py -v                  # Run all tests with verbose output
+    python run_tests.py test_server_startup.py  # Run specific test file
+    python run_tests.py --list              # List all test files
 """
 
 import argparse
-import asyncio
-import json
+import os
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
-from typing import Dict
 
-# Add parent directory to path to import user_memory
+# Add parent directory to path to import context_keeper for any direct imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
-    from context_keeper import ContextKeeper
-    from context_keeper.models import MemoryType, RelationshipType
-
-    IMPORT_SUCCESS = True
-except ImportError as e:
-    IMPORT_SUCCESS = False
-    IMPORT_ERROR = str(e)
-
-
-class TestRunner:
-    """Main test runner class."""
-
-    def __init__(self, verbose: bool = False, output_file: str = None):
-        self.verbose = verbose
-        self.output_file = output_file
-        self.results = {
-            "timestamp": datetime.now().isoformat(),
-            "project": "mcp-context-keeper",
-            "tests": {},
-            "summary": {
-                "total": 0,
-                "passed": 0,
-                "failed": 0,
-                "skipped": 0,
-                "duration": 0.0,
-            },
-        }
-        self.start_time = None
-
-    def log(self, message: str, level: str = "INFO"):
-        """Log a message with timestamp."""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        # Use ASCII-safe characters for Windows compatibility
-        safe_message = message
-        if sys.platform == "win32":
-            # Replace Unicode emojis with ASCII equivalents on Windows
-            safe_message = (
-                safe_message.replace("✅", "[PASS]")
-                .replace("❌", "[FAIL]")
-                .replace("⚠️", "[WARN]")
-                .replace("❓", "[UNKN]")
-                .replace("ℹ️", "[INFO]")
-            )
-        print(f"[{timestamp}] [{level}] {safe_message}")
-
-    def log_verbose(self, message: str):
-        """Log verbose message if enabled."""
-        if self.verbose:
-            self.log(message, "DEBUG")
-
-    async def run_test_file(self, test_file: Path) -> Dict:
-        """Run a single test file."""
-        self.log(f"Running test file: {test_file.name}")
-
-        # Import the test module
-        module_name = test_file.stem
-        import importlib.util
-
-        spec = importlib.util.spec_from_file_location(module_name, test_file)
-        module = importlib.util.module_from_spec(spec)
-
-        test_result = {
-            "file": test_file.name,
-            "status": "unknown",
-            "duration": 0.0,
-            "errors": [],
-            "warnings": [],
-            "details": {},
-        }
-
-        start_time = time.time()
-
-        try:
-            spec.loader.exec_module(module)
-
-            # Check if the module has a main function
-            if hasattr(module, "main"):
-                self.log_verbose(f"  Found main() function in {test_file.name}")
-
-                if asyncio.iscoroutinefunction(module.main):
-                    # Async main function
-                    success = await module.main()
-                else:
-                    # Sync main function
-                    success = module.main()
-
-                test_result["status"] = "passed" if success else "failed"
-                test_result["details"]["main_result"] = success
-
-            elif hasattr(module, "test_all") or hasattr(module, "run_tests"):
-                self.log(
-                    f"  WARNING: {test_file.name} has test_all/run_tests but no main()",
-                    "WARNING",
-                )
-                test_result["status"] = "skipped"
-                test_result["warnings"].append("No main() function found")
-
-            else:
-                # Check if the module has test functions that can be run directly
-                test_functions = []
-                for attr_name in dir(module):
-                    attr = getattr(module, attr_name)
-                    if callable(attr) and attr_name.startswith("test_"):
-                        test_functions.append(attr_name)
-
-                if test_functions:
-                    self.log_verbose(f"  Found test functions: {test_functions}")
-                    # Run all test functions
-                    all_passed = True
-                    for func_name in test_functions:
-                        func = getattr(module, func_name)
-                        try:
-                            if asyncio.iscoroutinefunction(func):
-                                # Async test function
-                                func_result = await func()
-                            else:
-                                # Sync test function
-                                func_result = func()
-
-                            if func_result is False:
-                                all_passed = False
-                                test_result["errors"].append(f"Test {func_name} failed")
-                        except Exception as e:
-                            all_passed = False
-                            test_result["errors"].append(f"Test {func_name} error: {e}")
-
-                    test_result["status"] = "passed" if all_passed else "failed"
-                    test_result["details"]["test_functions"] = test_functions
-                    test_result["details"]["all_passed"] = all_passed
-                else:
-                    self.log(
-                        f"  INFO: {test_file.name} has no test functions to run", "INFO"
-                    )
-                    test_result["status"] = "skipped"
-                    test_result["details"]["reason"] = "No test functions found"
-
-        except Exception as e:
-            self.log(f"  ERROR: Failed to run {test_file.name}: {e}", "ERROR")
-            test_result["status"] = "failed"
-            test_result["errors"].append(str(e))
-            import traceback
-
-            test_result["details"]["traceback"] = traceback.format_exc()
-
-        test_result["duration"] = time.time() - start_time
-
-        # Use ASCII-safe status indicators
-        if sys.platform == "win32":
-            status_emoji = {
-                "passed": "[PASS]",
-                "failed": "[FAIL]",
-                "skipped": "[WARN]",
-                "unknown": "[UNKN]",
-            }
-        else:
-            status_emoji = {
-                "passed": "✅",
-                "failed": "❌",
-                "skipped": "⚠️",
-                "unknown": "❓",
-            }
-
-        self.log(
-            f"  {status_emoji[test_result['status']]} {test_file.name}: {test_result['status'].upper()} ({test_result['duration']:.2f}s)"
-        )
-
-        # Log errors if any
-        if test_result["errors"]:
-            for error in test_result["errors"]:
-                self.log(f"    ERROR: {error}", "ERROR")
-
-        # Log warnings if any
-        if test_result["warnings"]:
-            for warning in test_result["warnings"]:
-                self.log(f"    WARNING: {warning}", "WARNING")
-
-        return test_result
-
-    async def run_import_test(self) -> Dict:
-        """Test basic imports and module availability."""
-        self.log("Running import test...")
-
-        test_result = {
-            "file": "import_test",
-            "status": "unknown",
-            "duration": 0.0,
-            "errors": [],
-            "warnings": [],
-            "details": {},
-        }
-
-        start_time = time.time()
-
-        try:
-            if not IMPORT_SUCCESS:
-                raise ImportError(f"Failed to import context_keeper: {IMPORT_ERROR}")
-
-            # Test basic imports
-            test_result["details"]["imports"] = {
-                "ContextKeeper": ContextKeeper.__name__,
-                "MemoryType_count": len(list(MemoryType)),
-                "RelationshipType_count": len(list(RelationshipType)),
-            }
-
-            self.log_verbose(f"  Memory types: {[t.value for t in MemoryType]}")
-            self.log_verbose(
-                f"  Relationship types: {[t.value for t in RelationshipType]}"
-            )
-
-            # Test server instantiation
-            server = ContextKeeper()
-            test_result["details"]["server_instance"] = str(server)
-
-            test_result["status"] = "passed"
-            if sys.platform == "win32":
-                self.log("  [PASS] Import test: PASSED")
-            else:
-                self.log("  ✅ Import test: PASSED")
-
-        except Exception as e:
-            if sys.platform == "win32":
-                self.log(f"  [FAIL] Import test: FAILED - {e}", "ERROR")
-            else:
-                self.log(f"  ❌ Import test: FAILED - {e}", "ERROR")
-            test_result["status"] = "failed"
-            test_result["errors"].append(str(e))
-            import traceback
-
-            test_result["details"]["traceback"] = traceback.format_exc()
-
-        test_result["duration"] = time.time() - start_time
-        return test_result
-
-    async def run_all_tests(self):
-        """Run all available tests."""
-        self.start_time = time.time()
-        self.log("=" * 60)
-        self.log("Starting test suite for mcp-context-keeper")
-        self.log("=" * 60)
-
-        # Run import test first
-        import_result = await self.run_import_test()
-        self.results["tests"]["import_test"] = import_result
-
-        # Find and run test files
-        test_dir = Path(__file__).parent
-        test_files = list(test_dir.glob("test_*.py"))
-
-        self.log(f"\nFound {len(test_files)} test files:")
-        for tf in test_files:
-            self.log(f"  - {tf.name}")
-
-        for test_file in test_files:
-            if test_file.name == "run_tests.py":
-                continue  # Skip this file
-
-            test_result = await self.run_test_file(test_file)
-            self.results["tests"][test_file.stem] = test_result
-
-        # Calculate summary
-        self._calculate_summary()
-
-        # Print summary
-        self._print_summary()
-
-        # Save results if output file specified
-        if self.output_file:
-            self._save_results()
-
-        return self.results["summary"]["failed"] == 0
-
-    def _calculate_summary(self):
-        """Calculate test summary statistics."""
-        total = passed = failed = skipped = 0
-        total_duration = 0.0
-
-        for test_name, result in self.results["tests"].items():
-            total += 1
-            total_duration += result["duration"]
-
-            if result["status"] == "passed":
-                passed += 1
-            elif result["status"] == "failed":
-                failed += 1
-            else:
-                skipped += 1
-
-        self.results["summary"].update(
-            {
-                "total": total,
-                "passed": passed,
-                "failed": failed,
-                "skipped": skipped,
-                "duration": total_duration,
-            }
-        )
-
-    def _print_summary(self):
-        """Print test summary."""
-        summary = self.results["summary"]
-        total_time = time.time() - self.start_time
-
-        self.log("=" * 60)
-        self.log("TEST SUMMARY")
-        self.log("=" * 60)
-
-        self.log(f"Total tests: {summary['total']}")
-        if sys.platform == "win32":
-            self.log(f"Passed:      {summary['passed']} [PASS]")
-            self.log(f"Failed:      {summary['failed']} [FAIL]")
-            self.log(f"Skipped:     {summary['skipped']} [WARN]")
-        else:
-            self.log(f"Passed:      {summary['passed']} ✅")
-            self.log(f"Failed:      {summary['failed']} ❌")
-            self.log(f"Skipped:     {summary['skipped']} ⚠️")
-        self.log(f"Total time:  {total_time:.2f} seconds")
-
-        # Print detailed results
-        if self.verbose or summary["failed"] > 0:
-            self.log("\nDetailed results:")
-            for test_name, result in self.results["tests"].items():
-                if sys.platform == "win32":
-                    status_emoji = {
-                        "passed": "[PASS]",
-                        "failed": "[FAIL]",
-                        "skipped": "[WARN]",
-                        "unknown": "[UNKN]",
-                    }[result["status"]]
-                else:
-                    status_emoji = {
-                        "passed": "✅",
-                        "failed": "❌",
-                        "skipped": "⚠️",
-                        "unknown": "❓",
-                    }[result["status"]]
-
-                self.log(
-                    f"  {status_emoji} {test_name}: {result['status'].upper()} ({result['duration']:.2f}s)"
-                )
-
-                if result["errors"]:
-                    for error in result["errors"]:
-                        self.log(f"    ERROR: {error}", "ERROR")
-
-                if result["warnings"]:
-                    for warning in result["warnings"]:
-                        self.log(f"    WARNING: {warning}", "WARNING")
-
-        # Final result
-        self.log("=" * 60)
-        if summary["failed"] == 0:
-            if sys.platform == "win32":
-                self.log("[PASS] ALL TESTS PASSED!")
-            else:
-                self.log("✅ ALL TESTS PASSED!")
-        else:
-            if sys.platform == "win32":
-                self.log(f"[FAIL] {summary['failed']} TEST(S) FAILED")
-            else:
-                self.log(f"❌ {summary['failed']} TEST(S) FAILED")
-        self.log("=" * 60)
-
-    def _save_results(self):
-        """Save test results to JSON file."""
-        try:
-            with open(self.output_file, "w") as f:
-                json.dump(self.results, f, indent=2, default=str)
-            self.log(f"Test results saved to: {self.output_file}")
-        except Exception as e:
-            self.log(f"Failed to save results: {e}", "ERROR")
-
-
-async def main():
-    """Main entry point."""
-    parser = argparse.ArgumentParser(description="Run tests for mcp-context-keeper")
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose output"
+    import pytest
+
+    HAS_PYTEST = True
+except ImportError:
+    HAS_PYTEST = False
+    print("ERROR: pytest is not installed. Install with: pip install pytest")
+    sys.exit(1)
+
+
+def list_test_files(test_dir: Path) -> list[str]:
+    """List all test files in the tests directory."""
+    test_files = []
+    for test_file in test_dir.glob("test_*.py"):
+        if test_file.name != "run_tests.py":
+            test_files.append(str(test_file.relative_to(test_dir)))
+
+    return sorted(test_files)
+
+
+def print_test_summary(start_time: float, exit_code: int) -> None:
+    """Print test execution summary."""
+    duration = time.time() - start_time
+
+    print("\n" + "=" * 60)
+    print("TEST EXECUTION SUMMARY")
+    print("=" * 60)
+
+    if exit_code == 0:
+        print("RESULT: ALL TESTS PASSED")
+    elif exit_code == 1:
+        print("RESULT: SOME TESTS FAILED")
+    elif exit_code == 2:
+        print("RESULT: TEST EXECUTION WAS INTERRUPTED")
+    elif exit_code == 3:
+        print("RESULT: INTERNAL ERROR IN TEST EXECUTION")
+    elif exit_code == 4:
+        print("RESULT: USAGE ERROR")
+    else:
+        print(f"RESULT: UNKNOWN EXIT CODE ({exit_code})")
+
+    print(f"DURATION: {duration:.2f} seconds")
+    print("=" * 60)
+
+
+def main() -> int:
+    """Main entry point for test runner."""
+    parser = argparse.ArgumentParser(
+        description="Run mcp-context-keeper test suite using pytest",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Test Categories:
+  1. Server Startup     - test_server_startup.py
+  2. Relationships      - test_relationships.py
+  3. Tools              - test_tools.py
+  4. CLI                - test_cli.py
+  5. Standard Pytest    - test_standard_pytest.py
+
+Examples:
+  Run all tests:              python run_tests.py
+  Run with verbose output:    python run_tests.py -v
+  Run specific test file:     python run_tests.py test_server_startup.py
+  Run tests matching pattern: python run_tests.py -k "test_config"
+  List all test files:        python run_tests.py --list
+  Run with minimal output:    python run_tests.py -q
+        """,
     )
+
     parser.add_argument(
-        "-o", "--output", type=str, help="Output JSON file for test results"
+        "test_files",
+        nargs="*",
+        help="Specific test files to run (default: run all tests)",
     )
+
     parser.add_argument(
-        "--list", action="store_true", help="List available test files and exit"
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Increase verbosity of test output",
+    )
+
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Reduce verbosity of test output",
+    )
+
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="List all available test files and exit",
+    )
+
+    parser.add_argument(
+        "-k",
+        "--keyword",
+        type=str,
+        help="Only run tests matching the given substring expression",
+    )
+
+    parser.add_argument(
+        "-x",
+        "--exitfirst",
+        action="store_true",
+        help="Exit instantly on first error or failed test",
+    )
+
+    parser.add_argument(
+        "--tb",
+        choices=["short", "long", "line", "no"],
+        default="short",
+        help="Set the traceback style for test failures (default: short)",
+    )
+
+    parser.add_argument(
+        "--no-header",
+        action="store_true",
+        help="Suppress header and summary output from this script",
+    )
+
+    parser.add_argument(
+        "--coverage",
+        action="store_true",
+        help="Generate coverage report (requires pytest-cov)",
     )
 
     args = parser.parse_args()
 
+    test_dir = Path(__file__).parent
+
+    # List test files if requested
     if args.list:
-        test_dir = Path(__file__).parent
-        test_files = list(test_dir.glob("test_*.py"))
+        test_files = list_test_files(test_dir)
         print(f"Available test files in {test_dir}:")
-        for tf in test_files:
-            if tf.name != "run_tests.py":
-                print(f"  - {tf.name}")
+        for i, test_file in enumerate(test_files, 1):
+            print(f"  {i:2}. {test_file}")
+        print(f"\nTotal: {len(test_files)} test files")
         return 0
 
-    runner = TestRunner(verbose=args.verbose, output_file=args.output)
-    success = await runner.run_all_tests()
+    # Build pytest arguments
+    pytest_args = []
 
-    return 0 if success else 1
+    # Set verbosity
+    if args.quiet:
+        pytest_args.append("-q")
+    elif args.verbose:
+        pytest_args.append("-v")
+    else:
+        # Default: moderate verbosity
+        pytest_args.append("-v")
+
+    # Set traceback style
+    pytest_args.append(f"--tb={args.tb}")
+
+    # Exit first if requested
+    if args.exitfirst:
+        pytest_args.append("-x")
+
+    # Keyword expression
+    if args.keyword:
+        pytest_args.append(f"-k={args.keyword}")
+
+    # Coverage if requested
+    if args.coverage:
+        pytest_args.extend(["--cov=context_keeper", "--cov-report=term-missing"])
+
+    # Add test files or directory
+    if args.test_files:
+        # Convert relative paths to absolute
+        test_paths = []
+        for test_file in args.test_files:
+            test_path = test_dir / test_file
+            if test_path.exists():
+                test_paths.append(str(test_path))
+            else:
+                print(f"ERROR: Test file not found: {test_file}")
+                return 1
+        pytest_args.extend(test_paths)
+    else:
+        # Run all tests in the test directory
+        pytest_args.append(str(test_dir))
+
+    # Print header
+    if not args.no_header:
+        print("=" * 60)
+        print("MCP CONTEXT KEEPER - TEST SUITE")
+        print("=" * 60)
+        print(f"Python: {sys.version.split()[0]}")
+        print(f"Test directory: {test_dir}")
+        print(f"Pytest arguments: {' '.join(pytest_args)}")
+        print("-" * 60)
+
+    # Run pytest
+    start_time = time.time()
+
+    try:
+        exit_code = pytest.main(pytest_args)
+    except KeyboardInterrupt:
+        print("\n\nTEST EXECUTION INTERRUPTED BY USER")
+        exit_code = 2
+    except Exception as e:
+        print(f"\nERROR: Failed to execute tests: {e}")
+        exit_code = 3
+
+    # Print summary
+    if not args.no_header:
+        print_test_summary(start_time, exit_code)
+
+    return exit_code
 
 
 if __name__ == "__main__":
-    exit_code = asyncio.run(main())
-    sys.exit(exit_code)
+    sys.exit(main())

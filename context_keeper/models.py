@@ -357,6 +357,12 @@ class MemoryError(Exception):
         return self.message
 
 
+class ToolError(MemoryError):
+    """Raised when there's a tool-specific error."""
+
+    pass
+
+
 class MemoryNotFoundError(MemoryError):
     """Raised when a requested memory does not exist."""
 
@@ -374,8 +380,11 @@ class RelationshipError(MemoryError):
 
 class ValidationError(MemoryError):
     """Raised when data validation fails."""
-
-    pass
+    
+    def __init__(self, message: str, field: str = None, value: Any = None, details: Optional[Dict[str, Any]] = None):
+        self.field = field
+        self.value = value
+        super().__init__(message, details)
 
 
 class DatabaseConnectionError(MemoryError):
@@ -392,8 +401,12 @@ class SchemaError(MemoryError):
 
 class NotFoundError(MemoryError):
     """Alias for MemoryNotFoundError for consistency with workplan naming."""
-
-    pass
+    
+    def __init__(self, resource_type: str, resource_id: str, details: Optional[Dict[str, Any]] = None):
+        self.resource_type = resource_type
+        self.resource_id = resource_id
+        message = f"{resource_type} not found: {resource_id}"
+        super().__init__(message, details)
 
 
 class BackendError(MemoryError):

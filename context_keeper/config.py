@@ -129,9 +129,14 @@ class YAMLConfig:
         config = cls._get_defaults()
 
         # Load from global config
-        global_config_path = Path.home() / ".mcp-context-keeper" / "config.yaml"
-        if global_config_path.exists():
-            config.update(cls._load_yaml_file(global_config_path))
+        try:
+            global_config_path = Path.home() / ".mcp-context-keeper" / "config.yaml"
+            if global_config_path.exists():
+                config.update(cls._load_yaml_file(global_config_path))
+        except (RuntimeError, OSError):
+            # Home directory may not be available in some environments
+            # (e.g., Windows services, containers, test environments)
+            pass
 
         # Load from project config
         project_config_path = Path.cwd() / "context-keeper.yaml"
@@ -250,6 +255,9 @@ class Config:
     SQLITE_PATH = _EnvVar(
         "CONTEXT_SQLITE_PATH", default=_yaml_config.get("sqlite_path", _DEFAULT_DB_PATH)
     )
+
+    # Backend configuration
+    BACKEND = _EnvVar("CONTEXT_BACKEND", default=_yaml_config.get("backend", "sqlite"))
 
     # Tool configuration
     TOOL_PROFILE = _EnvVar(

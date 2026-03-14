@@ -9,10 +9,11 @@ import json
 import logging
 import re
 import sqlite3
-import aiosqlite
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+import aiosqlite
 
 from ..config import Config
 from ..models import (
@@ -26,6 +27,7 @@ from ..models import (
     PaginatedResult,
     Relationship,
     RelationshipError,
+    RelationshipProperties,
     RelationshipType,
     SearchQuery,
     ValidationError,
@@ -49,7 +51,9 @@ class SQLiteMemoryDatabase:
 
     # Helper methods for SQLite operations
 
-    async def _execute_sql(self, query: str, params: Tuple = ()) -> List[Dict[str, Any]]:
+    async def _execute_sql(
+        self, query: str, params: Tuple = ()
+    ) -> List[Dict[str, Any]]:
         """
         Execute a SQL query and return results as dictionaries.
 
@@ -68,7 +72,9 @@ class SQLiteMemoryDatabase:
 
         async with self.conn.execute(query, params) as cursor:
             # Convert rows to dictionaries
-            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            columns = (
+                [desc[0] for desc in cursor.description] if cursor.description else []
+            )
             results = []
             rows = await cursor.fetchall()
             for row in rows:
@@ -194,7 +200,9 @@ class SQLiteMemoryDatabase:
                 INSERT INTO nodes (id, label, properties)
                 VALUES (?, ?, ?)
             """
-            await self._execute_write(query, (memory.id, "Memory", json.dumps(properties)))
+            await self._execute_write(
+                query, (memory.id, "Memory", json.dumps(properties))
+            )
 
             # Update FTS table if available
             if self.backend.supports_fulltext_search():
@@ -203,7 +211,9 @@ class SQLiteMemoryDatabase:
                         INSERT INTO nodes_fts (rowid, id, title, content, summary)
                         VALUES (?, ?, ?, ?, ?)
                     """
-                    async with self.conn.execute("SELECT last_insert_rowid()") as cursor:
+                    async with self.conn.execute(
+                        "SELECT last_insert_rowid()"
+                    ) as cursor:
                         row = await cursor.fetchone()
                         rowid = row[0]
                     await self._execute_write(
@@ -283,12 +293,11 @@ class SQLiteMemoryDatabase:
                 raise MemoryNotFoundError(f"Memory not found: {memory.id}")
 
             # Get current version for optimistic locking
-            current_properties = json.loads(
-                await self._execute_sql(
-                    "SELECT properties FROM nodes WHERE id = ? AND label = 'Memory'",
-                    (memory.id,),
-                )[0]["properties"]
+            result = await self._execute_sql(
+                "SELECT properties FROM nodes WHERE id = ? AND label = 'Memory'",
+                (memory.id,),
             )
+            current_properties = json.loads(result[0]["properties"])
             current_version = current_properties.get("version", 1)
 
             # Prepare updated properties
@@ -601,7 +610,7 @@ class SQLiteMemoryDatabase:
                 )
 
             # Check for cycles if not allowed
-            if not Config.ALLOW_CYCLES:
+            if not Config.ALLOW_RELATIONSHIP_CYCLES:
                 await self._check_for_cycles(relationship)
 
             # Prepare properties JSON (exclude temporal fields, keep them only as columns)
@@ -609,10 +618,26 @@ class SQLiteMemoryDatabase:
             props_dict = relationship.properties.model_dump()
 
             # Handle temporal fields
-            valid_from = relationship.properties.valid_from.isoformat() if relationship.properties.valid_from else datetime.now(timezone.utc).isoformat()
-            valid_until = relationship.properties.valid_until.isoformat() if relationship.properties.valid_until else None
-            recorded_at = relationship.properties.recorded_at.isoformat() if relationship.properties.recorded_at else datetime.now(timezone.utc).isoformat()
-            created_at = relationship.properties.created_at.isoformat() if relationship.properties.created_at else datetime.now(timezone.utc).isoformat()
+            valid_from = (
+                relationship.properties.valid_from.isoformat()
+                if relationship.properties.valid_from
+                else datetime.now(timezone.utc).isoformat()
+            )
+            valid_until = (
+                relationship.properties.valid_until.isoformat()
+                if relationship.properties.valid_until
+                else None
+            )
+            recorded_at = (
+                relationship.properties.recorded_at.isoformat()
+                if relationship.properties.recorded_at
+                else datetime.now(timezone.utc).isoformat()
+            )
+            created_at = (
+                relationship.properties.created_at.isoformat()
+                if relationship.properties.created_at
+                else datetime.now(timezone.utc).isoformat()
+            )
             invalidated_by = relationship.properties.invalidated_by
 
             # Insert into relationships table
@@ -623,12 +648,12 @@ class SQLiteMemoryDatabase:
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
-            
+
             # Serialize props with correct datetimes
             for k, v in props_dict.items():
                 if isinstance(v, datetime):
                     props_dict[k] = v.isoformat()
-            
+
             await self._execute_write(
                 query,
                 (
@@ -726,10 +751,16 @@ class SQLiteMemoryDatabase:
                         except (ValueError, TypeError):
                             return None
 
-                    created_at = parse_date(row["created_at"]) or datetime.now(timezone.utc)
-                    valid_from = parse_date(row["valid_from"]) or datetime.now(timezone.utc)
+                    created_at = parse_date(row["created_at"]) or datetime.now(
+                        timezone.utc
+                    )
+                    valid_from = parse_date(row["valid_from"]) or datetime.now(
+                        timezone.utc
+                    )
                     valid_until = parse_date(row["valid_until"])
-                    recorded_at = parse_date(row["recorded_at"]) or datetime.now(timezone.utc)
+                    recorded_at = parse_date(row["recorded_at"]) or datetime.now(
+                        timezone.utc
+                    )
 
                     relationship = Relationship(
                         id=row["id"],
@@ -743,12 +774,15 @@ class SQLiteMemoryDatabase:
                             evidence_count=properties.get("evidence_count", 1),
                             success_rate=properties.get("success_rate", None),
                             validation_count=properties.get("validation_count", 0),
-                            counter_evidence_count=properties.get("counter_evidence_count", 0),
+                            counter_evidence_count=properties.get(
+                                "counter_evidence_count", 0
+                            ),
                             created_at=created_at,
                             valid_from=valid_from,
                             valid_until=valid_until,
                             recorded_at=recorded_at,
-                            last_validated=parse_date(properties.get("last_validated")) or datetime.now(timezone.utc),
+                            last_validated=parse_date(properties.get("last_validated"))
+                            or datetime.now(timezone.utc),
                             invalidated_by=row["invalidated_by"],
                         ),
                     )
@@ -807,7 +841,9 @@ class SQLiteMemoryDatabase:
         """
         logger.debug("Schema already initialized by SQLiteBackend")
 
-    async def invalidate_relationship(self, relationship_id: str, invalidated_by: str = None) -> None:
+    async def invalidate_relationship(
+        self, relationship_id: str, invalidated_by: str = None
+    ) -> None:
         """
         Invalidate a relationship by setting valid_until to now.
 
@@ -833,7 +869,9 @@ class SQLiteMemoryDatabase:
                 SET valid_until = ?, invalidated_by = ?
                 WHERE id = ?
             """
-            await self._execute_write(update_query, (now, invalidated_by, relationship_id))
+            await self._execute_write(
+                update_query, (now, invalidated_by, relationship_id)
+            )
 
             await self.conn.commit()
             logger.info(f"Invalidated relationship: {relationship_id}")
@@ -907,11 +945,17 @@ class SQLiteMemoryDatabase:
                             return datetime.fromisoformat(date_str)
                         except (ValueError, TypeError):
                             return None
-                    
-                    created_at = parse_date(row["created_at"]) or datetime.now(timezone.utc)
-                    valid_from = parse_date(row["valid_from"]) or datetime.now(timezone.utc)
+
+                    created_at = parse_date(row["created_at"]) or datetime.now(
+                        timezone.utc
+                    )
+                    valid_from = parse_date(row["valid_from"]) or datetime.now(
+                        timezone.utc
+                    )
                     valid_until = parse_date(row["valid_until"])
-                    recorded_at = parse_date(row["recorded_at"]) or datetime.now(timezone.utc)
+                    recorded_at = parse_date(row["recorded_at"]) or datetime.now(
+                        timezone.utc
+                    )
 
                     relationship = Relationship(
                         id=row["id"],
@@ -925,12 +969,15 @@ class SQLiteMemoryDatabase:
                             evidence_count=properties.get("evidence_count", 1),
                             success_rate=properties.get("success_rate", None),
                             validation_count=properties.get("validation_count", 0),
-                            counter_evidence_count=properties.get("counter_evidence_count", 0),
+                            counter_evidence_count=properties.get(
+                                "counter_evidence_count", 0
+                            ),
                             created_at=created_at,
                             valid_from=valid_from,
                             valid_until=valid_until,
                             recorded_at=recorded_at,
-                            last_validated=parse_date(properties.get("last_validated")) or datetime.now(timezone.utc),
+                            last_validated=parse_date(properties.get("last_validated"))
+                            or datetime.now(timezone.utc),
                             invalidated_by=row["invalidated_by"],
                         ),
                     )
@@ -938,7 +985,9 @@ class SQLiteMemoryDatabase:
                 except Exception as e:
                     logger.warning(f"Failed to parse relationship {row['id']}: {e}")
 
-            logger.info(f"Found {len(relationships)} relationships in history for {memory_id}")
+            logger.info(
+                f"Found {len(relationships)} relationships in history for {memory_id}"
+            )
             return relationships
 
         except aiosqlite.Error as e:
@@ -982,7 +1031,9 @@ class SQLiteMemoryDatabase:
                 WHERE valid_until IS NOT NULL AND valid_until >= ?
                 ORDER BY valid_until DESC
             """
-            invalidated_results = await self._execute_sql(invalidated_query, (since_str,))
+            invalidated_results = await self._execute_sql(
+                invalidated_query, (since_str,)
+            )
 
             def _parse_relationships(results):
                 relationships = []
@@ -998,11 +1049,17 @@ class SQLiteMemoryDatabase:
                                 return datetime.fromisoformat(date_str)
                             except (ValueError, TypeError):
                                 return None
-                        
-                        created_at = parse_date(row["created_at"]) or datetime.now(timezone.utc)
-                        valid_from = parse_date(row["valid_from"]) or datetime.now(timezone.utc)
+
+                        created_at = parse_date(row["created_at"]) or datetime.now(
+                            timezone.utc
+                        )
+                        valid_from = parse_date(row["valid_from"]) or datetime.now(
+                            timezone.utc
+                        )
                         valid_until = parse_date(row["valid_until"])
-                        recorded_at = parse_date(row["recorded_at"]) or datetime.now(timezone.utc)
+                        recorded_at = parse_date(row["recorded_at"]) or datetime.now(
+                            timezone.utc
+                        )
 
                         relationship = Relationship(
                             id=row["id"],
@@ -1039,7 +1096,9 @@ class SQLiteMemoryDatabase:
         except Exception as e:
             raise BackendError(f"Failed to get changes: {str(e)}")
 
-    async def get_recent_activity(self, days: int = 7, project: Optional[str] = None) -> Dict[str, Any]:
+    async def get_recent_activity(
+        self, days: int = 7, project: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Get recent activity summary for session briefing.
 
@@ -1066,7 +1125,9 @@ class SQLiteMemoryDatabase:
             params = [cutoff_iso]
 
             if project:
-                where_conditions.append("json_extract(properties, '$.context_project_path') = ?")
+                where_conditions.append(
+                    "json_extract(properties, '$.context_project_path') = ?"
+                )
                 params.append(project)
 
             where_clause = " AND ".join(where_conditions)
@@ -1086,7 +1147,11 @@ class SQLiteMemoryDatabase:
                 GROUP BY json_extract(properties, '$.type')
             """
             type_result = await self._execute_sql(type_query, tuple(params))
-            memories_by_type = {row["type"]: row["count"] for row in type_result} if type_result else {}
+            memories_by_type = (
+                {row["type"]: row["count"] for row in type_result}
+                if type_result
+                else {}
+            )
 
             # Get recent memories
             recent_query = f"""

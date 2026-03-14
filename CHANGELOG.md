@@ -1,5 +1,17 @@
 # Changelog
 
+* 2026-03-14: v0.1.11 - Complete test suite reconstruction and bug fixes (Hannibal)
+  * Fixed 18 failing tests in the test suite (from 18 to 0 failures)
+  * Resolved event loop issues in CLI health check and export/import tests
+  * Fixed database test failures with proper ID handling and SearchQuery usage
+  * Corrected sys.exit assertion problems in CLI show-config tests
+  * Fixed string matching issues in health check timeout tests
+  * Resolved error handling class string representation assertions
+  * Fixed server test issues with mock handlers and cleanup expectations
+  * Added missing Config.ALLOW_RELATIONSHIP_CYCLES attribute
+  * Fixed await syntax bug in SQLiteMemoryDatabase.update_memory()
+  * Added missing RelationshipProperties import to database interface
+
 * 2026-03-14: v0.1.10 - Path resolution and Windows compatibility fixes (Hannibal)
   * Fixed SQLite database path issues on Windows systems
   * Changed default database path from `.db` to `context.db` in configuration

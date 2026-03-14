@@ -78,3 +78,20 @@ def get_handler(tool_name: str) -> ToolHandler | None:
             result = await handler(context, kwargs)
     """
     return TOOL_HANDLERS.get(tool_name)
+
+def register_handler(tool_name: str, handler: ToolHandler) -> None:
+    """
+    Register a handler function for a tool name.
+    
+    Args:
+        tool_name: Name of the MCP tool
+        handler: Handler function to register
+    """
+    TOOL_HANDLERS[tool_name] = handler
+
+
+def clear_handlers() -> None:
+    """
+    Clear all registered tool handlers.
+    """
+    TOOL_HANDLERS.clear()

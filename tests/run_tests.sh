@@ -1,148 +1,278 @@
 #!/bin/bash
 
-# Test runner shell script for mcp-context-keeper project
-# Usage: ./run_tests.sh [options]
+# Shell test runner for mcp-context-keeper project
+# Usage: ./run_tests.sh [options] [test_files...]
+#
+# Options:
+#   -v, --verbose      Increase verbosity of test output
+#   -q, --quiet        Reduce verbosity of test output
+#   --list             List all available test files and exit
+#   -k EXPRESSION      Only run tests matching the given substring expression
+#   -x, --exitfirst    Exit instantly on first error or failed test
+#   --tb STYLE         Set traceback style (short, long, line, no)
+#   --no-header        Suppress header and summary output
+#   --coverage         Generate coverage report (requires pytest-cov)
+#   -h, --help         Show this help message
 
-set -e
+set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEST_DIR="$SCRIPT_DIR"
+PROJECT_NAME="mcp-context-keeper"
 
-print_colored() {
-    local color="$1"
-    local message="$2"
-    echo -e "${color}${message}${NC}"
-}
-
-print_header() {
-    echo "============================================================"
-    print_colored "${BLUE}" "Starting test suite for mcp-context-keeper"
-    echo "============================================================"
-    echo
-}
-
-print_footer() {
-    echo
-    echo "============================================================"
-}
-
-print_success() {
-    print_colored "$GREEN" "✅ $1"
-}
-
+# Function to print error messages
 print_error() {
-    print_colored "$RED" "❌ $1"
+    printf "ERROR: %s\n" "$1" >&2
 }
 
-print_warning() {
-    print_colored "$YELLOW" "⚠️  $1"
+# Function to print usage information
+print_usage() {
+    cat << EOF
+$PROJECT_NAME Test Runner
+Usage: $0 [options] [test_files...]
+
+Options:
+  -v, --verbose      Increase verbosity of test output
+  -q, --quiet        Reduce verbosity of test output
+  --list             List all available test files and exit
+  -k EXPRESSION      Only run tests matching the given substring expression
+  -x, --exitfirst    Exit instantly on first error or failed test
+  --tb STYLE         Set traceback style (short, long, line, no) [default: short]
+  --no-header        Suppress header and summary output
+  --coverage         Generate coverage report (requires pytest-cov)
+  -h, --help         Show this help message
+
+Test Categories:
+  1. Server Startup     - test_server_startup.py
+  2. Relationships      - test_relationships.py
+  3. Tools              - test_tools.py
+  4. CLI                - test_cli.py
+  5. Standard Pytest    - test_standard_pytest.py
+
+Examples:
+  $0                           # Run all tests
+  $0 -v                       # Run all tests with verbose output
+  $0 test_server_startup.py   # Run specific test file
+  $0 -k "test_config"         # Run tests matching pattern
+  $0 --list                   # List all test files
+  $0 -q                       # Run with minimal output
+EOF
 }
 
-print_info() {
-    print_colored "$BLUE" "ℹ️  $1"
+# Function to list test files
+list_test_files() {
+    printf "Available test files in %s:\n" "$TEST_DIR"
+    local count=0
+    for test_file in "$TEST_DIR"/test_*.py; do
+        if [[ "$(basename "$test_file")" != "run_tests.py" ]]; then
+            ((count++)) || true
+            printf "  %2d. %s\n" "$count" "$(basename "$test_file")"
+        fi
+    done
+    printf "\nTotal: %d test files\n" "$count"
 }
 
-# Check if Python is available
-check_python() {
-    if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
-        print_error "Python is not installed or not in PATH"
-        exit 1
-    fi
-
-    # Prefer python3 if available
-    if command -v python3 &> /dev/null; then
-        PYTHON_CMD="python3"
-    else
-        PYTHON_CMD="python"
-    fi
-
-    echo "Using Python: $($PYTHON_CMD --version 2>&1)"
+# Function to calculate duration
+calculate_duration() {
+    local start_time=$1
+    local end_time=$2
+    local duration=$(echo "$end_time - $start_time" | bc)
+    printf "%.2f" "$duration"
 }
 
-# Parse command line arguments
-parse_args() {
-    VERBOSE=""
-    OUTPUT=""
-    LIST=""
+# Function to print test summary
+print_test_summary() {
+    local start_time=$1
+    local exit_code=$2
+
+    printf "\n"
+    printf "============================================================\n"
+    printf "TEST EXECUTION SUMMARY\n"
+    printf "============================================================\n"
+
+    case $exit_code in
+        0)
+            printf "RESULT: ALL TESTS PASSED\n"
+            ;;
+        1)
+            printf "RESULT: SOME TESTS FAILED\n"
+            ;;
+        2)
+            printf "RESULT: TEST EXECUTION WAS INTERRUPTED\n"
+            ;;
+        3)
+            printf "RESULT: INTERNAL ERROR IN TEST EXECUTION\n"
+            ;;
+        4)
+            printf "RESULT: USAGE ERROR\n"
+            ;;
+        *)
+            printf "RESULT: UNKNOWN EXIT CODE (%d)\n" "$exit_code"
+            ;;
+    esac
+
+    local end_time
+    end_time=$(date +%s.%N)
+    local duration
+    duration=$(calculate_duration "$start_time" "$end_time")
+
+    printf "DURATION: %s seconds\n" "$duration"
+    printf "============================================================\n"
+}
+
+# Main execution
+main() {
+    # Parse command line arguments
+    local verbose=""
+    local quiet=""
+    local list=""
+    local keyword=""
+    local exitfirst=""
+    local tb_style="short"
+    local no_header=""
+    local coverage=""
+    local test_files=()
 
     while [[ $# -gt 0 ]]; do
         case $1 in
             -v|--verbose)
-                VERBOSE="-v"
+                verbose="-v"
                 shift
                 ;;
-            -o|--output)
-                OUTPUT="-o \"$2\""
-                shift 2
+            -q|--quiet)
+                quiet="-q"
+                shift
                 ;;
             --list)
-                LIST="--list"
+                list="--list"
                 shift
                 ;;
+            -k)
+                if [[ -z "${2:-}" ]]; then
+                    print_error "Option -k requires an argument"
+                    return 1
+                fi
+                keyword="-k $2"
+                shift 2
+                ;;
+            -x|--exitfirst)
+                exitfirst="-x"
+                shift
+                ;;
+            --tb)
+                if [[ -z "${2:-}" ]]; then
+                    print_error "Option --tb requires an argument"
+                    return 1
+                fi
+                tb_style="$2"
+                shift 2
+                ;;
+            --no-header)
+                no_header="--no-header"
+                shift
+                ;;
+            --coverage)
+                coverage="--coverage"
+                shift
+                ;;
+            -h|--help)
+                print_usage
+                return 0
+                ;;
+            -*)
+                print_error "Unknown option: $1"
+                print_usage
+                return 1
+                ;;
             *)
-                print_warning "Unknown option: $1"
+                test_files+=("$1")
                 shift
                 ;;
         esac
     done
-}
 
-# Main function
-main() {
-    print_header
-    check_python
+    # Change to test directory
+    cd "$TEST_DIR" || {
+        print_error "Cannot change to test directory: $TEST_DIR"
+        return 1
+    }
 
-    # Change to script directory
-    cd "$(dirname "$0")"
-
-    # Parse arguments
-    parse_args "$@"
-
-    # List test files if requested
-    if [[ -n "$LIST" ]]; then
-        print_info "Listing available test files..."
-        echo
-        $PYTHON_CMD run_tests.py --list
-        print_footer
-        exit 0
+    # Check if Python is available
+    if ! command -v python >/dev/null 2>&1; then
+        print_error "Python is not installed or not in PATH"
+        return 1
     fi
 
-    # Run tests
-    if [[ -z "$VERBOSE" ]]; then
-        print_info "Running tests... (use -v for verbose output)"
-        echo
-    else
-        print_info "Running tests with verbose output..."
-        echo
+    # Check if pytest is available via the test runner
+    if ! python -c "import pytest" >/dev/null 2>&1; then
+        print_error "pytest is not installed. Install with: pip install pytest"
+        return 1
+    fi
+
+    # Handle list option
+    if [[ -n "$list" ]]; then
+        list_test_files
+        return 0
     fi
 
     # Build command
-    CMD="$PYTHON_CMD run_tests.py $VERBOSE $OUTPUT"
+    local cmd="python run_tests.py"
 
-    # Execute command
-    if eval "$CMD"; then
-        TEST_RESULT=0
-    else
-        TEST_RESULT=$?
+    [[ -n "$verbose" ]] && cmd="$cmd $verbose"
+    [[ -n "$quiet" ]] && cmd="$cmd $quiet"
+    [[ -n "$keyword" ]] && cmd="$cmd $keyword"
+    [[ -n "$exitfirst" ]] && cmd="$cmd $exitfirst"
+    [[ "$tb_style" != "short" ]] && cmd="$cmd --tb $tb_style"
+    [[ -n "$no_header" ]] && cmd="$cmd $no_header"
+    [[ -n "$coverage" ]] && cmd="$cmd $coverage"
+
+    # Add test files if specified
+    if [[ ${#test_files[@]} -gt 0 ]]; then
+        for file in "${test_files[@]}"; do
+            if [[ ! -f "$file" ]]; then
+                print_error "Test file not found: $file"
+                return 1
+            fi
+            cmd="$cmd $file"
+        done
     fi
 
-    print_footer
-
-    # Print final result
-    if [[ $TEST_RESULT -eq 0 ]]; then
-        print_success "All tests passed successfully!"
-    else
-        print_error "Some tests failed. Exit code: $TEST_RESULT"
+    # Print header
+    if [[ -z "$no_header" ]]; then
+        printf "============================================================\n"
+        printf "MCP CONTEXT KEEPER - TEST SUITE\n"
+        printf "============================================================\n"
+        printf "Python: %s\n" "$(python --version 2>&1 | cut -d' ' -f2)"
+        printf "Test directory: %s\n" "$TEST_DIR"
+        printf "Command: %s\n" "$cmd"
+        printf "------------------------------------------------------------\n"
     fi
 
-    echo "============================================================"
+    # Run tests
+    local start_time
+    start_time=$(date +%s.%N)
+    local exit_code=0
 
-    exit $TEST_RESULT
+    set +e
+    eval "$cmd"
+    exit_code=$?
+    set -e
+
+    # Print summary
+    if [[ -z "$no_header" ]]; then
+        print_test_summary "$start_time" "$exit_code"
+    fi
+
+    return $exit_code
 }
 
+# Handle script interruption
+trap 'printf "\nTest execution interrupted by user\n"; exit 2' INT
+
 # Run main function
-main "$@"
+if main "$@"; then
+    exit 0
+else
+    exit $?
+fi

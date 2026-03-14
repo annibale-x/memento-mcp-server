@@ -6,7 +6,7 @@ from typing import Any, Callable
 from mcp.types import CallToolResult, TextContent
 from pydantic import ValidationError as PydanticValidationError
 
-from ..models import MemoryNotFoundError, RelationshipError, ValidationError
+from ..models import MemoryNotFoundError, NotFoundError, RelationshipError, ToolError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -54,3 +54,45 @@ def handle_tool_errors(operation_name: str):
                 )
         return wrapper
     return decorator
+
+
+def format_error_response(error: Exception) -> dict:
+    """
+    Format an exception as an MCP error response.
+    
+    Args:
+        error: Exception to format
+        
+    Returns:
+        Dictionary with isError=True and appropriate content
+    """
+    from mcp.types import CallToolResult, TextContent
+    
+    if isinstance(error, ToolError):
+        # Include details in error message
+        if error.details:
+            details_str = ", ".join(f"{k}={v}" for k, v in error.details.items())
+            text = f"{error.message} ({details_str})"
+        else:
+            text = error.message
+    else:
+        text = str(error)
+    
+    result = CallToolResult(
+        content=[TextContent(type="text", text=text)],
+        isError=True
+    )
+    return result.model_dump()
+
+
+def handle_tool_error(error: Exception) -> dict:
+    """
+    Handle a tool error and return appropriate MCP response.
+    
+    Args:
+        error: Exception that occurred
+        
+    Returns:
+        Formatted error response
+    """
+    return format_error_response(error)
