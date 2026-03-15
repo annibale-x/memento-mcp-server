@@ -1,0 +1,37 @@
+# MCP Context Keeper Configuration File
+# This file configures the MCP Context Keeper for Zed editor
+# Hierarchy: Defaults → ~/.mcp-context-keeper/config.yaml → ./context-keeper.yaml → Environment Variables
+
+# Database configuration
+# sqlite_path: ".data/db" # Path to SQLite database file (commented out to use default)
+
+# Tool configuration
+# tool_profile: "extended" # Options: core, extended, advanced (commented out to use default)
+# enable_advanced_tools: true # Enable advanced context analysis tools (commented out to use default)
+
+# Logging configuration
+logging:
+  level: "INFO" # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Feature configuration
+features:
+  auto_extract_entities: true # Automatically extract entities from memory content
+  session_briefing: true # Enable session briefing feature
+  briefing_verbosity: "standard" # Options: minimal, standard, detailed
+  briefing_recency_days: 7 # Number of days to consider for briefing
+  allow_relationship_cycles: false # Allow cycles in relationship graph
+
+
+# Example of environment variable overrides:
+# CONTEXT_SQLITE_PATH=/custom/path/context.db
+# CONTEXT_TOOL_PROFILE=advanced
+# CONTEXT_ENABLE_ADVANCED_TOOLS=true
+# CONTEXT_LOG_LEVEL=DEBUG
+# CONTEXT_AUTO_EXTRACT_ENTITIES=false
+# CONTEXT_SESSION_BRIEFING=false
+# CONTEXT_BRIEFING_VERBOSITY=detailed
+# CONTEXT_BRIEFING_RECENCY_DAYS=14
+# CONTEXT_ALLOW_CYCLES=true
+
+# Note: Environment variables take precedence over YAML configuration

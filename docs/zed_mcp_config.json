@@ -1,0 +1,12 @@
+{
+  "mcp-context-keeper": {
+    "enabled": true,
+    "remote": false,
+    "command": "python",
+    "args": ["-m", "context_keeper"],
+    "env": {
+      "CONTEXT_SQLITE_PATH": "C:/Users/Hannibal/.mcp-context-keeper/context.db",
+      "CONTEXT_TOOL_PROFILE": "extended"
+    }
+  }
+}
