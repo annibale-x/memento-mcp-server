@@ -9,12 +9,13 @@ This module contains handlers for basic memory operations:
 """
 
 import logging
+import uuid
 from typing import Any, Dict
 
 from mcp.types import CallToolResult, TextContent
 
-from ..models import Memory, MemoryContext, MemoryType
 from ..database.interface import SQLiteMemoryDatabase
+from ..models import Memory, MemoryContext, MemoryType, ValidationError
 from ..utils.validation import validate_memory_input
 from .error_handling import handle_tool_errors
 
@@ -37,6 +38,7 @@ async def handle_store_memory(
             - tags: Optional list of tags
             - importance: Optional importance score (0.0-1.0)
             - context: Optional context information
+            - id: Optional memory ID (if not provided, one will be generated)
 
     Returns:
         CallToolResult with memory ID on success or error message on failure
@@ -44,13 +46,37 @@ async def handle_store_memory(
     # Validate input arguments
     validate_memory_input(arguments)
 
+    # Handle memory ID: generate or validate
+    if "id" in arguments:
+        # User provided an ID (might be empty or whitespace)
+        memory_id = arguments["id"]
+
+        # Strip whitespace and validate
+        if not isinstance(memory_id, str):
+            raise ValidationError("Memory ID must be a string")
+
+        memory_id = memory_id.strip()
+        if not memory_id:
+            raise ValidationError(
+                "Memory ID must be a non-empty string after removing whitespace"
+            )
+
+        # Check if memory with this ID already exists
+        existing = await memory_db.get_memory_by_id(memory_id)
+        if existing:
+            raise ValidationError(f"Memory with ID '{memory_id}' already exists")
+    else:
+        # Generate new UUID
+        memory_id = str(uuid.uuid4())
+
     # Extract context if provided
     context = None
     if "context" in arguments:
         context = MemoryContext(**arguments["context"])
 
-    # Create memory object
+    # Create memory object with ID
     memory = Memory(
+        id=memory_id,
         type=MemoryType(arguments["type"]),
         title=arguments["title"],
         content=arguments["content"],
@@ -61,12 +87,13 @@ async def handle_store_memory(
     )
 
     # Store in database
-    memory_id = await memory_db.store_memory(memory)
+    stored_memory = await memory_db.store_memory(memory)
 
     return CallToolResult(
         content=[
             TextContent(
-                type="text", text=f"Memory stored successfully with ID: {memory_id}"
+                type="text",
+                text=f"Memory stored successfully with ID: {stored_memory.id}",
             )
         ]
     )

@@ -1,5 +1,15 @@
 # Changelog
 
+* 2026-03-15: v0.1.13 - ID generation pattern implementation and database schema initialization fix (Hannibal)
+  * Implemented functional ID generation pattern with automatic UUID generation and optional override
+  * Fixed database schema initialization bug in server startup (missing initialize_schema() call)
+  * Added import asyncio to server.py to fix missing dependency
+  * Enhanced store_persistent_memory tool with automatic ID generation when no ID provided
+  * Added support for custom IDs with validation and duplicate detection
+  * Updated tool schema to include optional id field in store_persistent_memory
+  * Improved error handling for ID validation and conflict scenarios
+  * All 128 tests passing with comprehensive ID pattern validation
+
 * 2026-03-14: v0.1.12 - Zed MCP integration fix and character encoding issues (Hannibal)
   * Fixed Zed MCP server integration by resolving hidden character issues in configuration
   * Identified and resolved copy-paste invisible character problems in environment variables

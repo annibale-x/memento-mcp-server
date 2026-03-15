@@ -5,6 +5,7 @@ This module implements the Model Context Protocol server that provides intellige
 memory capabilities for Zed editor using SQLite as the backend storage.
 """
 
+import asyncio
 import logging
 from typing import List, Optional
 
@@ -146,6 +147,9 @@ class ContextKeeper:
 
             self.db_connection = SQLiteBackend()
             await self.db_connection.connect()
+
+            # Initialize database schema (creates tables if they don't exist)
+            await self.db_connection.initialize_schema()
 
             # Initialize memory database - always use SQLiteMemoryDatabase
             logger.info("Using SQLiteMemoryDatabase for SQLite backend")

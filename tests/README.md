@@ -1,186 +1,166 @@
-# Test Suite - mcp-context-keeper
+# Test Suite Documentation - mcp-context-keeper
 
 ## Overview
 
-This directory contains the complete test suite for the `mcp-context-keeper` project. The test suite is designed to validate the functionality of the MCP Context Keeper with SQLite backend, ensuring reliability and correctness for Zed editor integration.
+This test suite validates the functionality, reliability, and integration capabilities of the **mcp-context-keeper** project. The suite ensures that the MCP Context Keeper server operates correctly with SQLite backend and integrates seamlessly with Zed editor.
 
-## Test Structure
+## Test Architecture
 
-### Test Files
+### Test Files Structure
 
-| File | Description | Purpose |
-|------|-------------|---------|
-| `test_relationships.py` | Relationship functionality tests | Tests memory relationships, relationship types, and relationship management |
-| `test_tools.py` | MCP tools functionality tests | Tests all MCP tools (store, recall, search, relationships, etc.) |
-| `test_import.json` | Test data for import/export | Sample data for testing import/export functionality |
-| `run_tests.py` | Main test runner | Orchestrates all tests and provides comprehensive reporting |
+```
+tests/
+├── test_relationships.py          # Memory relationship functionality tests
+├── test_tools.py                  # MCP tools and protocol tests
+├── test_server_startup.py         # Server initialization and CLI tests
+├── test_import.json               # Sample data for import/export testing
+├── run_tests.py                   # Main test runner with reporting
+├── README.md                      # This documentation
+└── test_data/                     # Test databases (gitignored)
+```
 
-### Test Data
+### Test Categories
 
-| Directory/File | Description |
-|----------------|-------------|
-| `test_data/` | Test database files (excluded from git via `.gitignore`) |
-| `test_import.json` | Pre-configured test memories and relationships |
+| Category | File | Coverage |
+|----------|------|----------|
+| **Core Functionality** | `test_relationships.py` | Memory relationships, relationship types, bidirectional queries, filtering |
+| **MCP Protocol** | `test_tools.py` | All MCP tools, parameter validation, error handling, search functionality |
+| **Server Operations** | `test_server_startup.py` | Server initialization, CLI commands, health checks, configuration |
+| **Data Operations** | All files | Import/export, data integrity, JSON validation |
 
 ## Running Tests
 
-### Quick Start
+### Quick Start Commands
 
 ```bash
-# From project root
-cd test
+# From project root directory
+cd tests
 python run_tests.py
 
-# Or using the provided scripts
-./run_tests.sh          # Unix/Linux
-run_tests.bat           # Windows
-```
-
-### Test Runner Options
-
-```bash
-# List available test files
-python run_tests.py --list
-
-# Run with verbose output
+# With verbose output
 python run_tests.py -v
 
 # Save results to JSON file
-python run_tests.py -o test_results.json
+python run_tests.py -o results.json
 
-# Run with verbose output and save results
-python run_tests.py -v -o test_results.json
+# Run specific test file
+python test_relationships.py
+python test_tools.py
 ```
 
 ### Platform-Specific Scripts
 
 #### Windows
 ```batch
-# Basic test run
-run_tests.bat
-
-# With options
-run_tests.bat -v
-run_tests.bat -o results.json
+run_tests.bat              # Basic test run
+run_tests.bat -v           # Verbose output
+run_tests.bat -o results.json  # Save results
 ```
 
 #### Unix/Linux/MacOS
 ```bash
-# Make script executable (first time only)
-chmod +x run_tests.sh
-
-# Basic test run
-./run_tests.sh
-
-# With options
-./run_tests.sh -v
-./run_tests.sh -o results.json
+chmod +x run_tests.sh      # Make executable (first time)
+./run_tests.sh             # Basic test run
+./run_tests.sh -v          # Verbose output
+./run_tests.sh -o results.json  # Save results
 ```
 
-## Test Categories
+### Test Runner Options
 
-### 1. Import Tests
-- Validates that all required modules can be imported
-- Checks ContextKeeper instantiation
-- Verifies MemoryType and RelationshipType enumerations
+| Option | Description | Example |
+|--------|-------------|---------|
+| `-v`, `--verbose` | Enable verbose output | `python run_tests.py -v` |
+| `-o`, `--output` | Save results to JSON file | `python run_tests.py -o results.json` |
+| `--list` | List available test files | `python run_tests.py --list` |
+| `--help` | Show help message | `python run_tests.py --help` |
 
-### 2. JSON Validation Tests
-- Validates structure of test data files
-- Checks required fields in memories and relationships
-- Ensures data integrity for import/export operations
+## Test Coverage
 
-### 3. Relationship Tests (`test_relationships.py`)
-- Memory relationship creation and management
-- Relationship type validation
-- Bidirectional relationship queries
-- Relationship filtering by type
+### 1. Memory Relationship Tests (`test_relationships.py`)
+- **Relationship Creation**: Valid relationship type creation and validation
+- **Bidirectional Queries**: Forward and backward relationship traversal
+- **Type Filtering**: Filtering relationships by specific types
+- **Error Handling**: Invalid relationship type handling
+- **Memory Connectivity**: Graph connectivity and path finding
 
-### 4. MCP Tools Tests (`test_tools.py`)
-- Basic tool operations (store, get, update, delete)
-- Memory search and recall functionality
-- Relationship management tools
-- Import/export operations
-- Parameter validation and error handling
+### 2. MCP Tools Tests (`test_tools.py`)
+- **Basic Operations**: `store_persistent_memory`, `get_persistent_memory`, `update_persistent_memory`, `delete_persistent_memory`
+- **Search Operations**: `search_persistent_memories`, `persistent_contextual_search`
+- **Relationship Tools**: `create_persistent_relationship`, `get_related_persistent_memories`
+- **Analytics Tools**: `get_persistent_memory_statistics`, `get_persistent_recent_activity`
+- **Advanced Tools**: `find_path_between_persistent_memories`, `analyze_persistent_memory_graph`
 
-## Test Output
+### 3. Server Startup Tests (`test_server_startup.py`)
+- **CLI Commands**: `--show-config`, `--health`, `--profile` options
+- **Server Initialization**: Proper MCP server startup and stdio communication
+- **Configuration**: Environment variable and YAML configuration handling
+- **Error Handling**: Graceful error recovery and cleanup
 
-All test output is in English. The test runner provides:
-
-- **Timestamped logs**: Each log entry includes timestamp and log level
-- **Status indicators**: 
-  - `[PASS]` or `✅` - Test passed
-  - `[FAIL]` or `❌` - Test failed  
-  - `[WARN]` or `⚠️` - Test skipped or warning
-  - `[UNKN]` or `❓` - Unknown status
-- **Detailed reporting**: Test duration, errors, warnings
-- **Summary statistics**: Total tests, passed/failed/skipped counts
-
-### Sample Output
-```
-[14:30:25] [INFO] ============================================================
-[14:30:25] [INFO] Starting test suite for mcp-context-keeper
-[14:30:25] [INFO] ============================================================
-[14:30:25] [INFO] Running import test...
-[14:30:25] [INFO]   [PASS] Import test: PASSED
-...
-[14:30:26] [INFO] ============================================================
-[14:30:26] [INFO] TEST SUMMARY
-[14:30:26] [INFO] ============================================================
-[14:30:26] [INFO] Total tests: 4
-[14:30:26] [INFO] Passed:      3 [PASS]
-[14:30:26] [INFO] Failed:      1 [FAIL]
-[14:30:26] [INFO] Skipped:     0 [WARN]
-[14:30:26] [INFO] Total time:  1.23 seconds
-[14:30:26] [INFO] [FAIL] 1 TEST(S) FAILED
-[14:30:26] [INFO] ============================================================
-```
+### 4. Integration Tests
+- **Zed MCP Protocol**: Proper JSON-RPC communication
+- **Environment Variables**: `CONTEXT_SQLITE_PATH`, `CONTEXT_TOOL_PROFILE` handling
+- **Database Operations**: SQLite connection and transaction management
+- **Unicode Support**: UTF-8 encoding for tool descriptions and memory content
 
 ## Test Data
 
-### `test_import.json`
-Contains 6 sample memories with 6 relationships, covering:
-- Multiple memory types (configuration, decision, reference, issue, bug_fix, learning)
-- Various relationship types (depends_on, related_to, caused_by, solution_for, learned_from, context_for)
-- Complete metadata for testing import/export functionality
+### Sample Data (`test_import.json`)
+Contains comprehensive test data with:
+- **6 sample memories** covering different types (configuration, decision, reference, issue, bug_fix, learning)
+- **6 relationships** with various types (depends_on, related_to, caused_by, solution_for, learned_from, context_for)
+- **Complete metadata** for testing import/export functionality
 
 ### Test Database
-- Location: `test_data/test_memory.db`
-- SQLite database with schema compatible with mcp-context-keeper
-- Automatically created if it doesn't exist
-- Excluded from git via `.gitignore` pattern `*.db`
+- **Location**: `tests/test_data/test_memory.db`
+- **Format**: SQLite with optimized schema for mcp-context-keeper
+- **Management**: Automatically created/cleaned during tests
+- **Git Ignored**: Excluded from version control via `.gitignore`
 
 ## Writing New Tests
 
-### Test File Structure
+### Test Template
 ```python
 #!/usr/bin/env python3
 """
-Test description here.
+Test module description.
 """
 
 import asyncio
 import sys
 import os
 
-# Add parent directory to path
+# Add project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from context_keeper import ContextKeeper
-from context_keeper.models import MemoryType, RelationshipType
+from context_keeper.models import Memory, MemoryType, RelationshipType
 
-async def main():
-    """Main test function - REQUIRED for test runner"""
-    print("Running tests...")
+async def main() -> bool:
+    """
+    Main test function - REQUIRED for test runner compatibility.
+    
+    Returns:
+        bool: True if all tests pass, False otherwise
+    """
+    print("[INFO] Starting test: Your Test Name")
     
     try:
-        # Test code here
+        # Initialize server
         server = ContextKeeper()
         await server.initialize()
         
-        # Your tests...
+        # Test 1: Basic functionality
+        print("  [TEST] Testing basic operation...")
+        # Your test code here
         
+        # Test 2: Error handling
+        print("  [TEST] Testing error handling...")
+        # Your test code here
+        
+        # Cleanup
         await server.cleanup()
-        print("[PASS] All tests passed!")
+        
+        print("[PASS] All tests completed successfully")
         return True
         
     except Exception as e:
@@ -194,55 +174,157 @@ if __name__ == "__main__":
     sys.exit(0 if success else 1)
 ```
 
-### Requirements for Test Runner Compatibility
-1. **Must have a `main()` function** - This is how the test runner identifies executable tests
-2. **`main()` should return `True`/`False`** - Indicates test success/failure
-3. **Use `[PASS]`/`[FAIL]` prefixes** - For consistent output on all platforms
-4. **Clean up resources** - Always clean up server instances and database connections
+### Test Requirements
+1. **Async `main()` function**: Must be async and return boolean
+2. **Clear output**: Use `[PASS]`, `[FAIL]`, `[INFO]` prefixes
+3. **Resource cleanup**: Always clean up server instances
+4. **Error handling**: Catch and report exceptions appropriately
+5. **Platform compatibility**: Use ASCII indicators for Windows compatibility
+
+### Best Practices
+- **Isolate tests**: Each test should be independent
+- **Mock external dependencies**: Use mocks for network/database when appropriate
+- **Test edge cases**: Include boundary conditions and error scenarios
+- **Document test purpose**: Clear comments explaining what each test validates
+
+## Test Output Format
+
+### Standard Output Format
+```
+[HH:MM:SS] [LEVEL] Message content
+```
+
+### Status Indicators
+| Indicator | Meaning | Platform |
+|-----------|---------|----------|
+| `[PASS]` | Test passed | All platforms |
+| `[FAIL]` | Test failed | All platforms |
+| `[INFO]` | Informational message | All platforms |
+| `[WARN]` | Warning or skipped test | All platforms |
+| `[OK]` | Operation successful | All platforms |
+| `[ERROR]` | Error occurred | All platforms |
 
 ## Continuous Integration
 
-The test suite is designed to work in CI environments:
+### CI/CD Integration
+The test suite is designed for seamless CI/CD integration:
 
-- **No interactive prompts** - Fully automated
-- **Exit codes** - Returns 0 on success, non-zero on failure
-- **JSON output** - Results can be saved for CI reporting
-- **Platform independent** - Works on Windows, Linux, and macOS
+- **Exit codes**: Returns 0 on success, non-zero on failure
+- **JSON output**: Machine-readable results for CI reporting
+- **No interactive prompts**: Fully automated execution
+- **Resource cleanup**: Automatic cleanup of test artifacts
+
+### Environment Variables for CI
+```bash
+# Database configuration
+export CONTEXT_SQLITE_PATH=tests/test_data/ci_test.db
+
+# Tool profile
+export CONTEXT_TOOL_PROFILE=extended
+
+# Logging
+export CONTEXT_LOG_LEVEL=INFO
+
+# Encoding (important for Windows CI)
+export PYTHONIOENCODING=utf-8
+export PYTHONUTF8=1
+```
 
 ## Troubleshooting
 
-### Common Issues
+### Common Issues and Solutions
 
-1. **Import errors**: Ensure you're running from the `test` directory or have added the parent directory to Python path
-2. **Database errors**: Check that SQLite database path is accessible and writable
-3. **Unicode errors**: On Windows, all output uses ASCII characters for compatibility
-4. **Async errors**: Ensure `main()` is async and uses `asyncio.run()` when executed directly
+| Issue | Solution |
+|-------|----------|
+| **Import errors** | Run from `tests` directory or add project root to Python path |
+| **Database errors** | Ensure write permissions to `test_data` directory |
+| **Unicode errors** | Set `PYTHONIOENCODING=utf-8` and `PYTHONUTF8=1` environment variables |
+| **Async errors** | Ensure `main()` is async and uses `asyncio.run()` |
+| **Windows path issues** | Use forward slashes in paths and proper escaping |
 
 ### Debugging Tests
 ```bash
-# Run single test file directly
-python test_relationships.py
+# Run single test with debug output
+python -m pdb test_relationships.py
 
-# With debug output
-python -m pdb test_tools.py
+# Run with increased verbosity
+python test_tools.py 2>&1 | tee debug.log
+
+# Check test database
+sqlite3 tests/test_data/test_memory.db ".tables"
 ```
 
-## Version Control
+### Test Database Management
+```bash
+# Clean test database
+rm -f tests/test_data/*.db
 
-- Test files are versioned in git
-- Test data (databases) are excluded via `.gitignore`
-- Test results/output files should be excluded from version control
+# Inspect test database schema
+sqlite3 tests/test_data/test_memory.db ".schema"
 
-## Dependencies
+# Export test data
+sqlite3 tests/test_data/test_memory.db ".dump" > backup.sql
+```
 
-- Python 3.10+
-- mcp-context-keeper package (from parent directory)
-- SQLite3 (included with Python)
+## Performance Considerations
 
-## License
+### Test Optimization
+- **Database isolation**: Each test uses isolated database connections
+- **Async operations**: All tests use async/await for better performance
+- **Resource pooling**: Connection pooling for database operations
+- **Cleanup hooks**: Automatic cleanup of test artifacts
 
-Same as main project - MIT License.
+### Memory Management
+- **Context managers**: Use `async with` for resource management
+- **Connection pooling**: Reuse database connections when possible
+- **Batch operations**: Group related operations for efficiency
+- **Cleanup verification**: Verify resources are properly released
 
-## Acknowledgments
+## Version Compatibility
 
-Test suite developed as part of the mcp-context-keeper simplification project for Zed editor integration.
+### Python Version Support
+- **Primary**: Python 3.10+
+- **Tested**: Python 3.11, 3.12
+- **Async support**: Full async/await compatibility
+
+### Platform Support
+| Platform | Status | Notes |
+|----------|--------|-------|
+| **Windows** | ✅ Fully supported | ASCII indicators, path handling |
+| **Linux** | ✅ Fully supported | UTF-8 native, standard paths |
+| **macOS** | ✅ Fully supported | Unix-like, UTF-8 native |
+
+### Dependencies
+- **mcp-context-keeper**: Parent package (in development mode)
+- **SQLite3**: Included with Python standard library
+- **pytest**: Optional for advanced testing patterns
+- **asyncio**: Standard library for async operations
+
+## Contributing to Tests
+
+### Adding New Tests
+1. **Create test file** in `tests/` directory
+2. **Follow template structure** with async `main()` function
+3. **Add comprehensive test cases** covering functionality and edge cases
+4. **Test locally** before committing
+5. **Update documentation** if adding new test categories
+
+### Test Quality Standards
+- **Code coverage**: Aim for high coverage of critical paths
+- **Readability**: Clear test names and comments
+- **Maintainability**: Easy to update when code changes
+- **Performance**: Efficient execution without unnecessary delays
+- **Reliability**: Consistent results across runs
+
+## License and Attribution
+
+### License
+Same as main project - **MIT License**.
+
+### Acknowledgments
+Test suite developed as part of the **mcp-context-keeper** project for Zed editor integration. Special focus on Windows compatibility and MCP protocol compliance.
+
+---
+
+*Last Updated: 2026-03-15*  
+*Test Suite Version: Compatible with mcp-context-keeper v0.1.13+*

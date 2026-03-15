@@ -109,7 +109,7 @@ FALLBACK: If recall returns no relevant results, try search_persistent_memories 
             name="store_persistent_memory",
             description="""Store a new persistent memory with context and metadata.
 
-Required: type, title, content. Optional: tags, importance (0-1), context.
+Required: type, title, content. Optional: id, tags, importance (0-1), context.
 
 USE FOR: Long-term knowledge that should survive across ALL sessions.
 DO NOT USE FOR: Temporary session state or project-specific context.
@@ -118,6 +118,7 @@ LIMITS:
 - title: max 500 characters
 - content: max 50KB (50,000 characters)
 - tags: max 50 tags, 100 chars each
+- id: if provided, must be unique string identifier
 
 TAGGING BEST PRACTICE:
 - Always include acronyms AS TAGS (e.g., tags=["jwt", "auth"])
@@ -128,7 +129,7 @@ Types: solution, problem, error, fix, pattern, decision, task, code_pattern, tec
 
 EXAMPLES:
 - store_persistent_memory(type="solution", title="Fixed Redis timeout", content="Increased timeout to 30s...", tags=["redis"], importance=0.8)
-- store_persistent_memory(type="error", title="OAuth2 auth failure", content="Error details...", tags=["auth", "oauth2"])
+- store_persistent_memory(type="error", title="OAuth2 auth failure", content="Error details...", tags=["auth", "oauth2"], id="custom-error-123")
 
 Returns memory_id. Use create_persistent_relationship to link related memories.""",
             inputSchema={
@@ -138,6 +139,10 @@ Returns memory_id. Use create_persistent_relationship to link related memories."
                         "type": "string",
                         "enum": [t.value for t in MemoryType],
                         "description": "Type of memory to store",
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Optional memory ID (if not provided, a UUID will be generated automatically)",
                     },
                     "title": {
                         "type": "string",
