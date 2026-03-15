@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-context-keeper"
-version = "0.1.10"
+version = "0.1.14"
 description = "MCP Context Keeper per gestione contestuale della memoria"
 authors = [
     {name = "Hannibal", email = "annibale.x@gmail.com"}

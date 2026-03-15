@@ -208,25 +208,19 @@ class SQLiteMemoryDatabase:
             if self.backend.supports_fulltext_search():
                 try:
                     fts_query = """
-                        INSERT INTO nodes_fts (rowid, id, title, content, summary)
-                        VALUES (?, ?, ?, ?, ?)
+                        INSERT INTO nodes_fts (id, title, content, summary)
+                        VALUES (?, ?, ?, ?)
                     """
-                    async with self.conn.execute(
-                        "SELECT last_insert_rowid()"
-                    ) as cursor:
-                        row = await cursor.fetchone()
-                        rowid = row[0]
                     await self._execute_write(
                         fts_query,
                         (
-                            rowid,
                             memory.id,
                             memory.title or "",
                             memory.content or "",
                             memory.summary or "",
                         ),
                     )
-                except aiosqlite.Error as e:
+                except Exception as e:
                     logger.warning(f"Could not update FTS table: {e}")
 
             await self.conn.commit()
@@ -240,12 +234,15 @@ class SQLiteMemoryDatabase:
             await self.conn.rollback()
             raise BackendError(f"Failed to store memory: {str(e)}")
 
-    async def get_memory_by_id(self, memory_id: str) -> Optional[Memory]:
+    async def get_memory(
+        self, memory_id: str, include_relationships: bool = True
+    ) -> Optional[Memory]:
         """
-        Retrieve a memory by its ID.
+        Retrieve a memory by its ID, optionally including related memories.
 
         Args:
             memory_id: Memory ID
+            include_relationships: Whether to include related memories (default: True)
 
         Returns:
             Memory object if found, None otherwise
@@ -264,12 +261,36 @@ class SQLiteMemoryDatabase:
                 return None
 
             properties = json.loads(results[0]["properties"])
-            return self._properties_to_memory(memory_id, properties)
+            memory = self._properties_to_memory(memory_id, properties)
+
+            # Get related memories if requested
+            if include_relationships:
+                related = await self.get_related_memories(memory_id, max_depth=1)
+                # Note: The Memory model doesn't have a relationships field,
+                # so we can't attach them directly. The relationships are
+                # available through separate API calls.
+
+            return memory
 
         except aiosqlite.Error as e:
             raise BackendError(f"Failed to get memory: {e}")
         except Exception as e:
             raise BackendError(f"Failed to get memory: {str(e)}")
+
+    async def get_memory_by_id(self, memory_id: str) -> Optional[Memory]:
+        """
+        Retrieve a memory by its ID (legacy method, use get_memory instead).
+
+        Args:
+            memory_id: Memory ID
+
+        Returns:
+            Memory object if found, None otherwise
+
+        Raises:
+            BackendError: If database operation fails
+        """
+        return await self.get_memory(memory_id, include_relationships=False)
 
     async def update_memory(self, memory: Memory) -> Memory:
         """
@@ -328,17 +349,16 @@ class SQLiteMemoryDatabase:
             if self.backend.supports_fulltext_search():
                 try:
                     fts_query = """
-                        UPDATE nodes_fts
-                        SET title = ?, content = ?, summary = ?
-                        WHERE id = ?
+                        INSERT OR REPLACE INTO nodes_fts (id, title, content, summary)
+                        VALUES (?, ?, ?, ?)
                     """
                     await self._execute_write(
                         fts_query,
                         (
+                            memory.id,
                             memory.title or "",
                             memory.content or "",
                             memory.summary or "",
-                            memory.id,
                         ),
                     )
                 except aiosqlite.Error as e:
@@ -576,6 +596,49 @@ class SQLiteMemoryDatabase:
 
     # Relationship operations
 
+    async def create_relationship(
+        self,
+        from_memory_id: str,
+        to_memory_id: str,
+        relationship_type: RelationshipType,
+        properties: RelationshipProperties,
+    ) -> str:
+        """
+        Create and store a new relationship between two memories.
+
+        Args:
+            from_memory_id: ID of source memory
+            to_memory_id: ID of target memory
+            relationship_type: Type of relationship
+            properties: Relationship properties
+
+        Returns:
+            ID of the created relationship
+
+        Raises:
+            ValidationError: If relationship validation fails
+            BackendError: If database operation fails
+        """
+        # Generate a unique ID for the relationship
+        import uuid
+
+        from ..models import Relationship
+
+        relationship_id = str(uuid.uuid4())
+
+        # Create Relationship object
+        relationship = Relationship(
+            id=relationship_id,
+            from_memory_id=from_memory_id,
+            to_memory_id=to_memory_id,
+            type=relationship_type,
+            properties=properties,
+        )
+
+        # Store the relationship
+        stored_relationship = await self.store_relationship(relationship)
+        return stored_relationship.id
+
     async def store_relationship(self, relationship: Relationship) -> Relationship:
         """
         Store a relationship in SQLite database.
@@ -767,42 +830,208 @@ class SQLiteMemoryDatabase:
                         from_memory_id=row["from_id"],
                         to_memory_id=row["to_id"],
                         type=rel_type,
-                        properties=RelationshipProperties(
-                            strength=properties.get("strength", 0.5),
-                            confidence=properties.get("confidence", 0.8),
-                            context=properties.get("context", ""),
-                            evidence_count=properties.get("evidence_count", 1),
-                            success_rate=properties.get("success_rate", None),
-                            validation_count=properties.get("validation_count", 0),
-                            counter_evidence_count=properties.get(
-                                "counter_evidence_count", 0
-                            ),
-                            created_at=created_at,
-                            valid_from=valid_from,
-                            valid_until=valid_until,
-                            recorded_at=recorded_at,
-                            last_validated=parse_date(properties.get("last_validated"))
-                            or datetime.now(timezone.utc),
-                            invalidated_by=row["invalidated_by"],
-                        ),
+                        properties=RelationshipProperties(**properties),
+                        created_at=created_at,
+                        valid_from=valid_from,
+                        valid_until=valid_until,
+                        recorded_at=recorded_at,
+                        invalidated_by=row["invalidated_by"],
                     )
                     relationships.append(relationship)
-                except Exception as e:
-                    logger.warning(f"Failed to parse relationship {row['id']}: {e}")
+                except (KeyError, ValueError, json.JSONDecodeError) as e:
+                    logger.warning(f"Failed to parse relationship row: {e}")
+                    continue
 
             return relationships
 
-        except aiosqlite.Error as e:
-            raise BackendError(f"Failed to get relationships: {e}")
         except Exception as e:
             raise BackendError(f"Failed to get relationships: {str(e)}")
+
+    async def get_related_memories(
+        self,
+        memory_id: str,
+        relationship_types: Optional[List[RelationshipType]] = None,
+        max_depth: int = 2,
+    ) -> List[Tuple[Memory, Relationship]]:
+        """
+        Get memories related to a specific memory with their relationships.
+
+        Args:
+            memory_id: ID of memory to find relations for
+            relationship_types: Optional list of relationship types to filter
+            max_depth: Maximum traversal depth (default: 2)
+
+        Returns:
+            List of tuples (Memory, Relationship) for related memories
+            For depth > 1, returns (Memory, incoming_relationship) where
+            incoming_relationship is the relationship from the parent in the path
+
+        Raises:
+            BackendError: If database operation fails
+        """
+        try:
+            # Special case: depth 0 returns empty list
+            if max_depth < 1:
+                return []
+
+            # Use BFS to traverse relationships
+            visited = set([memory_id])
+            results = []
+
+            # Queue stores (current_memory_id, current_depth, path_relationship)
+            # path_relationship is the relationship that led to current_memory_id
+            queue = []
+
+            # Initialize queue with direct neighbors of the starting memory
+            direct_relationships = await self.get_relationships_for_memory(memory_id)
+
+            # Filter by relationship types if specified
+            if relationship_types:
+                direct_relationships = [
+                    rel
+                    for rel in direct_relationships
+                    if rel.type in relationship_types
+                ]
+
+            for relationship in direct_relationships:
+                # Determine which memory is the neighbor
+                if relationship.from_memory_id == memory_id:
+                    neighbor_id = relationship.to_memory_id
+                else:
+                    neighbor_id = relationship.from_memory_id
+
+                if neighbor_id in visited:
+                    continue
+
+                visited.add(neighbor_id)
+
+                # Get the neighbor memory
+                neighbor_memory = await self.get_memory_by_id(neighbor_id)
+                if not neighbor_memory:
+                    continue
+
+                # Add to results with the direct relationship
+                results.append((neighbor_memory, relationship))
+
+                # Add to queue for further traversal if depth > 1
+                if max_depth > 1:
+                    queue.append((neighbor_id, 1, relationship))
+
+            # Process queue for deeper levels
+            while queue:
+                current_id, current_depth, incoming_relationship = queue.pop(0)
+
+                # Get relationships for current memory
+                current_relationships = await self.get_relationships_for_memory(
+                    current_id
+                )
+
+                # Filter by relationship types if specified
+                if relationship_types:
+                    current_relationships = [
+                        rel
+                        for rel in current_relationships
+                        if rel.type in relationship_types
+                    ]
+
+                for relationship in current_relationships:
+                    # Determine which memory is the neighbor
+                    if relationship.from_memory_id == current_id:
+                        neighbor_id = relationship.to_memory_id
+                    else:
+                        neighbor_id = relationship.from_memory_id
+
+                    if neighbor_id in visited:
+                        continue
+
+                    visited.add(neighbor_id)
+
+                    # Get the neighbor memory
+                    neighbor_memory = await self.get_memory_by_id(neighbor_id)
+                    if not neighbor_memory:
+                        continue
+
+                    # Add to results with the relationship that led to this memory
+                    # (the incoming relationship from the path)
+                    results.append((neighbor_memory, incoming_relationship))
+
+                    # Add to queue for further traversal if not at max depth
+                    if current_depth + 1 < max_depth:
+                        queue.append(
+                            (neighbor_id, current_depth + 1, incoming_relationship)
+                        )
+
+            return results
+
+        except Exception as e:
+            raise BackendError(f"Failed to get related memories: {str(e)}")
+
+    async def update_relationship_properties(
+        self,
+        from_memory_id: str,
+        to_memory_id: str,
+        relationship_type: RelationshipType,
+        new_properties: RelationshipProperties,
+    ) -> bool:
+        """
+        Update properties of an existing relationship.
+
+        Args:
+            from_memory_id: ID of source memory
+            to_memory_id: ID of target memory
+            relationship_type: Type of relationship
+            new_properties: New relationship properties
+
+        Returns:
+            True if relationship was updated, False if not found
+
+        Raises:
+            BackendError: If database operation fails
+        """
+        try:
+            # Find the relationship
+            query = """
+                SELECT id, properties FROM relationships
+                WHERE from_id = ? AND to_id = ? AND rel_type = ?
+            """
+            results = await self._execute_sql(
+                query, (from_memory_id, to_memory_id, relationship_type.value)
+            )
+
+            if not results:
+                return False
+
+            relationship_id = results[0]["id"]
+
+            # Update properties
+            update_query = """
+                UPDATE relationships
+                SET properties = ?, last_validated = ?
+                WHERE id = ?
+            """
+
+            # Prepare properties JSON
+            properties_dict = new_properties.model_dump()
+            properties_json = json.dumps(properties_dict)
+
+            # Update last_validated timestamp
+            last_validated = datetime.now(timezone.utc).isoformat()
+
+            await self._execute_write(
+                update_query, (properties_json, last_validated, relationship_id)
+            )
+
+            return True
+
+        except Exception as e:
+            raise BackendError(f"Failed to update relationship properties: {str(e)}")
 
     async def delete_relationship(self, relationship_id: str) -> bool:
         """
         Delete a relationship by its ID.
 
         Args:
-            relationship_id: Relationship ID
+            relationship_id: ID of relationship to delete
 
         Returns:
             True if relationship was deleted, False if not found
@@ -880,10 +1109,140 @@ class SQLiteMemoryDatabase:
             await self.conn.rollback()
             raise BackendError(f"Failed to invalidate relationship: {e}")
         except Exception as e:
-            await self.conn.rollback()
-            if isinstance(e, BackendError):
-                raise
             raise BackendError(f"Failed to invalidate relationship: {str(e)}")
+
+    async def search_relationships_by_context(
+        self,
+        scope: Optional[str] = None,
+        conditions: Optional[List[str]] = None,
+        has_evidence: Optional[bool] = None,
+        evidence: Optional[List[str]] = None,
+        components: Optional[List[str]] = None,
+        temporal: Optional[str] = None,
+        limit: int = 20,
+    ) -> List[Relationship]:
+        """
+        Search relationships by their structured context fields.
+
+        Args:
+            scope: Filter by scope (partial/full/conditional)
+            conditions: Filter by conditions
+            has_evidence: Filter by presence/absence of evidence
+            evidence: Filter by specific evidence types
+            components: Filter by components mentioned
+            temporal: Filter by temporal information
+            limit: Maximum number of results
+
+        Returns:
+            List of matching relationships
+
+        Raises:
+            BackendError: If database operation fails
+        """
+        try:
+            # Base query
+            query = """
+                SELECT id, from_id, to_id, rel_type, properties,
+                       created_at, valid_from, valid_until, recorded_at, invalidated_by
+                FROM relationships
+                WHERE properties IS NOT NULL AND properties != ''
+            """
+            params = []
+
+            # Build WHERE clauses based on filters
+            where_clauses = []
+
+            if scope:
+                where_clauses.append("properties LIKE ?")
+                params.append(f'%"scope"%:"{scope}"%')
+
+            if conditions:
+                for condition in conditions:
+                    where_clauses.append("properties LIKE ?")
+                    params.append(f'%"conditions"%:"{condition}"%')
+
+            if evidence:
+                for ev in evidence:
+                    where_clauses.append("properties LIKE ?")
+                    params.append(f'%"evidence"%:"{ev}"%')
+
+            if components:
+                for component in components:
+                    where_clauses.append("properties LIKE ?")
+                    params.append(f'%"components"%:"{component}"%')
+
+            if temporal:
+                where_clauses.append("properties LIKE ?")
+                params.append(f'%"temporal"%:"{temporal}"%')
+
+            if has_evidence is not None:
+                if has_evidence:
+                    where_clauses.append(
+                        "(properties LIKE '%\"evidence\"%' OR properties LIKE '%\"evidence_count\"%')"
+                    )
+                else:
+                    where_clauses.append(
+                        "(properties NOT LIKE '%\"evidence\"%' AND properties NOT LIKE '%\"evidence_count\"%')"
+                    )
+
+            # Add WHERE clauses if any
+            if where_clauses:
+                query += " AND " + " AND ".join(where_clauses)
+
+            # Add limit
+            query += " LIMIT ?"
+            params.append(limit)
+
+            # Execute query
+            results = await self._execute_sql(query, tuple(params))
+
+            # Parse results into Relationship objects
+            relationships = []
+            for row in results:
+                try:
+                    properties = json.loads(row["properties"])
+                    rel_type = RelationshipType(row["rel_type"])
+
+                    def parse_date(date_str):
+                        if not date_str:
+                            return None
+                        try:
+                            return datetime.fromisoformat(date_str)
+                        except (ValueError, TypeError):
+                            return None
+
+                    created_at = parse_date(row["created_at"]) or datetime.now(
+                        timezone.utc
+                    )
+                    valid_from = parse_date(row["valid_from"]) or datetime.now(
+                        timezone.utc
+                    )
+                    valid_until = parse_date(row["valid_until"])
+                    recorded_at = parse_date(row["recorded_at"]) or datetime.now(
+                        timezone.utc
+                    )
+
+                    relationship = Relationship(
+                        id=row["id"],
+                        from_memory_id=row["from_id"],
+                        to_memory_id=row["to_id"],
+                        type=rel_type,
+                        properties=RelationshipProperties(**properties),
+                        created_at=created_at,
+                        valid_from=valid_from,
+                        valid_until=valid_until,
+                        recorded_at=recorded_at,
+                        invalidated_by=row["invalidated_by"],
+                    )
+                    relationships.append(relationship)
+                except (KeyError, ValueError, json.JSONDecodeError) as e:
+                    logger.warning(f"Failed to parse relationship row: {e}")
+                    continue
+
+            return relationships
+
+        except Exception as e:
+            raise BackendError(f"Failed to search relationships by context: {str(e)}")
 
     async def get_relationship_history(
         self,
@@ -1212,3 +1571,106 @@ class SQLiteMemoryDatabase:
             raise BackendError(f"Failed to get recent activity: {e}")
         except Exception as e:
             raise BackendError(f"Failed to get recent activity: {str(e)}")
+
+    async def get_memory_statistics(self) -> Dict[str, Any]:
+        """
+        Get comprehensive statistics about the memory database.
+
+        Returns:
+            Dictionary containing various statistics about the database
+
+        Raises:
+            BackendError: If database operation fails
+        """
+        try:
+            # Get total memories count
+            total_memories_query = (
+                "SELECT COUNT(*) as count FROM nodes WHERE label = 'Memory'"
+            )
+            total_memories_result = await self._execute_sql(total_memories_query)
+            total_memories = (
+                total_memories_result[0]["count"] if total_memories_result else 0
+            )
+
+            # Get memories by type
+            memories_by_type_query = """
+                SELECT
+                    json_extract(properties, '$.type') as type,
+                    COUNT(*) as count
+                FROM nodes
+                WHERE label = 'Memory'
+                GROUP BY json_extract(properties, '$.type')
+            """
+            memories_by_type_result = await self._execute_sql(memories_by_type_query)
+            memories_by_type = (
+                {row["type"]: row["count"] for row in memories_by_type_result}
+                if memories_by_type_result
+                else {}
+            )
+
+            # Get total relationships count
+            total_relationships_query = "SELECT COUNT(*) as count FROM relationships"
+            total_relationships_result = await self._execute_sql(
+                total_relationships_query
+            )
+            total_relationships = (
+                total_relationships_result[0]["count"]
+                if total_relationships_result
+                else 0
+            )
+
+            # Get average importance
+            avg_importance_query = """
+                SELECT AVG(CAST(json_extract(properties, '$.importance') AS REAL)) as avg_importance
+                FROM nodes
+                WHERE label = 'Memory'
+                AND json_extract(properties, '$.importance') IS NOT NULL
+            """
+            avg_importance_result = await self._execute_sql(avg_importance_query)
+            avg_importance = (
+                avg_importance_result[0]["avg_importance"]
+                if avg_importance_result
+                else 0.0
+            )
+
+            # Get average confidence from relationships
+            avg_confidence_query = """
+                SELECT AVG(CAST(json_extract(properties, '$.confidence') AS REAL)) as avg_confidence
+                FROM relationships
+                WHERE json_extract(properties, '$.confidence') IS NOT NULL
+            """
+            avg_confidence_result = await self._execute_sql(avg_confidence_query)
+            avg_confidence = (
+                avg_confidence_result[0]["avg_confidence"]
+                if avg_confidence_result
+                else 0.0
+            )
+
+            # Get database file size if available
+            db_file_size = None
+            try:
+                if hasattr(self.backend, "db_path"):
+                    db_path = Path(self.backend.db_path)
+                    if db_path.exists():
+                        db_file_size = db_path.stat().st_size
+            except Exception:
+                pass
+
+            return {
+                "total_memories": {"count": total_memories},
+                "memories_by_type": memories_by_type,
+                "total_relationships": {"count": total_relationships},
+                "avg_importance": {
+                    "avg_importance": float(avg_importance) if avg_importance else 0.0
+                },
+                "avg_confidence": {
+                    "avg_confidence": float(avg_confidence) if avg_confidence else 0.0
+                },
+                "database_file_size": db_file_size,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
+        except aiosqlite.Error as e:
+            raise BackendError(f"Failed to get memory statistics: {e}")
+        except Exception as e:
+            raise BackendError(f"Failed to get memory statistics: {str(e)}")

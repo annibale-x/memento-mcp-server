@@ -327,4 +327,4 @@ Test suite developed as part of the **mcp-context-keeper** project for Zed edito
 ---
 
 *Last Updated: 2026-03-15*  
-*Test Suite Version: Compatible with mcp-context-keeper v0.1.13+*
+*Test Suite Version: Compatible with mcp-context-keeper v0.1.14+*

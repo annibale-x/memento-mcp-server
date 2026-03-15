@@ -12,8 +12,8 @@ from typing import Any, Dict, List, Set
 
 from mcp.types import CallToolResult, TextContent
 
-from ..models import MemoryType, SearchQuery
 from ..database.interface import SQLiteMemoryDatabase
+from ..models import MemoryType, SearchQuery
 from ..utils.validation import validate_search_input
 from .error_handling import handle_tool_errors
 
@@ -62,9 +62,9 @@ async def handle_search_memories(
         relationship_filter=arguments.get("relationship_filter"),
     )
 
-    memories = await memory_db.search_memories(search_query)
+    paginated_result = await memory_db.search_memories(search_query)
 
-    if not memories:
+    if not paginated_result.results:
         return CallToolResult(
             content=[
                 TextContent(
@@ -74,8 +74,8 @@ async def handle_search_memories(
         )
 
     # Format results
-    results_text: str = f"Found {len(memories)} memories:\n\n"
-    for i, memory in enumerate(memories, 1):
+    results_text: str = f"Found {len(paginated_result.results)} memories (total: {paginated_result.total_count}):\n\n"
+    for i, memory in enumerate(paginated_result.results, 1):
         results_text += f"**{i}. {memory.title}** (ID: {memory.id})\n"
         results_text += f"Type: {memory.type.value} | Importance: {memory.importance}\n"
         results_text += f"Tags: {', '.join(memory.tags) if memory.tags else 'None'}\n"
@@ -122,9 +122,9 @@ async def handle_recall_memories(
     )
 
     # Use the existing search_memories implementation
-    memories = await memory_db.search_memories(search_query)
+    paginated_result = await memory_db.search_memories(search_query)
 
-    if not memories:
+    if not paginated_result.results:
         return CallToolResult(
             content=[
                 TextContent(
@@ -135,9 +135,9 @@ async def handle_recall_memories(
         )
 
     # Format results with enhanced context
-    results_text: str = f"**Found {len(memories)} relevant memories:**\n\n"
+    results_text: str = f"**Found {len(paginated_result.results)} relevant memories (total: {paginated_result.total_count}):**\n\n"
 
-    for i, memory in enumerate(memories, 1):
+    for i, memory in enumerate(paginated_result.results, 1):
         results_text += f"**{i}. {memory.title}** (ID: {memory.id})\n"
         results_text += f"Type: {memory.type.value} | Importance: {memory.importance}\n"
 
@@ -265,10 +265,12 @@ async def handle_contextual_search(
         search_tolerance="normal",
     )
 
-    all_matches: List = await memory_db.search_memories(search_query)
+    paginated_result = await memory_db.search_memories(search_query)
 
     # Filter to only include memories that are in the related set
-    contextual_matches: List = [mem for mem in all_matches if mem.id in related_ids]
+    contextual_matches: List = [
+        mem for mem in paginated_result.results if mem.id in related_ids
+    ]
 
     if not contextual_matches:
         return CallToolResult(

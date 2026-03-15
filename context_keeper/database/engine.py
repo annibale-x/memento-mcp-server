@@ -59,14 +59,7 @@ class SQLiteBackend(GraphBackend):
             self._connected = True
 
             # Check FTS support once
-            try:
-                async with self.conn.execute(
-                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='nodes_fts'"
-                ) as cursor:
-                    result = await cursor.fetchone()
-                    self._supports_fts = bool(result[0] > 0) if result else False
-            except Exception:
-                self._supports_fts = False
+            await self._check_fts_support()
 
             logger.info(f"Successfully connected to SQLite database at {self.db_path}")
             return True
@@ -82,6 +75,52 @@ class SQLiteBackend(GraphBackend):
             self.conn = None
             self._connected = False
             logger.info("SQLite connection closed")
+
+    async def refresh_fts_support(self) -> None:
+        """
+        Refresh FTS support detection.
+
+        This should be called after recreating or modifying the FTS table
+        to ensure the backend correctly detects FTS availability.
+        """
+        if not self._connected or not self.conn:
+            raise DatabaseConnectionError("Cannot refresh FTS support: not connected")
+
+        await self._check_fts_support()
+        logger.info(f"FTS support refreshed: {self._supports_fts}")
+
+    async def _check_fts_support(self) -> None:
+        """Check if FTS table exists and is accessible."""
+        try:
+            async with self.conn.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='nodes_fts'"
+            ) as cursor:
+                result = await cursor.fetchone()
+                table_exists = bool(result[0] > 0) if result else False
+
+            # If table exists, try to query it to ensure it's not corrupted
+            if table_exists:
+                try:
+                    async with self.conn.execute(
+                        "SELECT COUNT(*) FROM nodes_fts"
+                    ) as cursor:
+                        await cursor.fetchone()
+                    self._supports_fts = True
+                except Exception as e:
+                    if "no such column: T.title" in str(e):
+                        logger.warning(
+                            "FTS table exists but is corrupted (T.title error)"
+                        )
+                        self._supports_fts = False
+                    else:
+                        logger.warning(f"FTS table exists but query failed: {e}")
+                        self._supports_fts = False
+            else:
+                self._supports_fts = False
+
+        except Exception as e:
+            logger.warning(f"Failed to check FTS support: {e}")
+            self._supports_fts = False
 
     async def execute_query(
         self,
@@ -212,9 +251,7 @@ class SQLiteBackend(GraphBackend):
                         id,
                         title,
                         content,
-                        summary,
-                        content='nodes',
-                        content_rowid='rowid'
+                        summary
                     )
                 """)
                 logger.debug("Created FTS5 table for full-text search")
