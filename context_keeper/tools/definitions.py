@@ -523,4 +523,193 @@ EXAMPLES:
                 },
             },
         ),
+        Tool(
+            name="adjust_persistent_confidence",
+            description="""Manually adjust confidence of a relationship.
+
+Use for:
+- Correcting confidence scores when you know a memory is valid/invalid
+- Setting custom confidence based on verification
+- Overriding automatic decay for specific cases
+
+Examples:
+- adjust_persistent_confidence(relationship_id="rel-123", new_confidence=0.9, reason="Verified in production")
+- adjust_persistent_confidence(relationship_id="rel-456", new_confidence=0.1, reason="Obsolete after library update")
+
+Confidence ranges:
+- 0.9-1.0: High confidence (recently validated)
+- 0.7-0.89: Good confidence (regularly used)
+- 0.5-0.69: Moderate confidence (somewhat outdated)
+- 0.3-0.49: Low confidence (likely outdated)
+- 0.0-0.29: Very low confidence (probably obsolete)""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "relationship_id": {
+                        "type": "string",
+                        "description": "ID of the relationship to adjust",
+                    },
+                    "new_confidence": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                        "description": "New confidence value (0.0-1.0)",
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Reason for the adjustment",
+                    },
+                },
+                "required": ["relationship_id", "new_confidence"],
+            },
+        ),
+        Tool(
+            name="get_persistent_low_confidence_memories",
+            description="""Find memories with low confidence scores.
+
+Use for:
+- Identifying potentially obsolete knowledge
+- Periodic cleanup and verification
+- Quality assurance of the knowledge base
+- Finding memories that need review
+
+Features:
+- Filter by confidence threshold (default: < 0.3)
+- Shows relationships causing low confidence
+- Includes memory details and last access time
+- Sorted by confidence (lowest first)
+
+Returns:
+- List of low confidence relationships with associated memories
+- Memory details for both ends of each relationship
+- Confidence scores and last access times""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "threshold": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                        "description": "Confidence threshold (default: 0.3)",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100,
+                        "description": "Maximum number of results (default: 20)",
+                    },
+                },
+            },
+        ),
+        Tool(
+            name="apply_persistent_confidence_decay",
+            description="""Apply automatic confidence decay based on last access time.
+
+Use for:
+- System maintenance to keep knowledge base fresh
+- Applying intelligent decay rules
+- Monthly confidence adjustment routine
+
+Intelligent decay rules:
+- Critical memories (security, auth, api_key, password, critical, no_decay tags): NO DECAY
+- High importance memories: Reduced decay based on importance score
+- General knowledge: Standard 5% monthly decay (decay_factor=0.95)
+- Temporary context: Higher decay rate
+
+Decay formula:
+monthly_decay = confidence × decay_factor^(months_since_last_access)
+
+Minimum confidence: 0.1 (won't decay below this)
+
+Returns:
+- Number of relationships updated
+- Summary of decay applied
+- Breakdown by memory type""",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        Tool(
+            name="boost_persistent_confidence",
+            description="""Boost confidence when a memory is successfully used.
+
+Use for:
+- Reinforcing valid knowledge
+- Manual confidence increase for verified information
+- After successfully applying a solution
+- When verifying old information is still valid
+
+Usage patterns:
+- After successfully applying a solution → boost its confidence
+- When verifying old information is still valid → boost confidence
+- When multiple team members confirm a pattern → boost confidence
+
+Boost mechanics:
+- Base boost: +0.01 per access (capped at 1.0)
+- Additional boost for validation: +0.05 to +0.20
+- Maximum confidence: 1.0 (cannot exceed)""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "memory_id": {
+                        "type": "string",
+                        "description": "ID of the memory to boost confidence for",
+                    },
+                    "boost_amount": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                        "description": "Amount to boost confidence (default: 0.05)",
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Reason for the boost",
+                    },
+                },
+                "required": ["memory_id"],
+            },
+        ),
+        Tool(
+            name="set_persistent_decay_factor",
+            description="""Set custom decay factor for specific memories.
+
+Use for:
+- Marking memories as "no decay" (critical information)
+- Adjusting decay rates based on importance
+- Customizing decay for specific use cases
+
+Special tags for no decay:
+- security, auth, api_key, password, critical, no_decay
+
+Decay factor ranges:
+- 1.0: No decay (critical information)
+- 0.98-0.99: Very low decay (high importance)
+- 0.95-0.97: Normal decay (general knowledge)
+- 0.90-0.94: High decay (temporary context)
+- 0.80-0.89: Very high decay (ephemeral data)
+
+Note: Decay factor is applied monthly:
+new_confidence = confidence × decay_factor^(months_since_last_access)""",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "memory_id": {
+                        "type": "string",
+                        "description": "ID of the memory to set decay factor for",
+                    },
+                    "decay_factor": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                        "description": "Decay factor (0.0-1.0, 1.0 = no decay)",
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Reason for setting custom decay factor",
+                    },
+                },
+                "required": ["memory_id", "decay_factor"],
+            },
+        ),
     ]

@@ -1,604 +1,551 @@
-# MCP Tools Reference - mcp-context-keeper
+# ContextKeeper Tools Reference
 
-## Overview
+Complete guide to all MCP tools in ContextKeeper, including usage patterns and configuration.
 
-This document provides a comprehensive reference for all MCP (Model Context Protocol) tools available in the mcp-context-keeper server. This is a simplified version of Context Keeper focused on SQLite-only backend for Zed editor integration.
+---
 
-**IMPORTANT NAMING CONVENTION**: All tools use the `_persistent` suffix to distinguish them from session-based memory tools (like Serena Context Server). Use these tools for long-term knowledge that survives across sessions.
+## Quick Start: Tool Selection
 
-## Tool Profiles
+Follow this decision tree when working with memories:
 
-### Core Profile (9 Tools)
-Default profile with essential memory management tools for persistent storage.
-
-### Extended Profile (12 Tools)
-Core tools + 3 additional tools for advanced search and statistics.
-
-### Advanced Profile (19 Tools)
-Extended tools + 7 advanced tools for graph analysis and pattern detection.
-
-## Core Tools (10 Tools)
-
-### Guide Tool
-
-#### 1. `help_memory_tools_usage`
-**Description**: Get comprehensive guidance on using persistent memory tools and distinguishing them from session memory tools. Critical for avoiding confusion between persistent (cross-session) and session (project-specific) memory tools.
-
-**Parameters**:
-- `topic` (string, optional): Specific topic to get guidance on: "distinction", "examples", "best_practices", or "all" (default)
-
-**Returns**: Comprehensive guide with examples, decision matrices, and best practices
-
-**Example**:
-```json
-{
-  "tool": "help_memory_tools_usage",
-  "topic": "distinction"
-}
+```
+User Request
+│
+├─ Recall/Search Query? → START WITH recall_persistent_memories
+│  ├─ Results found? → Use get_persistent_memory or get_related_persistent_memories for details
+│  └─ No results? → Try search_persistent_memories with different parameters
+│
+├─ Store New Information? → START WITH store_persistent_memory
+│  └─ After storing? → Use create_persistent_relationship to link related memories
+│
+├─ Explore Connections? → START WITH get_related_persistent_memories
+│
+├─ Update/Delete? → get_persistent_memory first, then update_persistent_memory or delete_persistent_memory
+│
+├─ Confidence Management? → Use confidence system tools for knowledge quality
+│  ├─ Find obsolete memories? → get_persistent_low_confidence_memories
+│  ├─ Boost valid memory? → boost_persistent_confidence
+│  └─ Manual adjustment? → adjust_persistent_confidence
+│
+└─ Overview/Stats? → get_persistent_memory_statistics
 ```
 
-### Memory Management Tools
+---
 
-#### 2. `store_persistent_memory`
-**Description**: Store a new persistent memory in the graph database. Use for long-term knowledge that should survive across ALL sessions.
+## Profile Overview
 
-**Parameters**:
-- `type` (string, required): Type of memory (solution, problem, error, fix, pattern, decision, task, code_pattern, technology, command, workflow, general)
-- `title` (string, required): Short descriptive title for the memory (max 500 chars)
-- `content` (string, required): Detailed content of the memory (max 50KB)
-- `tags` (array of strings, optional): Tags for categorization (max 50 tags, 100 chars each)
-- `importance` (number, optional): Importance score (0.0-1.0)
-- `context` (object, optional): Context information for the memory
+| Profile | Tool Count | Description | Use Case |
+|---------|------------|-------------|----------|
+| **core** | 13 | Essential memory operations + confidence basics | Default for 95% of users |
+| **extended** | 17 | Core + analytics + contextual search + confidence maintenance | Power users |
+| **advanced** | 25 | Extended + graph analysis + advanced confidence configuration | Administrators |
 
-**Returns**: Memory ID and creation timestamp
+### Quick Comparison
 
-**Example**:
-```json
-{
-  "tool": "store_persistent_memory",
-  "type": "solution",
-  "title": "Fixed Redis timeout",
-  "content": "Increased timeout to 30s and added connection pooling...",
-  "tags": ["redis", "database", "performance"],
-  "importance": 0.8
-}
+| Feature | Core (Default) | Extended | Advanced |
+|---------|----------------|----------|----------|
+| Memory CRUD | ✅ 5 tools | ✅ 5 tools | ✅ 5 tools |
+| Relationships | ✅ 2 tools | ✅ 2 tools | ✅ 2 tools |
+| Discovery | ✅ 2 tools | ✅ 2 tools | ✅ 2 tools |
+| Confidence Basics | ✅ 3 tools | ✅ 3 tools | ✅ 3 tools |
+| Database Stats | ❌ | ✅ 1 tool | ✅ 1 tool |
+| Complex Queries | ❌ | ✅ 1 tool | ✅ 1 tool |
+| Contextual Search | ❌ | ✅ 1 tool | ✅ 1 tool |
+| Confidence Maintenance | ❌ | ✅ 1 tool | ✅ 1 tool |
+| Graph Analysis | ❌ | ❌ | ✅ 7 tools |
+| Advanced Confidence | ❌ | ❌ | ✅ 1 tool |
+
+---
+
+## Core Profile (13 tools) - DEFAULT
+
+### Primary Tools (Use First)
+
+#### 1. recall_persistent_memories 🎯 RECOMMENDED FIRST CHOICE
+
+**Use for**:
+- Any recall or search query from user
+- "What did we learn about X?"
+- "Show me solutions for Y"
+- "Catch me up on this project"
+
+**Why first**:
+- Optimized defaults (fuzzy matching, relationships included)
+- Simpler interface for natural language queries
+- Best results for common use cases
+- **Automatic confidence sorting**: Results ordered by confidence score
+
+**When to skip**:
+- Need exact match only → use `search_persistent_memories` with `search_tolerance="strict"`
+- Need advanced boolean queries → use `search_persistent_memories`
+
+#### 2. store_persistent_memory
+
+**Use for**:
+- Capturing new solutions, problems, errors, decisions
+- Recording patterns or learnings
+- Documenting technology choices
+
+**Always follow with**:
+- `create_persistent_relationship` to link to related memories
+
+#### 3. create_persistent_relationship
+
+**Use for**:
+- After storing a solution → link to problem it solves
+- After documenting an error → link to its fix
+- Connecting decisions to what they improve
+
+**Common patterns**:
+- solution SOLVES problem
+- fix ADDRESSES error
+- decision IMPROVES previous_approach
+- pattern APPLIES_TO project
+
+**35+ relationship types** across categories: Causation, Solution, Context, Dependency, Knowledge, Comparison, Workflow.
+
+### Secondary Tools (Drill-Down)
+
+#### 4. search_persistent_memories
+
+**Use when recall_persistent_memories isn't suitable**:
+- Need strict exact matching (`search_tolerance="strict"`)
+- Need to search with specific tags
+- Need to filter by importance threshold
+- Advanced queries requiring fine control
+- Need pagination for large result sets
+
+**Pagination**:
+```python
+# First page (results 0-49)
+search_persistent_memories(query="authentication", limit=50, offset=0)
+
+# Second page (results 50-99)
+search_persistent_memories(query="authentication", limit=50, offset=50)
 ```
 
-#### 3. `recall_persistent_memories`
+#### 5. get_persistent_memory
 
-**Description**: Recall persistent memories using natural language queries with fuzzy matching. Optimized for conceptual queries and general exploration.
+**Use for**:
+- Getting full details when you have a specific ID
+- Verifying memory before update/delete
+- Drilling down from search results
 
-**Parameters**:
-- `query` (string, required): Natural language query
-- `memory_types` (array of strings, optional): Filter by memory types
-- `project_path` (string, optional): Filter by project path
-- `limit` (integer, optional): Maximum results per page (default: 20)
-- `offset` (integer, optional): Results to skip for pagination
+#### 6. get_related_persistent_memories
 
-**Returns**: List of matching memories with relevance scores
+**Use for**:
+- After finding a memory, explore what connects to it
+- "What caused this problem?"
+- "What solutions exist for this?"
+- Following chains of reasoning
 
-**Example**:
-```json
-{
-  "tool": "recall_persistent_memories",
-  "query": "how to fix timeout issues",
-  "memory_types": ["solution", "fix"],
-  "limit": 5
-}
-```
-
-#### 4. `search_persistent_memories`
-**Description**: Advanced search with fine-grained filters for precise retrieval of persistent memories. Use for acronyms, proper nouns, known tags, and exact technical terms.
-
-**Parameters**:
-- `query` (string, optional): Text to search in memory content
-- `terms` (array of strings, optional): Multiple search terms
-- `tags` (array of strings, optional): Filter by exact tag match
-- `memory_types` (array of strings, optional): Filter by memory types
-- `min_importance` (number, optional): Minimum importance score
-- `search_tolerance` (string, optional): "strict", "normal", or "fuzzy"
-- `match_mode` (string, optional): "any" or "all"
-
-**Returns**: List of memories with similarity scores
-
-**Example**:
-```json
-{
-  "tool": "search_persistent_memories",
-  "tags": ["jwt", "auth"],
-  "memory_types": ["solution", "pattern"],
-  "min_importance": 0.7
-}
-```
-
-#### 5. `get_persistent_memory`
-**Description**: Retrieve a specific persistent memory by ID.
-
-**Parameters**:
-- `memory_id` (string, required): ID of the memory to retrieve
-- `include_relationships` (boolean, optional): Include related memories
-
-**Returns**: Complete memory object with all properties
-
-**Example**:
-```json
-{
-  "tool": "get_persistent_memory",
-  "memory_id": "mem_abc123",
-  "include_relationships": true
-}
-```
-
-#### 6. `update_persistent_memory`
-**Description**: Update an existing persistent memory.
-
-**Parameters**:
-- `memory_id` (string, required): ID of the memory to update
-- `title` (string, optional): Updated title
-- `content` (string, optional): Updated content
-- `summary` (string, optional): Updated summary
-- `tags` (array of strings, optional): Updated tags
-- `importance` (number, optional): Updated importance score
-
-**Returns**: Updated memory object
-
-**Example**:
-```json
-{
-  "tool": "update_persistent_memory",
-  "memory_id": "mem_abc123",
-  "content": "Fixed authentication bug and added rate limiting",
-  "tags": ["authentication", "security", "rate-limiting"]
-}
-```
-
-#### 7. `delete_persistent_memory`
-**Description**: Delete a persistent memory and all its relationships.
-
-**Parameters**:
-- `memory_id` (string, required): ID of the memory to delete
-
-**Returns**: Confirmation of deletion
-
-**Example**:
-```json
-{
-  "tool": "delete_persistent_memory",
-  "memory_id": "mem_abc123"
-}
-```
-
-### Relationship Tools
-
-#### 8. `create_persistent_relationship`
-**Description**: Create a relationship between two persistent memories.
-
-**Parameters**:
-- `from_memory_id` (string, required): Source memory ID
-- `to_memory_id` (string, required): Target memory ID
-- `relationship_type` (string, required): Type of relationship
-- `strength` (number, optional): Relationship strength (0.0-1.0)
-- `confidence` (number, optional): Confidence in relationship (0.0-1.0)
-- `context` (string, optional): Context description
-
-**Returns**: Relationship ID and details
-
-**Example**:
-```json
-{
-  "tool": "create_persistent_relationship",
-  "from_memory_id": "mem_sol_123",
-  "to_memory_id": "mem_prob_456",
-  "relationship_type": "SOLVES",
-  "context": "Redis timeout fix solves connection pool issue"
-}
-```
-
-#### 9. `get_related_persistent_memories`
-**Description**: Get relationships for a persistent memory.
-
-**Parameters**:
-- `memory_id` (string, required): Memory ID to get relationships for
-- `relationship_types` (array of strings, optional): Filter by relationship types
-- `max_depth` (integer, optional): Maximum relationship depth (1-5)
-
-**Returns**: List of related memories and relationships
-
-**Example**:
-```json
-{
-  "tool": "get_related_persistent_memories",
-  "memory_id": "mem_prob_456",
-  "relationship_types": ["SOLVES", "ADDRESSES"],
-  "max_depth": 2
-}
-```
+**Filter by relationship types**:
+- `relationship_types=["SOLVES"]` → Find solutions
+- `relationship_types=["CAUSES", "TRIGGERS"]` → Find causes
+- `relationship_types=["USED_IN"]` → Find where pattern applies
 
 ### Utility Tools
 
-#### 10. `get_persistent_recent_activity`
-**Description**: Get summary of recent persistent memory activity.
+#### 7. update_persistent_memory
 
-**Parameters**:
-- `days` (integer, optional): Number of days to look back (1-365, default: 7)
-- `project` (string, optional): Filter by project path
+**Use for**: Corrections, adding tags, updating importance.
+**Always**: Use `get_persistent_memory` first to verify contents.
 
-**Returns**: Memory counts by type, recent memories, unresolved problems
+#### 8. delete_persistent_memory
 
-**Example**:
-```json
-{
-  "tool": "get_persistent_recent_activity",
-  "days": 7,
-  "project": "/apps/api"
-}
+**Use for**: Removing obsolete or incorrect memories.
+**Warning**: Deletes all relationships too (cascade). Irreversible.
+
+#### 9. get_persistent_recent_activity
+
+**Use for**:
+- Session briefing and progress tracking
+- Summary of recent memories (last N days)
+- Unresolved problems highlighted
+- "Catch me up" functionality
+
+### 10. help_memory_tools_usage
+
+**Use for**:
+- Understanding the difference between persistent and session memory
+- Learning best practices for memory storage
+- Getting guidance on when to use which tool
+
+### Confidence System Tools (Now in Core)
+
+#### 11. get_persistent_low_confidence_memories
+
+**Use for**:
+- Finding memories with low confidence scores
+- Identifying potentially obsolete knowledge
+- Periodic cleanup and verification
+- Quality assurance of the knowledge base
+
+**Features**:
+- Filter by confidence threshold (default: < 0.3)
+- Shows relationships causing low confidence
+- Includes memory details and last access time
+- Sorted by confidence (lowest first)
+
+#### 12. boost_persistent_confidence
+
+**Use for**:
+- Boosting confidence when a memory is successfully used
+- Reinforcing valid knowledge
+- Manual confidence increase for verified information
+
+**Usage patterns**:
+- After successfully applying a solution → boost its confidence
+- When verifying old information is still valid → boost confidence
+- When multiple team members confirm a pattern → boost confidence
+
+#### 13. adjust_persistent_confidence
+
+**Use for**:
+- Manually adjusting confidence of a relationship
+- Correcting confidence scores when you know a memory is valid/invalid
+- Setting custom confidence based on verification
+
+**Examples**:
+- `adjust_persistent_confidence(relationship_id="rel-123", new_confidence=0.9, reason="Verified in production")`
+- `adjust_persistent_confidence(relationship_id="rel-456", new_confidence=0.1, reason="Obsolete after library update")`
+
+---
+
+## Extended Profile (17 tools)
+
+All Core tools plus:
+
+### 14. apply_persistent_confidence_decay
+
+**Use for**:
+- Applying automatic confidence decay based on last access time
+- System maintenance to keep knowledge base fresh
+- Applying intelligent decay rules:
+  - Critical memories (security, auth, api_key): No decay
+  - High importance memories: Reduced decay
+  - General knowledge: Normal decay (5% per month)
+
+**Intelligent decay**:
+- API keys, passwords, security info: No decay (decay_factor=1.0)
+- Critical solutions (importance > 0.9): Low decay (decay_factor=0.98)
+- General knowledge: Normal decay (decay_factor=0.95)
+- Temporary context: High decay (decay_factor=0.90)
+
+### 15. get_persistent_memory_statistics
+
+**Use for**:
+- Database overview and metrics
+- Total memories and relationships
+- Breakdown by memory type
+- Average importance scores
+
+### 16. search_persistent_relationships_by_context
+
+**Use for**:
+- Complex relationship queries
+- Search by structured context fields (scope, conditions, evidence)
+- Filter by implementation scope (partial/full/conditional)
+- Advanced relationship analytics
+
+### 17. persistent_contextual_search
+
+**Use for**:
+- Scoped search within related memories
+- Two-phase search: find related memories, then search within that set
+- Search within a specific problem context
+- No leakage outside context boundary
+
+---
+
+## Advanced Profile (25 tools)
+
+All Extended tools plus:
+
+### Confidence System Tools (Advanced)
+
+#### 18. set_persistent_decay_factor
+
+**Use for**:
+- Setting custom decay factor for specific memories
+- Marking memories as "no decay" (critical information)
+- Adjusting decay rates based on importance
+
+**Special tags for no decay**:
+- `security`, `auth`, `api_key`, `password`, `critical`, `no_decay`
+
+**Decay factor ranges**:
+- 1.0: No decay (critical information)
+- 0.98-0.99: Very low decay (high importance)
+- 0.95-0.97: Normal decay (general knowledge)
+- 0.90-0.94: High decay (temporary context)
+- 0.80-0.89: Very high decay (ephemeral data)
+
+### Graph Analysis Tools
+
+#### 19. analyze_persistent_memory_graph
+
+**Use for**:
+- Comprehensive analytics and metrics for the persistent memory graph
+- Relationship density analysis
+- Graph structure visualization
+
+#### 20. find_persistent_patterns
+
+**Use for**:
+- Detecting patterns in persistent memories and relationships
+- Finding recurring solution patterns
+- Identifying common problem-solution pairs
+
+#### 21. suggest_persistent_relationships
+
+**Use for**:
+- Getting intelligent suggestions for relationship types between memories
+- Discovering potential connections between memories
+- Enhancing the knowledge graph
+
+#### 22. get_persistent_memory_clusters
+
+**Use for**:
+- Detecting clusters of densely connected persistent memories
+- Finding topic groups and related concepts
+- Understanding knowledge organization
+
+#### 23. get_persistent_central_memories
+
+**Use for**:
+- Finding persistent memories that connect different clusters
+- Identifying knowledge bridges and central concepts
+- Discovering key memories in the graph
+
+#### 24. find_path_between_persistent_memories
+
+**Use for**:
+- Finding the shortest path between two persistent memories
+- Discovering connection chains between concepts
+- Understanding how memories are related
+
+#### 25. get_persistent_memory_network
+
+**Use for**:
+- Getting the complete network structure of persistent memories
+- Full graph analysis and visualization
+- Understanding the overall knowledge structure
+
+---
+
+## Common Usage Patterns
+
+### Pattern: Confidence System Maintenance
+
+```python
+# Monthly maintenance routine:
+# 1. Find low confidence memories
+low_conf = get_persistent_low_confidence_memories(threshold=0.3, limit=50)
+
+# 2. Apply automatic decay
+apply_persistent_confidence_decay()
+
+# 3. Review and adjust
+for memory in low_conf:
+    if memory_is_still_valid(memory):
+        boost_persistent_confidence(memory_id=memory.id, boost_amount=0.2, reason="Monthly verification")
+    else:
+        # Mark for deletion or adjustment
+        adjust_persistent_confidence(relationship_id=..., new_confidence=0.1, reason="Obsolete")
 ```
 
-## Extended Tools (3 Additional Tools)
+### Pattern: Critical Information Protection
 
-### 11. `get_persistent_memory_statistics`
-**Description**: Get statistics about the persistent memory database.
+```python
+# When storing critical information, use special tags:
+store_persistent_memory(
+    type="technology",
+    title="Production API Key for Service X",
+    content="key: abc123...",
+    tags=["api_key", "security", "production", "no_decay"],  # Critical tags
+    importance=0.95  # High importance
+)
 
-**Parameters**: None
-
-**Returns**: Database statistics including total memories, relationships, memory types distribution
-
-**Example**:
-```json
-{
-  "tool": "get_persistent_memory_statistics"
-}
+# These memories will have:
+# - No automatic confidence decay
+# - Always high in search results
+# - Protected from accidental obsolescence
 ```
 
-### 12. `search_persistent_relationships_by_context`
-**Description**: Search persistent relationships by structured context fields.
-
-**Parameters**:
-- `scope` (string, optional): "partial", "full", or "conditional"
-- `conditions` (array of strings, optional): Filter by conditions
-- `has_evidence` (boolean, optional): Filter by evidence presence
-- `evidence` (array of strings, optional): Filter by evidence types
-- `components` (array of strings, optional): Filter by components
-- `temporal` (string, optional): Filter by temporal information
-
-**Returns**: List of relationships matching context criteria
-
-**Example**:
-```json
-{
-  "tool": "search_persistent_relationships_by_context",
-  "scope": "full",
-  "has_evidence": true,
-  "components": ["auth", "database"]
-}
-```
-
-### 13. `persistent_contextual_search`
-**Description**: Search only within the context of a given persistent memory (scoped search).
-
-**Parameters**:
-- `memory_id` (string, required): Memory ID to use as context root
-- `query` (string, required): Search query within context
-- `max_depth` (integer, optional): Maximum relationship depth (1-5, default: 2)
-
-**Returns**: Matches found only within related memories
-
-**Example**:
-```json
-{
-  "tool": "persistent_contextual_search",
-  "memory_id": "mem_prob_456",
-  "query": "timeout configuration",
-  "max_depth": 2
-}
-```
-
-## Advanced Tools (7 Additional Tools)
-
-### 14. `analyze_persistent_memory_graph`
-**Description**: Get comprehensive analytics and metrics for the persistent memory graph.
-
-**Parameters**: None
-
-**Returns**: Graph metrics, relationship system statistics, database statistics
-
-**Example**:
-```json
-{
-  "tool": "analyze_persistent_memory_graph"
-}
-```
-
-### 15. `find_persistent_patterns`
-**Description**: Find patterns in persistent memories and relationships.
-
-**Parameters**:
-- `min_pattern_size` (integer, optional): Minimum pattern size (default: 3)
-- `min_support` (number, optional): Minimum support threshold (0.0-1.0, default: 0.5)
-
-**Returns**: Detected patterns and their support scores
-
-**Example**:
-```json
-{
-  "tool": "find_persistent_patterns",
-  "min_pattern_size": 3,
-  "min_support": 0.6
-}
-```
-
-### 16. `suggest_persistent_relationships`
-**Description**: Get intelligent suggestions for relationship types between two persistent memories.
-
-**Parameters**:
-- `from_memory_id` (string, required): Source memory ID
-- `to_memory_id` (string, required): Target memory ID
-
-**Returns**: List of suggested relationship types with confidence scores
-
-**Example**:
-```json
-{
-  "tool": "suggest_persistent_relationships",
-  "from_memory_id": "mem_sol_123",
-  "to_memory_id": "mem_prob_456"
-}
-```
-
-### 17. `get_persistent_memory_clusters`
-**Description**: Detect clusters of densely connected persistent memories.
-
-**Parameters**:
-- `min_cluster_size` (integer, optional): Minimum memories per cluster (default: 3)
-- `min_density` (number, optional): Minimum cluster density (0.0-1.0, default: 0.3)
-
-**Returns**: Detected clusters with size and density metrics
-
-**Example**:
-```json
-{
-  "tool": "get_persistent_memory_clusters",
-  "min_cluster_size": 3,
-  "min_density": 0.4
-}
-```
-
-### 18. `get_persistent_central_memories`
-**Description**: Find persistent memories that connect different clusters (knowledge bridges).
-
-**Parameters**: None
-
-**Returns**: Central memories with betweenness centrality scores
-
-**Example**:
-```json
-{
-  "tool": "get_persistent_central_memories"
-}
-```
-
-### 19. `find_path_between_persistent_memories`
-**Description**: Find the shortest path between two persistent memories through relationships.
-
-**Parameters**:
-- `from_memory_id` (string, required): Starting memory ID
-- `to_memory_id` (string, required): Target memory ID
-- `max_depth` (integer, optional): Maximum path length (1-10, default: 5)
-- `relationship_types` (array of strings, optional): Filter by relationship types
-
-**Returns**: Path information including found status and hops
-
-**Example**:
-```json
-{
-  "tool": "find_path_between_persistent_memories",
-  "from_memory_id": "mem_sol_123",
-  "to_memory_id": "mem_root_789",
-  "max_depth": 5
-}
-```
-
-### 20. `get_persistent_memory_network`
-**Description**: Get the complete network structure of persistent memories and relationships.
-
-**Parameters**: None
-
-**Returns**: Network structure including nodes, edges, and topological properties
-
-**Example**:
-```json
-{
-  "tool": "get_persistent_memory_network"
-}
-```
-
-## Tool Count Summary
-
-- **Core Profile**: 10 tools (including guide tool)
-- **Extended Profile**: 13 tools (core + 3 extended)
-- **Advanced Profile**: 20 tools (extended + 7 advanced)
-
-## Relationship Types
-
-### Core Relationship Types
-
-1. **SOLVES** - A solution solves a problem
-2. **CAUSES** - A cause leads to an effect
-3. **ADDRESSES** - A fix addresses an error
-4. **REQUIRES** - A dependency requires another component
-5. **RELATED_TO** - General relationship between memories
-6. **DEPENDS_ON** - Technical dependency
-7. **IMPLEMENTS** - Implementation of a pattern or design
-8. **EXTENDS** - Extension or enhancement
-9. **REFINES** - Refinement or improvement
-10. **DOCUMENTS** - Documentation relationship
-
-### Extended Relationship Types
-
-11. **LEARNED_FROM** - Knowledge learned from experience
-12. **IMPROVES** - Improvement over previous version
-13. **REFERENCES** - Reference to external resource
-14. **SIMILAR_TO** - Similarity in content or context
-15. **CONTRASTS_WITH** - Contrast or difference
-16. **PRECEDES** - Temporal precedence
-17. **FOLLOWS** - Temporal following
-18. **VALIDATES** - Validation or verification
-19. **INVALIDATES** - Invalidation or contradiction
-
-## Memory Types
-
-### Standard Types
-
-1. **solution** - Solution to a problem
-2. **problem** - Problem or issue
-3. **error** - Error or exception
-4. **fix** - Fix or workaround
-5. **pattern** - Design or code pattern
-6. **decision** - Architectural or design decision
-7. **task** - Task or todo item
-8. **code_pattern** - Code implementation pattern
-9. **technology** - Technology or tool
-10. **command** - Command or script
-11. **workflow** - Workflow or process
-12. **general** - General note or observation
-
-## Configuration
-
-### Server Modes
-
-1. **Core Mode** (Default): 9 basic tools for essential persistent memory management
-2. **Extended Mode**: 12 tools including advanced search and statistics
-3. **Advanced Mode**: 19 tools including graph analysis and pattern detection
-
-### Environment Variables
+### Pattern: "What did we learn about X?"
 
 ```
-CONTEXT_TOOL_PROFILE=core|extended|advanced
-CONTEXT_ENABLE_ADVANCED_TOOLS=true|false
-CONTEXT_SQLITE_PATH=~/.mcp-context-keeper/context.db
-CONTEXT_LOG_LEVEL=DEBUG|INFO|WARNING|ERROR
+Step 1: recall_persistent_memories(query="X")
+Step 2: [Present results - automatically sorted by confidence]
+Step 3 (if low confidence warning): Check with get_persistent_low_confidence_memories
+Step 4 (if user asks): get_persistent_memory(memory_id="...")
+Step 5 (if user wants connections): get_related_persistent_memories(memory_id="...")
 ```
 
-### Configuration File (`context-keeper.yaml`)
+### Pattern: User Solves a Problem
 
-```yaml
-backend: "sqlite"
-tool_profile: "extended"
-enable_advanced_tools: true
-sqlite_path: "~/.mcp-context-keeper/context.db"
-logging:
-  level: "INFO"
-features:
-  auto_extract_entities: true
-  session_briefing: true
-  briefing_verbosity: "standard"
-  briefing_recency_days: 7
-  allow_relationship_cycles: false
+```python
+# Step 1: Store the solution
+store_persistent_memory(
+    type="solution",
+    title="Fixed Redis timeout with 30s connection timeout",
+    content="...",
+    tags=["redis", "timeout", "production_fix"],
+    importance=0.8
+)
+# → Returns memory_id: "sol-123"
+
+# Step 2: Find related problem
+recall_persistent_memories(query="Redis timeout", memory_types=["problem", "error"])
+# → Finds memory_id: "prob-456"
+
+# Step 3: Create link
+create_persistent_relationship(
+    from_memory_id="sol-123",
+    to_memory_id="prob-456",
+    relationship_type="SOLVES"
+)
+
+# Step 4: Boost confidence (optional but recommended)
+boost_persistent_confidence(
+    memory_id="sol-123",
+    boost_amount=0.15,
+    reason="Successfully applied in production"
+)
 ```
 
-## Usage Examples
+### Pattern: "Catch me up"
 
-### Basic Persistent Memory Storage
+```
+Step 1: get_persistent_recent_activity(days=7, project="/current/project")
+Step 2: Check for low confidence memories: get_persistent_low_confidence_memories(threshold=0.4)
+Step 3: Present summary with unresolved problems and confidence warnings highlighted
+```
+
+### Pattern: Knowledge Base Quality Check
+
+```
+Step 1: get_persistent_low_confidence_memories(threshold=0.3, limit=20)
+Step 2: Review each memory for validity
+Step 3: For valid memories: boost_persistent_confidence
+Step 4: For obsolete memories: adjust_persistent_confidence or delete_persistent_memory
+```
+
+---
+
+## Profile Configuration
+
+### Environment Variable
+
 ```bash
-# Store a persistent memory
-python -m context_keeper --profile extended
+# Core (default)
+export CONTEXT_TOOL_PROFILE=core
 
-# Then use MCP client to call:
-{
-  "tool": "store_persistent_memory",
-  "type": "solution",
-  "title": "Fixed authentication with JWT",
-  "content": "Implemented JWT token validation with 30-minute expiration...",
-  "tags": ["authentication", "jwt", "security"]
-}
+# Extended
+export CONTEXT_TOOL_PROFILE=extended
+
+# Advanced
+export CONTEXT_TOOL_PROFILE=advanced
 ```
 
-### Search and Recall Persistent Memories
+### CLI Flag
+
 ```bash
-# Search for persistent authentication memories
+# Core (default)
+context_keeper
+
+# Extended
+context_keeper --profile extended
+
+# Advanced
+context_keeper --profile advanced
+```
+
+### MCP Configuration
+
+```json
 {
-  "tool": "search_persistent_memories",
-  "tags": ["authentication", "jwt"],
-  "memory_types": ["solution", "pattern"],
-  "limit": 5
+  "mcpServers": {
+    "context_keeper": {
+      "command": "context_keeper",
+      "args": ["--profile", "extended"],
+      "env": {
+        "CONTEXT_SQLITE_PATH": "~/.mcp-context-keeper/context.db",
+        "CONTEXT_TOOL_PROFILE": "extended",
+      }
+    }
+  }
 }
 ```
 
-### Creating Persistent Relationships
-```bash
-# Link a persistent solution to a problem
-{
-  "tool": "create_persistent_relationship",
-  "from_memory_id": "mem_sol_jwt",
-  "to_memory_id": "mem_prob_auth",
-  "relationship_type": "SOLVES",
-  "context": "JWT implementation solves authentication issues"
-}
-```
+---
 
-## Best Practices
+## Choosing Your Profile
 
-1. **Use _persistent Suffix**: Always use tools with `_persistent` suffix for long-term storage
-2. **Tag Acronyms**: Include acronyms as tags (e.g., `["jwt", "api", "redis"]`)
-3. **Clear Context**: Provide context for relationships and memories
-4. **Importance Scoring**: Use importance scores (0.0-1.0) to prioritize memories
-5. **Regular Maintenance**: Use statistics tools to monitor database health
+### Use Core Profile If:
+- ✅ You're getting started
+- ✅ You need basic memory storage and retrieval
+- ✅ You want zero configuration
+- ✅ You're a typical user (95% of use cases)
+- ✅ You want confidence management basics
 
-## When to Use Persistent vs Session Memory
+### Use Extended Profile If:
+- ✅ You need database statistics
+- ✅ You want advanced relationship queries
+- ✅ You're analyzing patterns across large memory sets
+- ✅ You need contextual/scoped search
+- ✅ You want automatic confidence decay maintenance
 
-### Use Persistent Memory Tools (`_persistent` suffix):
-- Long-term solutions and patterns
-- Reusable code snippets and commands
-- Architecture decisions and design patterns
-- Important bug fixes and workarounds
-- Technology evaluations and comparisons
-- Knowledge that should survive across sessions
+### Use Advanced Profile If:
+- ✅ You need graph analysis and clustering
+- ✅ You want to find patterns and relationships
+- ✅ You need to understand the knowledge graph structure
+- ✅ You're doing research or advanced analysis
+- ✅ You need custom decay factor configuration
 
-### Use Session Memory Tools (Serena, no suffix):
-- Temporary session state
-- Current file context
-- Project-specific variables
-- Undo/redo history
-- Ephemeral calculations
-- Short-term context that doesn't need persistence
+---
 
-## Getting Started with Guidance
+## Anti-Patterns to Avoid
 
-For new users or when confused about which tool to use:
+**❌ Don't**:
+- Use search_persistent_memories when recall_persistent_memories would work
+- Call get_persistent_memory without an ID
+- Create memory without considering relationships
+- Use exact match search as default
+- Ignore low confidence warnings
 
-1. **Start with the guide tool**:
-   ```json
-   {
-     "tool": "help_memory_tools_usage",
-     "topic": "distinction"
-   }
-   ```
+**✅ Do**:
+- Start with recall_persistent_memories for all searches
+- Use create_persistent_relationship after storing related memories
+- Filter by memory_types for precision
+- Use get_related_persistent_memories to explore context
+- Use help_memory_tools_usage when unsure about tool selection
+- Check get_persistent_low_confidence_memories periodically
+- Boost confidence for validated solutions
 
-2. **Review examples**:
-   ```json
-   {
-     "tool": "help_memory_tools_usage",
-     "topic": "examples"
-   }
-   ```
+---
 
-3. **Learn best practices**:
-   ```json
-   {
-     "tool": "help_memory_tools_usage",
-     "topic": "best_practices"
-   }
-   ```
+## IMPORTANT: Persistent vs Session Memory
 
-The guide tool provides decision matrices, common mistakes to avoid, and practical examples to ensure correct usage of persistent memory tools.
+All tools in ContextKeeper use the `_persistent` suffix to distinguish them from session memory tools in Serena Context Server:
 
-## Troubleshooting
+### Persistent Memory Tools (`_persistent` suffix):
+- **Scope**: Global - accessible from ANY project or session
+- **Persistence**: Long-term - survives across ALL sessions
+- **Purpose**: Store reusable knowledge, solutions, patterns
+- **Examples**: `store_persistent_memory`, `get_persistent_memory`, `search_persistent_memories`
 
-### Common Issues
+### Session Memory Tools (no suffix in Serena):
+- **Scope**: Project-specific - only accessible within current project
+- **Persistence**: Temporary - lasts only for current session
+- **Purpose**: Store ephemeral context, temporary variables
+- **Examples**: `store_memory`, `get_memory`, `search_memories` (in Serena Context Server)
 
-1. **Tool Not Found**: Ensure you're using the correct `_persistent` suffix
-2. **Database Connection**: Check SQLite database path permissions
-3. **Memory Not Found**: Verify memory ID exists in persistent storage
-4. **Relationship Errors**: Ensure both memory IDs exist before creating relationships
+### When to Use Which:
+- **Need it tomorrow or across projects?** → Use `_persistent` suffix tools
+- **Only need it for current session?** → Use session memory tools (no suffix)
+- **Storing solutions, patterns, decisions?** → Always use `_persistent` suffix
+- **Storing temporary work context?** → Use session memory tools
 
-### Health Check
+For detailed guidance, use the `help_memory_tools_usage` tool.

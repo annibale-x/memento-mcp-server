@@ -1,5 +1,20 @@
 # Changelog
 
+* 2026-03-15: v0.1.15 - Confidence system reorganization and tool distribution optimization (Hannibal)
+  * Reorganized confidence system tools for better accessibility across profiles
+  * Moved 3 essential confidence tools to Core profile (13 tools total):
+    - get_persistent_low_confidence_memories - Identify obsolete knowledge
+    - boost_persistent_confidence - Reinforce valid knowledge  
+    - adjust_persistent_confidence - Manual confidence correction
+  * Moved apply_persistent_confidence_decay to Extended profile (17 tools total)
+  * Kept set_persistent_decay_factor in Advanced profile (25 tools total)
+  * Updated tool documentation with new distribution strategy
+  * Enhanced TOOLS.md with comprehensive confidence system guidance
+  * All confidence system tests passing (13/13)
+  * Demo script fully functional with new tool distribution
+  * Improved user experience: all users now have basic confidence management
+  * Better search result ordering with confidence-based prioritization
+
 * 2026-03-15: v0.1.14 - FTS schema fix and database stability improvements (Hannibal)
   * Fixed critical 'no such column: T.title' error in SQLite FTS table
   * Updated database schema to create FTS tables without problematic content='nodes' option

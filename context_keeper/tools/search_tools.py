@@ -139,7 +139,15 @@ async def handle_recall_memories(
 
     for i, memory in enumerate(paginated_result.results, 1):
         results_text += f"**{i}. {memory.title}** (ID: {memory.id})\n"
-        results_text += f"Type: {memory.type.value} | Importance: {memory.importance}\n"
+        results_text += f"Type: {memory.type.value} | Importance: {memory.importance} | Confidence: {memory.confidence:.2f}\n"
+
+        # Add confidence warning if low
+        if memory.confidence < 0.3:
+            results_text += "⚠️ **Low confidence** - This memory hasn't been used recently and may be obsolete\n"
+        elif memory.confidence < 0.5:
+            results_text += (
+                "⚠️ **Medium confidence** - Consider verifying this information\n"
+            )
 
         # Add match quality if available
         if hasattr(memory, "match_info") and memory.match_info:
@@ -187,6 +195,13 @@ async def handle_recall_memories(
     results_text += (
         '- Use `get_related_memories(memory_id="...")` to explore connections\n'
     )
+
+    # Add confidence system tips
+    results_text += "\n🔍 **Confidence System:**\n"
+    results_text += "- Memories are sorted by (confidence × importance)\n"
+    results_text += "- Low confidence (<0.3) may indicate obsolete knowledge\n"
+    results_text += "- Use `boost_confidence` when you verify a memory is still valid\n"
+    results_text += "- Critical info (security, API keys) has no automatic decay\n"
 
     return CallToolResult(content=[TextContent(type="text", text=results_text)])
 

@@ -6,7 +6,7 @@
     "args": ["-m", "context_keeper"],
     "env": {
       "CONTEXT_SQLITE_PATH": "C:/Users/Hannibal/.mcp-context-keeper/context.db",
-      "CONTEXT_TOOL_PROFILE": "extended"
+      "CONTEXT_TOOL_PROFILE": "extended" // advanced
     }
   }
 }

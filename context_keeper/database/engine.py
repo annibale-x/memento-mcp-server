@@ -206,6 +206,12 @@ class SQLiteBackend(GraphBackend):
                     recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     invalidated_by TEXT,
 
+                    -- Confidence system fields
+                    confidence FLOAT DEFAULT 0.8,
+                    last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    access_count INTEGER DEFAULT 0,
+                    decay_factor FLOAT DEFAULT 0.95,
+
                     FOREIGN KEY (from_id) REFERENCES nodes(id) ON DELETE CASCADE,
                     FOREIGN KEY (to_id) REFERENCES nodes(id) ON DELETE CASCADE,
                     FOREIGN KEY (invalidated_by) REFERENCES relationships(id) ON DELETE SET NULL
@@ -233,6 +239,14 @@ class SQLiteBackend(GraphBackend):
             await self.conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_relationships_temporal
                 ON relationships(valid_from, valid_until)
+            """)
+            await self.conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_relationships_confidence
+                ON relationships(confidence)
+            """)
+            await self.conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_relationships_last_accessed
+                ON relationships(last_accessed)
             """)
             await self.conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_relationships_current

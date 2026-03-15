@@ -211,7 +211,9 @@ def validate_profile(profile: str) -> None:
     ]  # Include legacy
     if profile not in valid_profiles:
         _eprint(f"Error: Invalid profile '{profile}'")
-        _eprint("Valid options: core, extended (or legacy: lite, standard, full)")
+        _eprint(
+            "Valid options: core, extended, advanced (or legacy: lite, standard, full)"
+        )
         sys.exit(1)
 
     # Warn about legacy profiles
@@ -235,6 +237,9 @@ Examples:
 
   # Use extended profile (11 tools)
   context-keeper --profile extended
+
+  # Use advanced profile (18 tools, includes confidence system)
+  context-keeper --profile advanced
 
   # Show current configuration
   context-keeper --show-config
@@ -263,11 +268,12 @@ Environment Variables:
         choices=[
             "core",
             "extended",
+            "advanced",
             "lite",
             "standard",
             "full",
         ],  # Include legacy for compatibility
-        help="Tool profile to use: core (default, 9 tools) or extended (11 tools). Legacy profiles lite/standard/full are mapped to core/extended.",
+        help="Tool profile to use: core (default, 9 tools), extended (11 tools), or advanced (18 tools). Legacy profiles lite/standard/full are mapped to core/extended.",
     )
 
     parser.add_argument(

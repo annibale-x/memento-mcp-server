@@ -22,6 +22,13 @@ from .activity_tools import (
     handle_get_recent_activity,
     handle_search_relationships_by_context,
 )
+from .confidence_tools import (
+    handle_adjust_confidence,
+    handle_apply_confidence_decay,
+    handle_boost_confidence,
+    handle_get_low_confidence_memories,
+    handle_set_decay_factor,
+)
 from .guide_tools import (
     handle_help_memory_tools_usage,
 )
@@ -59,6 +66,12 @@ TOOL_HANDLERS: Dict[str, ToolHandler] = {
     "help_memory_tools_usage": handle_help_memory_tools_usage,
     "get_persistent_recent_activity": handle_get_recent_activity,
     "search_persistent_relationships_by_context": handle_search_relationships_by_context,
+    # Confidence system tools
+    "adjust_persistent_confidence": handle_adjust_confidence,
+    "get_persistent_low_confidence_memories": handle_get_low_confidence_memories,
+    "apply_persistent_confidence_decay": handle_apply_confidence_decay,
+    "boost_persistent_confidence": handle_boost_confidence,
+    "set_persistent_decay_factor": handle_set_decay_factor,
 }
 
 
@@ -79,10 +92,11 @@ def get_handler(tool_name: str) -> ToolHandler | None:
     """
     return TOOL_HANDLERS.get(tool_name)
 
+
 def register_handler(tool_name: str, handler: ToolHandler) -> None:
     """
     Register a handler function for a tool name.
-    
+
     Args:
         tool_name: Name of the MCP tool
         handler: Handler function to register

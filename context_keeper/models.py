@@ -233,6 +233,14 @@ class RelationshipProperties(BaseModel):
     validation_count: int = Field(default=0, ge=0)
     counter_evidence_count: int = Field(default=0, ge=0)
 
+    # Confidence system fields
+    confidence: float = Field(default=0.8, ge=0.0, le=1.0)
+    last_accessed: Optional[datetime] = Field(
+        None, description="When this relationship was last accessed/used"
+    )
+    access_count: int = Field(default=0, ge=0)
+    decay_factor: float = Field(default=0.95, ge=0.0, le=1.0)
+
     # Bi-temporal tracking fields
     valid_from: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
@@ -380,8 +388,14 @@ class RelationshipError(MemoryError):
 
 class ValidationError(MemoryError):
     """Raised when data validation fails."""
-    
-    def __init__(self, message: str, field: str = None, value: Any = None, details: Optional[Dict[str, Any]] = None):
+
+    def __init__(
+        self,
+        message: str,
+        field: str = None,
+        value: Any = None,
+        details: Optional[Dict[str, Any]] = None,
+    ):
         self.field = field
         self.value = value
         super().__init__(message, details)
@@ -401,8 +415,13 @@ class SchemaError(MemoryError):
 
 class NotFoundError(MemoryError):
     """Alias for MemoryNotFoundError for consistency with workplan naming."""
-    
-    def __init__(self, resource_type: str, resource_id: str, details: Optional[Dict[str, Any]] = None):
+
+    def __init__(
+        self,
+        resource_type: str,
+        resource_id: str,
+        details: Optional[Dict[str, Any]] = None,
+    ):
         self.resource_type = resource_type
         self.resource_id = resource_id
         message = f"{resource_type} not found: {resource_id}"

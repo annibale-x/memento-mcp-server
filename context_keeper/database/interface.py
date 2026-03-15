@@ -187,12 +187,17 @@ class SQLiteMemoryDatabase:
                 "type": memory.type.value if memory.type else "general",
                 "importance": memory.importance,
                 "tags": memory.tags,
-                "context": memory.context.model_dump() if memory.context else {},
+                "context": memory.context.model_dump(mode="json")
+                if memory.context
+                else {},
                 "version": 1,
                 "created_at": memory.created_at.isoformat()
                 if memory.created_at
                 else datetime.now(timezone.utc).isoformat(),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
+                "last_accessed": memory.last_accessed.isoformat()
+                if memory.last_accessed
+                else None,
             }
 
             # Insert into nodes table
@@ -201,7 +206,7 @@ class SQLiteMemoryDatabase:
                 VALUES (?, ?, ?)
             """
             await self._execute_write(
-                query, (memory.id, "Memory", json.dumps(properties))
+                query, (memory.id, "Memory", json.dumps(properties, default=str))
             )
 
             # Update FTS table if available
@@ -343,7 +348,9 @@ class SQLiteMemoryDatabase:
                 SET properties = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ? AND label = 'Memory'
             """
-            await self._execute_write(query, (json.dumps(properties), memory.id))
+            await self._execute_write(
+                query, (json.dumps(properties, default=str), memory.id)
+            )
 
             # Update FTS table if available
             if self.backend.supports_fulltext_search():
@@ -474,7 +481,9 @@ class SQLiteMemoryDatabase:
             JOIN nodes_fts fts ON n.id = fts.id
             WHERE n.label = 'Memory'
               AND fts.nodes_fts MATCH ?
-            ORDER BY rank
+            ORDER BY
+                (json_extract(n.properties, '$.confidence') * json_extract(n.properties, '$.importance')) DESC,
+                rank
             LIMIT ?
         """
 
@@ -551,7 +560,9 @@ class SQLiteMemoryDatabase:
         search_query = f"""
             SELECT id, properties FROM nodes
             WHERE {where_sql}
-            ORDER BY json_extract(properties, '$.updated_at') DESC
+            ORDER BY
+                (json_extract(properties, '$.confidence') * json_extract(properties, '$.importance')) DESC,
+                json_extract(properties, '$.updated_at') DESC
             LIMIT ?
         """
         params.append(limit)
@@ -707,15 +718,26 @@ class SQLiteMemoryDatabase:
             query = """
                 INSERT INTO relationships (
                     id, from_id, to_id, rel_type, properties, created_at,
-                    valid_from, valid_until, recorded_at, invalidated_by
+                    valid_from, valid_until, recorded_at, invalidated_by,
+                    confidence, last_accessed, access_count, decay_factor
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
 
             # Serialize props with correct datetimes
             for k, v in props_dict.items():
                 if isinstance(v, datetime):
                     props_dict[k] = v.isoformat()
+
+            # Handle confidence system fields
+            confidence = relationship.properties.confidence
+            last_accessed = (
+                relationship.properties.last_accessed.isoformat()
+                if relationship.properties.last_accessed
+                else datetime.now(timezone.utc).isoformat()
+            )
+            access_count = relationship.properties.access_count
+            decay_factor = relationship.properties.decay_factor
 
             await self._execute_write(
                 query,
@@ -730,6 +752,10 @@ class SQLiteMemoryDatabase:
                     valid_until,
                     recorded_at,
                     invalidated_by,
+                    confidence,
+                    last_accessed,
+                    access_count,
+                    decay_factor,
                 ),
             )
 
@@ -794,7 +820,8 @@ class SQLiteMemoryDatabase:
         try:
             query = """
                 SELECT id, from_id, to_id, rel_type, properties,
-                       created_at, valid_from, valid_until, recorded_at, invalidated_by
+                       created_at, valid_from, valid_until, recorded_at, invalidated_by,
+                       confidence, last_accessed, access_count, decay_factor
                 FROM relationships
                 WHERE from_id = ? OR to_id = ?
             """
@@ -823,6 +850,36 @@ class SQLiteMemoryDatabase:
                     valid_until = parse_date(row["valid_until"])
                     recorded_at = parse_date(row["recorded_at"]) or datetime.now(
                         timezone.utc
+                    )
+
+                    # Parse confidence system fields
+                    confidence = (
+                        float(row["confidence"])
+                        if row["confidence"] is not None
+                        else 0.8
+                    )
+                    last_accessed = parse_date(row["last_accessed"]) or datetime.now(
+                        timezone.utc
+                    )
+                    access_count = (
+                        int(row["access_count"])
+                        if row["access_count"] is not None
+                        else 0
+                    )
+                    decay_factor = (
+                        float(row["decay_factor"])
+                        if row["decay_factor"] is not None
+                        else 0.95
+                    )
+
+                    # Update properties with confidence system fields
+                    properties.update(
+                        {
+                            "confidence": confidence,
+                            "last_accessed": last_accessed,
+                            "access_count": access_count,
+                            "decay_factor": decay_factor,
+                        }
                     )
 
                     relationship = Relationship(
@@ -1011,7 +1068,7 @@ class SQLiteMemoryDatabase:
             """
 
             # Prepare properties JSON
-            properties_dict = new_properties.model_dump()
+            properties_dict = new_properties.model_dump(mode="json")
             properties_json = json.dumps(properties_dict)
 
             # Update last_validated timestamp
@@ -1143,7 +1200,8 @@ class SQLiteMemoryDatabase:
             # Base query
             query = """
                 SELECT id, from_id, to_id, rel_type, properties,
-                       created_at, valid_from, valid_until, recorded_at, invalidated_by
+                       created_at, valid_from, valid_until, recorded_at, invalidated_by,
+                       confidence, last_accessed, access_count, decay_factor
                 FROM relationships
                 WHERE properties IS NOT NULL AND properties != ''
             """
@@ -1222,6 +1280,36 @@ class SQLiteMemoryDatabase:
                         timezone.utc
                     )
 
+                    # Parse confidence system fields
+                    confidence = (
+                        float(row["confidence"])
+                        if row["confidence"] is not None
+                        else 0.8
+                    )
+                    last_accessed = parse_date(row["last_accessed"]) or datetime.now(
+                        timezone.utc
+                    )
+                    access_count = (
+                        int(row["access_count"])
+                        if row["access_count"] is not None
+                        else 0
+                    )
+                    decay_factor = (
+                        float(row["decay_factor"])
+                        if row["decay_factor"] is not None
+                        else 0.95
+                    )
+
+                    # Update properties with confidence system fields
+                    properties.update(
+                        {
+                            "confidence": confidence,
+                            "last_accessed": last_accessed,
+                            "access_count": access_count,
+                            "decay_factor": decay_factor,
+                        }
+                    )
+
                     relationship = Relationship(
                         id=row["id"],
                         from_memory_id=row["from_id"],
@@ -1281,7 +1369,8 @@ class SQLiteMemoryDatabase:
             query = f"""
                 SELECT
                     id, from_id, to_id, rel_type, properties,
-                    created_at, valid_from, valid_until, recorded_at, invalidated_by
+                    created_at, valid_from, valid_until, recorded_at, invalidated_by,
+                    confidence, last_accessed, access_count, decay_factor
                 FROM relationships
                 WHERE {where_clause}
                 ORDER BY valid_from ASC
@@ -1316,6 +1405,26 @@ class SQLiteMemoryDatabase:
                         timezone.utc
                     )
 
+                    # Parse confidence system fields from database columns
+                    confidence = (
+                        float(row["confidence"])
+                        if row["confidence"] is not None
+                        else 0.8
+                    )
+                    last_accessed = parse_date(row["last_accessed"]) or datetime.now(
+                        timezone.utc
+                    )
+                    access_count = (
+                        int(row["access_count"])
+                        if row["access_count"] is not None
+                        else 0
+                    )
+                    decay_factor = (
+                        float(row["decay_factor"])
+                        if row["decay_factor"] is not None
+                        else 0.95
+                    )
+
                     relationship = Relationship(
                         id=row["id"],
                         from_memory_id=row["from_id"],
@@ -1323,7 +1432,7 @@ class SQLiteMemoryDatabase:
                         type=rel_type,
                         properties=RelationshipProperties(
                             strength=properties.get("strength", 0.5),
-                            confidence=properties.get("confidence", 0.8),
+                            confidence=confidence,
                             context=properties.get("context", ""),
                             evidence_count=properties.get("evidence_count", 1),
                             success_rate=properties.get("success_rate", None),
@@ -1338,6 +1447,9 @@ class SQLiteMemoryDatabase:
                             last_validated=parse_date(properties.get("last_validated"))
                             or datetime.now(timezone.utc),
                             invalidated_by=row["invalidated_by"],
+                            last_accessed=last_accessed,
+                            access_count=access_count,
+                            decay_factor=decay_factor,
                         ),
                     )
                     relationships.append(relationship)
@@ -1345,8 +1457,18 @@ class SQLiteMemoryDatabase:
                     logger.warning(f"Failed to parse relationship {row['id']}: {e}")
 
             logger.info(
-                f"Found {len(relationships)} relationships in history for {memory_id}"
+                f"Found {len(relationships)} relationships for memory {memory_id}"
             )
+
+            # Update confidence for accessed relationships
+            for relationship in relationships:
+                try:
+                    await self.update_confidence_on_access(relationship.id)
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to update confidence for relationship {relationship.id}: {e}"
+                    )
+
             return relationships
 
         except aiosqlite.Error as e:
@@ -1374,7 +1496,8 @@ class SQLiteMemoryDatabase:
             new_query = """
                 SELECT
                     id, from_id, to_id, rel_type, properties,
-                    created_at, valid_from, valid_until, recorded_at, invalidated_by
+                    created_at, valid_from, valid_until, recorded_at, invalidated_by,
+                    confidence, last_accessed, access_count, decay_factor
                 FROM relationships
                 WHERE recorded_at >= ?
                 ORDER BY recorded_at DESC
@@ -1385,7 +1508,8 @@ class SQLiteMemoryDatabase:
             invalidated_query = """
                 SELECT
                     id, from_id, to_id, rel_type, properties,
-                    created_at, valid_from, valid_until, recorded_at, invalidated_by
+                    created_at, valid_from, valid_until, recorded_at, invalidated_by,
+                    confidence, last_accessed, access_count, decay_factor
                 FROM relationships
                 WHERE valid_until IS NOT NULL AND valid_until >= ?
                 ORDER BY valid_until DESC
@@ -1420,19 +1544,42 @@ class SQLiteMemoryDatabase:
                             timezone.utc
                         )
 
+                        # Parse confidence system fields
+                        confidence = (
+                            float(row["confidence"])
+                            if row["confidence"] is not None
+                            else 0.8
+                        )
+                        last_accessed = parse_date(
+                            row["last_accessed"]
+                        ) or datetime.now(timezone.utc)
+                        access_count = (
+                            int(row["access_count"])
+                            if row["access_count"] is not None
+                            else 0
+                        )
+                        decay_factor = (
+                            float(row["decay_factor"])
+                            if row["decay_factor"] is not None
+                            else 0.95
+                        )
+
                         relationship = Relationship(
                             id=row["id"],
                             from_memory_id=row["from_id"],
                             to_memory_id=row["to_id"],
                             type=rel_type,
                             strength=properties.get("strength", 0.5),
-                            confidence=properties.get("confidence", 0.8),
+                            confidence=confidence,
                             context=properties.get("context", ""),
                             created_at=created_at,
                             valid_from=valid_from,
                             valid_until=valid_until,
                             recorded_at=recorded_at,
                             invalidated_by=row["invalidated_by"],
+                            last_accessed=last_accessed,
+                            access_count=access_count,
+                            decay_factor=decay_factor,
                         )
                         relationships.append(relationship)
                     except Exception as e:
@@ -1445,6 +1592,17 @@ class SQLiteMemoryDatabase:
             logger.info(
                 f"Found {len(new_relationships)} new and {len(invalidated_relationships)} invalidated relationships since {since}"
             )
+
+            # Update confidence for accessed relationships
+            all_relationships = new_relationships + invalidated_relationships
+            for relationship in all_relationships:
+                try:
+                    await self.update_confidence_on_access(relationship.id)
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to update confidence for relationship {relationship.id}: {e}"
+                    )
+
             return {
                 "new_relationships": new_relationships,
                 "invalidated_relationships": invalidated_relationships,
@@ -1571,6 +1729,290 @@ class SQLiteMemoryDatabase:
             raise BackendError(f"Failed to get recent activity: {e}")
         except Exception as e:
             raise BackendError(f"Failed to get recent activity: {str(e)}")
+
+    async def update_confidence_on_access(self, relationship_id: str) -> None:
+        """
+        Update confidence and access count when a relationship is accessed.
+
+        Args:
+            relationship_id: ID of the relationship that was accessed
+
+        Raises:
+            BackendError: If database operation fails
+        """
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+
+            # Update access count and last_accessed
+            update_query = """
+                UPDATE relationships
+                SET access_count = access_count + 1,
+                    last_accessed = ?
+                WHERE id = ?
+            """
+            await self._execute_write(update_query, (now, relationship_id))
+
+            # Apply confidence boost for usage
+            boost_query = """
+                UPDATE relationships
+                SET confidence = MIN(1.0, confidence + 0.01)
+                WHERE id = ? AND confidence < 1.0
+            """
+            await self._execute_write(boost_query, (relationship_id,))
+
+            await self.conn.commit()
+            logger.debug(
+                f"Updated confidence on access for relationship: {relationship_id}"
+            )
+
+        except aiosqlite.Error as e:
+            await self.conn.rollback()
+            raise BackendError(f"Failed to update confidence on access: {e}")
+        except Exception as e:
+            await self.conn.rollback()
+            raise BackendError(f"Failed to update confidence on access: {str(e)}")
+
+    async def apply_confidence_decay(self, memory_id: Optional[str] = None) -> int:
+        """
+        Apply confidence decay to relationships based on last access time.
+
+        Args:
+            memory_id: Optional memory ID to apply decay only to its relationships
+
+        Returns:
+            Number of relationships updated
+
+        Raises:
+            BackendError: If database operation fails
+        """
+        try:
+            # Calculate decay based on months since last access
+            # Base decay: 5% per month (decay_factor = 0.95)
+            # But apply intelligent decay based on memory importance and tags
+
+            if memory_id:
+                # Get memory to check its importance and tags
+                memory = await self.get_memory_by_id(memory_id)
+                if not memory:
+                    return 0
+
+                # Calculate custom decay factor based on memory properties
+                base_decay = 0.95  # 5% decay per month
+
+                # Adjust decay based on importance
+                importance_factor = 1.0 - (memory.importance * 0.3)
+                # importance=0.9 → factor=0.73 (27% less decay)
+
+                # Check for critical tags that should have no decay
+                critical_tags = {
+                    "security",
+                    "auth",
+                    "api_key",
+                    "password",
+                    "critical",
+                    "no_decay",
+                }
+                has_critical_tag = any(tag in critical_tags for tag in memory.tags)
+
+                if has_critical_tag:
+                    # No decay for critical memories
+                    decay_factor = 1.0
+                else:
+                    decay_factor = base_decay * importance_factor
+
+                # Update decay_factor for all relationships of this memory
+                update_decay_query = """
+                    UPDATE relationships
+                    SET decay_factor = ?
+                    WHERE from_id = ? OR to_id = ?
+                """
+                await self._execute_write(
+                    update_decay_query, (decay_factor, memory_id, memory_id)
+                )
+
+            # Apply decay based on months since last access
+            # For each month without access: confidence = confidence * decay_factor
+            decay_query = """
+                UPDATE relationships
+                SET confidence = confidence * POWER(
+                    decay_factor,
+                    CAST((julianday('now') - julianday(last_accessed)) / 30.0 AS INTEGER)
+                )
+                WHERE last_accessed IS NOT NULL
+                  AND confidence > 0.1  -- Don't decay below 0.1
+                  AND (valid_until IS NULL OR valid_until > CURRENT_TIMESTAMP)
+            """
+
+            if memory_id:
+                decay_query += " AND (from_id = ? OR to_id = ?)"
+                result = await self._execute_write(decay_query, (memory_id, memory_id))
+            else:
+                result = await self._execute_write(decay_query)
+
+            await self.conn.commit()
+
+            # Get count of updated relationships
+            count_query = "SELECT changes() as change_count"
+            count_result = await self._execute_sql(count_query)
+            updated_count = count_result[0]["change_count"] if count_result else 0
+
+            logger.info(f"Applied confidence decay to {updated_count} relationships")
+            return updated_count
+
+        except aiosqlite.Error as e:
+            await self.conn.rollback()
+            raise BackendError(f"Failed to apply confidence decay: {e}")
+        except Exception as e:
+            await self.conn.rollback()
+            raise BackendError(f"Failed to apply confidence decay: {str(e)}")
+
+    async def adjust_confidence(
+        self, relationship_id: str, new_confidence: float, reason: str
+    ) -> None:
+        """
+        Manually adjust confidence of a relationship.
+
+        Args:
+            relationship_id: ID of the relationship to adjust
+            new_confidence: New confidence value (0.0-1.0)
+            reason: Reason for the adjustment
+
+        Raises:
+            BackendError: If database operation fails
+            ValidationError: If new_confidence is out of range
+        """
+        if new_confidence < 0.0 or new_confidence > 1.0:
+            raise ValidationError(
+                f"Confidence must be between 0.0 and 1.0, got {new_confidence}"
+            )
+
+        try:
+            update_query = """
+                UPDATE relationships
+                SET confidence = ?
+                WHERE id = ?
+            """
+            await self._execute_write(update_query, (new_confidence, relationship_id))
+
+            await self.conn.commit()
+            logger.info(
+                f"Adjusted confidence for relationship {relationship_id} to {new_confidence}: {reason}"
+            )
+
+        except aiosqlite.Error as e:
+            await self.conn.rollback()
+            raise BackendError(f"Failed to adjust confidence: {e}")
+        except Exception as e:
+            await self.conn.rollback()
+            raise BackendError(f"Failed to adjust confidence: {str(e)}")
+
+    async def get_low_confidence_relationships(
+        self, threshold: float = 0.3, limit: int = 50
+    ) -> List[Relationship]:
+        """
+        Get relationships with confidence below threshold.
+
+        Args:
+            threshold: Confidence threshold (default: 0.3)
+            limit: Maximum number of results to return
+
+        Returns:
+            List of low confidence relationships
+
+        Raises:
+            BackendError: If database operation fails
+        """
+        try:
+            query = """
+                SELECT id, from_id, to_id, rel_type, properties,
+                       created_at, valid_from, valid_until, recorded_at, invalidated_by,
+                       confidence, last_accessed, access_count, decay_factor
+                FROM relationships
+                WHERE confidence < ?
+                  AND (valid_until IS NULL OR valid_until > CURRENT_TIMESTAMP)
+                ORDER BY confidence ASC, last_accessed ASC
+                LIMIT ?
+            """
+
+            results = await self._execute_sql(query, (threshold, limit))
+
+            relationships = []
+            for row in results:
+                try:
+                    properties = json.loads(row["properties"])
+                    rel_type = RelationshipType(row["rel_type"])
+
+                    def parse_date(date_str):
+                        if not date_str:
+                            return None
+                        try:
+                            return datetime.fromisoformat(date_str)
+                        except (ValueError, TypeError):
+                            return None
+
+                    created_at = parse_date(row["created_at"]) or datetime.now(
+                        timezone.utc
+                    )
+                    valid_from = parse_date(row["valid_from"]) or datetime.now(
+                        timezone.utc
+                    )
+                    valid_until = parse_date(row["valid_until"])
+                    recorded_at = parse_date(row["recorded_at"]) or datetime.now(
+                        timezone.utc
+                    )
+
+                    # Parse confidence system fields
+                    confidence = (
+                        float(row["confidence"])
+                        if row["confidence"] is not None
+                        else 0.8
+                    )
+                    last_accessed = parse_date(row["last_accessed"]) or datetime.now(
+                        timezone.utc
+                    )
+                    access_count = (
+                        int(row["access_count"])
+                        if row["access_count"] is not None
+                        else 0
+                    )
+                    decay_factor = (
+                        float(row["decay_factor"])
+                        if row["decay_factor"] is not None
+                        else 0.95
+                    )
+
+                    # Update properties with confidence system fields
+                    properties.update(
+                        {
+                            "confidence": confidence,
+                            "last_accessed": last_accessed,
+                            "access_count": access_count,
+                            "decay_factor": decay_factor,
+                        }
+                    )
+
+                    relationship = Relationship(
+                        id=row["id"],
+                        from_memory_id=row["from_id"],
+                        to_memory_id=row["to_id"],
+                        type=rel_type,
+                        properties=RelationshipProperties(**properties),
+                        created_at=created_at,
+                        valid_from=valid_from,
+                        valid_until=valid_until,
+                        recorded_at=recorded_at,
+                        invalidated_by=row["invalidated_by"],
+                    )
+                    relationships.append(relationship)
+                except Exception as e:
+                    logger.warning(f"Failed to parse relationship {row['id']}: {e}")
+
+            return relationships
+
+        except aiosqlite.Error as e:
+            raise BackendError(f"Failed to get low confidence relationships: {e}")
+        except Exception as e:
+            raise BackendError(f"Failed to get low confidence relationships: {str(e)}")
 
     async def get_memory_statistics(self) -> Dict[str, Any]:
         """

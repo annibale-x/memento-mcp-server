@@ -27,12 +27,18 @@ _CORE_TOOLS = [
     "recall_persistent_memories",
     "get_persistent_recent_activity",
     "help_memory_tools_usage",
+    # Confidence system tools (essential for all users)
+    "get_persistent_low_confidence_memories",
+    "boost_persistent_confidence",
+    "adjust_persistent_confidence",
 ]
 
 _EXTENDED_EXTRA_TOOLS = [
     "get_persistent_memory_statistics",
     "search_persistent_relationships_by_context",
     "persistent_contextual_search",
+    # Confidence system tools (technical maintenance)
+    "apply_persistent_confidence_decay",
 ]
 
 _ADVANCED_TOOLS = [
@@ -43,6 +49,8 @@ _ADVANCED_TOOLS = [
     "get_persistent_central_memories",
     "find_path_between_persistent_memories",
     "get_persistent_memory_network",
+    # Confidence system tools (advanced configuration)
+    "set_persistent_decay_factor",
 ]
 
 TOOL_PROFILES = {

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-context-keeper"
-version = "0.1.14"
+version = "0.1.15"
 description = "MCP Context Keeper per gestione contestuale della memoria"
 authors = [
     {name = "Hannibal", email = "annibale.x@gmail.com"}
@@ -22,3 +22,11 @@ dependencies = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["context_keeper*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+norecursedirs = [".agent", ".data", ".pytest_cache", ".serena", "docs", "utils"]
+addopts = "--asyncio-mode=auto"

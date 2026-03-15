@@ -17,6 +17,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent))
 
 from context_keeper.database.engine import SQLiteBackend
@@ -282,7 +283,7 @@ async def test_existing_database_fix():
         print("\n2. Applying fix...")
 
         # Import and run fix function
-        from fix_fts_schema import fix_fts_schema_sync
+        from utils.fix_fts_schema import fix_fts_schema_sync
 
         fix_fts_schema_sync(Path(db_path))
 
