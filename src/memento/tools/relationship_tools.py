@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @handle_tool_errors("create relationship")
-async def handle_create_relationship(
+async def handle_create_memento_relationship(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle create_relationship tool call.
@@ -77,7 +77,7 @@ async def handle_create_relationship(
 
 
 @handle_tool_errors("get related memories")
-async def handle_get_related_memories(
+async def handle_get_related_mementos(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle get_related_memories tool call.

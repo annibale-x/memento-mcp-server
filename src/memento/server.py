@@ -101,13 +101,13 @@ class Memento:
                     return await handler(self.memory_db, arguments)
                 # Advanced relationship tools
                 elif name in [
-                    "find_path_between_persistent_memories",
-                    "get_persistent_memory_clusters",
-                    "get_persistent_central_memories",
-                    "suggest_persistent_relationships",
-                    "find_persistent_patterns",
-                    "analyze_persistent_memory_graph",
-                    "get_persistent_memory_network",
+                    "find_path_between_mementos",
+                    "get_memento_clusters",
+                    "get_central_mementos",
+                    "suggest_memento_relationships",
+                    "find_memento_patterns",
+                    "analyze_memento_graph",
+                    "get_memento_network",
                 ]:
                     # Dispatch to advanced handlers
                     method_name = f"handle_{name}"

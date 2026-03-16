@@ -1,5 +1,5 @@
 """
-Tool definitions for Context Keeper MCP server.
+Tool definitions for MCP Memento server.
 
 This module defines all the MCP tools available to the client.
 """
@@ -15,40 +15,40 @@ def get_all_tools() -> List[Tool]:
     """Collect all tool definitions from all modules."""
     return [
         Tool(
-            name="help_memory_tools_usage",
-            description="""Get comprehensive guidance on using persistent memory tools and distinguishing them from session memory tools.
+            name="help_memento_tools_usage",
+            description="""Get comprehensive guidance on using memento tools and distinguishing them from session memory tools.
 
-CRITICAL DISTINCTION: Persistent memory vs Session memory
+CRITICAL DISTINCTION: Memento vs Session memory
 
-PERSISTENT MEMORY (mcp-memento tools with '_persistent' suffix):
+MEMENTO (mcp-memento tools):
 - Long-term knowledge that survives across ALL sessions
 - Global scope: accessible from any project or session
 - Use for: solutions, patterns, architecture decisions, reusable code snippets
-- Examples: store_persistent_memory, get_persistent_memory, search_persistent_memories
+- Examples: store_memento, get_memento, search_mementos
 
-SESSION MEMORY (Serena Context Server tools without suffix):
+SESSION MEMORY (Serena Context Server tools):
 - Temporary context for current project/session
 - Project-scoped: only accessible within current project
 - Use for: current file context, temporary variables, undo/redo history
-- Examples: store_memory, get_memory, search_memories (NO '_persistent' suffix)
+- Examples: store_memory, get_memory, search_memories
 
 WHEN TO USE WHICH:
 ─────────────────────────────────────────────────────────────
-| Scenario                     | Use Persistent | Use Session |
-|──────────────────────────────|────────────────|─────────────|
-| Bug fix solution             | ✅ store_persistent_memory | ❌ |
+| Scenario                     | Use Memento | Use Session |
+|──────────────────────────────|─────────────|─────────────|
+| Bug fix solution             | ✅ store_memento | ❌ |
 | Current file context         | ❌ | ✅ store_memory |
-| Architecture decision        | ✅ store_persistent_memory | ❌ |
+| Architecture decision        | ✅ store_memento | ❌ |
 | Temporary calculation        | ❌ | ✅ store_memory |
-| Reusable code pattern        | ✅ store_persistent_memory | ❌ |
+| Reusable code pattern        | ✅ store_memento | ❌ |
 | Project-specific variable    | ❌ | ✅ store_memory |
 
-Note: You can always use search_persistent_memories or recall_persistent_memories to find past knowledge.""",
+Note: You can always use search_mementos or recall_mementos to find past knowledge.""",
             inputSchema={"type": "object", "properties": {}},
         ),
         Tool(
-            name="recall_persistent_memories",
-            description="""Primary tool for finding persistent memories using natural language queries.
+            name="recall_mementos",
+            description="""Primary tool for finding mementos using natural language queries.
 
 Optimized for fuzzy matching - handles plurals, tenses, and case variations automatically.
 
@@ -61,16 +61,16 @@ USE FOR: Long-term knowledge that survives across sessions.
 DO NOT USE FOR: Temporary session context or project-specific state.
 
 LESS EFFECTIVE FOR:
-- Acronyms (DCAD, JWT, API) - use search_persistent_memories with tags instead
+- Acronyms (DCAD, JWT, API) - use search_mementos with tags instead
 - Proper nouns (company names, services)
 - Exact technical terms
 
 EXAMPLES:
-- recall_persistent_memories(query="timeout fix") - find timeout-related solutions
-- recall_persistent_memories(query="how does auth work") - conceptual query
-- recall_persistent_memories(project_path="/app") - memories from specific project
+- recall_mementos(query="timeout fix") - find timeout-related solutions
+- recall_mementos(query="how does auth work") - conceptual query
+- recall_mementos(project_path="/app") - memories from specific project
 
-FALLBACK: If recall returns no relevant results, try search_persistent_memories with tags filter.""",
+FALLBACK: If recall returns no relevant results, try search_mementos with tags filter.""",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -106,8 +106,8 @@ FALLBACK: If recall returns no relevant results, try search_persistent_memories 
             },
         ),
         Tool(
-            name="store_persistent_memory",
-            description="""Store a new persistent memory with context and metadata.
+            name="store_memento",
+            description="""Store a new memento with context and metadata.
 
 Required: type, title, content. Optional: id, tags, importance (0-1), context.
 
@@ -128,10 +128,10 @@ TAGGING BEST PRACTICE:
 Types: solution, problem, error, fix, pattern, decision, task, code_pattern, technology, command, workflow, general
 
 EXAMPLES:
-- store_persistent_memory(type="solution", title="Fixed Redis timeout", content="Increased timeout to 30s...", tags=["redis"], importance=0.8)
-- store_persistent_memory(type="error", title="OAuth2 auth failure", content="Error details...", tags=["auth", "oauth2"], id="custom-error-123")
+- store_memento(type="solution", title="Fixed Redis timeout", content="Increased timeout to 30s...", tags=["redis"], importance=0.8)
+- store_memento(type="error", title="OAuth2 auth failure", content="Error details...", tags=["auth", "oauth2"], id="custom-error-123")
 
-Returns memory_id. Use create_persistent_relationship to link related memories.""",
+Returns memory_id. Use create_memento_relationship to link related memories.""",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -176,13 +176,13 @@ Returns memory_id. Use create_persistent_relationship to link related memories."
             },
         ),
         Tool(
-            name="get_persistent_memory",
-            description="""Retrieve a specific persistent memory by ID.
+            name="get_memento",
+            description="""Retrieve a specific memento by ID.
 
-Use when you have a memory_id from search results or store_persistent_memory.
+Use when you have a memory_id from search results or store_memento.
 Set include_relationships=true (default) to see connected memories.
 
-EXAMPLE: get_persistent_memory(memory_id="abc-123")""",
+EXAMPLE: get_memento(memory_id="abc-123")""",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -199,8 +199,8 @@ EXAMPLE: get_persistent_memory(memory_id="abc-123")""",
             },
         ),
         Tool(
-            name="update_persistent_memory",
-            description="Update an existing persistent memory",
+            name="update_memento",
+            description="Update an existing memento",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -225,8 +225,8 @@ EXAMPLE: get_persistent_memory(memory_id="abc-123")""",
             },
         ),
         Tool(
-            name="delete_persistent_memory",
-            description="Delete a persistent memory and all its relationships",
+            name="delete_memento",
+            description="Delete a memento and all its relationships",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -239,8 +239,8 @@ EXAMPLE: get_persistent_memory(memory_id="abc-123")""",
             },
         ),
         Tool(
-            name="search_persistent_memories",
-            description="""Advanced search with fine-grained filters for precise retrieval of persistent memories.
+            name="search_mementos",
+            description="""Advanced search with fine-grained filters for precise retrieval of mementos.
 
 USE THIS TOOL FIRST (not recall) when searching for:
 - Acronyms: DCAD, JWT, MCR2, API, etc.
@@ -258,12 +258,12 @@ PARAMETERS:
 NOTE: Tags are automatically normalized to lowercase for case-insensitive matching.
 
 EXAMPLES:
-- search_persistent_memories(tags=["jwt", "auth"]) - find JWT-related memories
-- search_persistent_memories(tags=["dcad"]) - find DCAD memories by tag
-- search_persistent_memories(query="timeout", memory_types=["solution"]) - timeout solutions
-- search_persistent_memories(tags=["redis"], min_importance=0.7) - important Redis memories
+- search_mementos(tags=["jwt", "auth"]) - find JWT-related memories
+- search_mementos(tags=["dcad"]) - find DCAD memories by tag
+- search_mementos(query="timeout", memory_types=["solution"]) - timeout solutions
+- search_mementos(tags=["redis"], min_importance=0.7) - important Redis memories
 
-For conceptual/natural language queries, use recall_persistent_memories instead.""",
+For conceptual/natural language queries, use recall_mementos instead.""",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -329,8 +329,8 @@ For conceptual/natural language queries, use recall_persistent_memories instead.
             },
         ),
         Tool(
-            name="persistent_contextual_search",
-            description="""Search only within the context of a given persistent memory (scoped search).
+            name="contextual_memento_search",
+            description="""Search only within the context of a given memento (scoped search).
 
 Two-phase process: (1) Find related memories, (2) Search only within that set.
 Provides semantic scoping without embeddings.
@@ -371,14 +371,14 @@ RETURNS:
             },
         ),
         Tool(
-            name="create_persistent_relationship",
-            description="""Link two persistent memories with a typed relationship.
+            name="create_memento_relationship",
+            description="""Link two mementos with a typed relationship.
 
 Common types: SOLVES (solution→problem), CAUSES (cause→effect), ADDRESSES (fix→error), REQUIRES (dependent→dependency), RELATED_TO (general)
 
 EXAMPLES:
-- create_persistent_relationship(from_memory_id="sol-1", to_memory_id="prob-1", relationship_type="SOLVES")
-- create_persistent_relationship(from_memory_id="err-1", to_memory_id="fix-1", relationship_type="CAUSES", context="Config error caused timeout")
+- create_memento_relationship(from_memory_id="sol-1", to_memory_id="prob-1", relationship_type="SOLVES")
+- create_memento_relationship(from_memory_id="err-1", to_memory_id="fix-1", relationship_type="CAUSES", context="Config error caused timeout")
 
 Optional: strength (0-1), confidence (0-1), context (description)""",
             inputSchema={
@@ -417,14 +417,14 @@ Optional: strength (0-1), confidence (0-1), context (description)""",
             },
         ),
         Tool(
-            name="get_related_persistent_memories",
-            description="""Find persistent memories connected to a specific memory via relationships.
+            name="get_related_mementos",
+            description="""Find mementos connected to a specific memory via relationships.
 
 Filter by relationship_types (e.g., ["SOLVES"], ["CAUSES"]) and max_depth (default 1).
 
 EXAMPLES:
-- get_related_persistent_memories(memory_id="prob-1", relationship_types=["SOLVES"]) - find solutions
-- get_related_persistent_memories(memory_id="err-1", relationship_types=["CAUSES"], max_depth=2) - find root causes""",
+- get_related_mementos(memory_id="prob-1", relationship_types=["SOLVES"]) - find solutions
+- get_related_mementos(memory_id="err-1", relationship_types=["CAUSES"], max_depth=2) - find root causes""",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -448,22 +448,22 @@ EXAMPLES:
             },
         ),
         Tool(
-            name="get_persistent_memory_statistics",
-            description="Get statistics about the persistent memory database",
+            name="get_memento_statistics",
+            description="Get statistics about the memento database",
             inputSchema={
                 "type": "object",
                 "properties": {},
             },
         ),
         Tool(
-            name="get_persistent_recent_activity",
-            description="""Get summary of recent persistent memory activity for session context.
+            name="get_recent_memento_activity",
+            description="""Get summary of recent memento activity for session context.
 
 Returns: memory counts by type, recent memories (up to 20), unresolved problems.
 
 EXAMPLES:
-- get_persistent_recent_activity(days=7) - last week's activity
-- get_persistent_recent_activity(days=30, project="/app") - last month for specific project""",
+- get_recent_memento_activity(days=7) - last week's activity
+- get_recent_memento_activity(days=30, project="/app") - last month for specific project""",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -481,8 +481,8 @@ EXAMPLES:
             },
         ),
         Tool(
-            name="search_persistent_relationships_by_context",
-            description="Search persistent relationships by their structured context fields (scope, conditions, evidence, components)",
+            name="search_memento_relationships_by_context",
+            description="Search memento relationships by their structured context fields (scope, conditions, evidence, components)",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -524,7 +524,7 @@ EXAMPLES:
             },
         ),
         Tool(
-            name="adjust_persistent_confidence",
+            name="adjust_memento_confidence",
             description="""Manually adjust confidence of a relationship.
 
 Use for:
@@ -533,8 +533,8 @@ Use for:
 - Overriding automatic decay for specific cases
 
 Examples:
-- adjust_persistent_confidence(relationship_id="rel-123", new_confidence=0.9, reason="Verified in production")
-- adjust_persistent_confidence(relationship_id="rel-456", new_confidence=0.1, reason="Obsolete after library update")
+- adjust_memento_confidence(relationship_id="rel-123", new_confidence=0.9, reason="Verified in production")
+- adjust_memento_confidence(relationship_id="rel-456", new_confidence=0.1, reason="Obsolete after library update")
 
 Confidence ranges:
 - 0.9-1.0: High confidence (recently validated)
@@ -564,7 +564,7 @@ Confidence ranges:
             },
         ),
         Tool(
-            name="get_persistent_low_confidence_memories",
+            name="get_low_confidence_mementos",
             description="""Find memories with low confidence scores.
 
 Use for:
@@ -602,7 +602,7 @@ Returns:
             },
         ),
         Tool(
-            name="apply_persistent_confidence_decay",
+            name="apply_memento_confidence_decay",
             description="""Apply automatic confidence decay based on last access time.
 
 Use for:
@@ -631,7 +631,7 @@ Returns:
             },
         ),
         Tool(
-            name="boost_persistent_confidence",
+            name="boost_memento_confidence",
             description="""Boost confidence when a memory is successfully used.
 
 Use for:
@@ -671,7 +671,7 @@ Boost mechanics:
             },
         ),
         Tool(
-            name="set_persistent_decay_factor",
+            name="set_memento_decay_factor",
             description="""Set custom decay factor for specific memories.
 
 Use for:

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-memento"
-version = "0.1.16"
-description = "MCP Memento per gestione contestuale della memoria"
+version = "0.1.17"
+description = "MCP Memento for contextual memory management"
 authors = [
     {name = "Hannibal", email = "annibale.x@gmail.com"}
 ]

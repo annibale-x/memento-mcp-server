@@ -45,10 +45,10 @@ class TestServerStartup:
         with patch.dict(
             os.environ,
             {
-                "CONTEXT_TOOL_PROFILE": "extended",
-                "CONTEXT_ENABLE_ADVANCED_TOOLS": "true",
-                "CONTEXT_LOG_LEVEL": "DEBUG",
-                "CONTEXT_SQLITE_PATH": "/tmp/test.db",
+                "MEMENTO_TOOL_PROFILE": "extended",
+                "MEMENTO_ENABLE_ADVANCED_TOOLS": "true",
+                "MEMENTO_LOG_LEVEL": "DEBUG",
+                "MEMENTO_SQLITE_PATH": "/tmp/test.db",
             },
             clear=True,
         ):
@@ -61,27 +61,27 @@ class TestServerStartup:
 
     def test_get_enabled_tools_core_profile(self):
         """Test that core profile returns correct tools."""
-        with patch.dict(os.environ, {"CONTEXT_TOOL_PROFILE": "core"}, clear=True):
+        with patch.dict(os.environ, {"MEMENTO_TOOL_PROFILE": "core"}, clear=True):
             Config.reload_config()
             tools = Config.get_enabled_tools()
 
             assert isinstance(tools, list)
             assert len(tools) > 0
-            assert "store_persistent_memory" in tools
-            assert "get_persistent_memory" in tools
-            assert "search_persistent_memories" in tools
+            assert "store_memento" in tools
+            assert "get_memento" in tools
+            assert "search_mementos" in tools
 
     def test_get_enabled_tools_extended_profile(self):
         """Test that extended profile includes additional tools."""
-        with patch.dict(os.environ, {"CONTEXT_TOOL_PROFILE": "extended"}, clear=True):
+        with patch.dict(os.environ, {"MEMENTO_TOOL_PROFILE": "extended"}, clear=True):
             Config.reload_config()
             tools = Config.get_enabled_tools()
 
             assert isinstance(tools, list)
             assert len(tools) >= len(Config.get_enabled_tools())
             # Extended should include core tools plus some extras
-            assert "store_persistent_memory" in tools
-            assert "get_persistent_memory_statistics" in tools
+            assert "store_memento" in tools
+            assert "get_memento_statistics" in tools
 
     @pytest.mark.asyncio
     async def test_sqlite_backend_creation(self):
@@ -138,9 +138,7 @@ class TestServerStartup:
         }
 
         # Mock the SQLiteBackend constructor to return our mock
-        with patch(
-            "memento.database.engine.SQLiteBackend", return_value=mock_backend
-        ):
+        with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
             # Mock the connect method
             mock_backend.connect = AsyncMock(return_value=True)
             # Add required conn attribute that SQLiteMemoryDatabase expects
@@ -192,9 +190,7 @@ class TestServerStartup:
         mock_backend.conn = AsyncMock()
         mock_backend.initialize_schema = AsyncMock()
 
-        with patch(
-            "memento.database.engine.SQLiteBackend", return_value=mock_backend
-        ):
+        with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
             mock_backend.connect = AsyncMock(return_value=True)
 
             server = Memento()
@@ -236,7 +232,7 @@ class TestServerStartup:
         """Test that configuration can be reloaded."""
         original_profile = Config.TOOL_PROFILE
 
-        with patch.dict(os.environ, {"CONTEXT_TOOL_PROFILE": "extended"}, clear=True):
+        with patch.dict(os.environ, {"MEMENTO_TOOL_PROFILE": "extended"}, clear=True):
             Config.reload_config()
             assert Config.TOOL_PROFILE == "extended"
 
@@ -303,9 +299,7 @@ class TestServerIntegration:
                 mock_server.serve = AsyncMock(return_value=mock_serve_result)
 
                 # Also mock InitializationOptions to avoid validation errors
-                with patch(
-                    "memento.server.InitializationOptions"
-                ) as mock_init_options:
+                with patch("memento.server.InitializationOptions") as mock_init_options:
                     mock_init_options.return_value = MagicMock()
 
                     # Run server main (should handle KeyboardInterrupt)
@@ -331,9 +325,7 @@ class TestServerIntegration:
         server = Memento()
 
         # Mock SQLiteBackend to raise an exception
-        with patch(
-            "memento.database.engine.SQLiteBackend"
-        ) as mock_backend_class:
+        with patch("memento.database.engine.SQLiteBackend") as mock_backend_class:
             mock_backend_class.side_effect = Exception("Database connection failed")
 
             # Server should raise the exception
@@ -356,7 +348,7 @@ class TestConfigurationPaths:
         """Test custom SQLite database path."""
         custom_path = f"/tmp/test_{uuid.uuid4().hex}.db"
 
-        with patch.dict(os.environ, {"CONTEXT_SQLITE_PATH": custom_path}, clear=True):
+        with patch.dict(os.environ, {"MEMENTO_SQLITE_PATH": custom_path}, clear=True):
             Config.reload_config()
             assert Config.SQLITE_PATH == custom_path
 
@@ -377,7 +369,7 @@ class TestToolProfiles:
 
         for legacy_profile, expected_profile in test_cases:
             with patch.dict(
-                os.environ, {"CONTEXT_TOOL_PROFILE": legacy_profile}, clear=True
+                os.environ, {"MEMENTO_TOOL_PROFILE": legacy_profile}, clear=True
             ):
                 Config.reload_config()
                 enabled_tools = Config.get_enabled_tools()
@@ -389,8 +381,8 @@ class TestToolProfiles:
         with patch.dict(
             os.environ,
             {
-                "CONTEXT_TOOL_PROFILE": "extended",
-                "CONTEXT_ENABLE_ADVANCED_TOOLS": "true",
+                "MEMENTO_TOOL_PROFILE": "extended",
+                "MEMENTO_ENABLE_ADVANCED_TOOLS": "true",
             },
             clear=True,
         ):

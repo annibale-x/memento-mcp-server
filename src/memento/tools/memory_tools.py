@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 @handle_tool_errors("store memory")
-async def handle_store_memory(
+async def handle_store_memento(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle store_memory tool call.
@@ -100,7 +100,7 @@ async def handle_store_memory(
 
 
 @handle_tool_errors("get memory")
-async def handle_get_memory(
+async def handle_get_memento(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle get_memory tool call.
@@ -175,7 +175,7 @@ Tags: {", ".join(memory.tags) if memory.tags else "None"}
 
 
 @handle_tool_errors("update memory")
-async def handle_update_memory(
+async def handle_update_memento(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle update_memory tool call.
@@ -239,7 +239,7 @@ async def handle_update_memory(
 
 
 @handle_tool_errors("delete memory")
-async def handle_delete_memory(
+async def handle_delete_memento(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle delete_memory tool call.

@@ -1,5 +1,25 @@
 # Changelog
 
+* 2026-03-15: v0.1.17 - Complete environment variable renaming and configuration file standardization (Hannibal)
+  * Renamed all remaining `CONTEXT_` environment variables to `MEMENTO_` prefix:
+    - `CONTEXT_SQLITE_PATH` → `MEMENTO_SQLITE_PATH`
+    - `CONTEXT_TOOL_PROFILE` → `MEMENTO_TOOL_PROFILE`
+    - `CONTEXT_LOG_LEVEL` → `MEMENTO_LOG_LEVEL`
+    - `CONTEXT_ENABLE_ADVANCED_TOOLS` → `MEMENTO_ENABLE_ADVANCED_TOOLS`
+    - `CONTEXT_ALLOW_CYCLES` → `MEMENTO_ALLOW_CYCLES`
+    - `CONTEXT_BACKEND` → `MEMENTO_BACKEND`
+    - `CONTEXT_AUTO_EXTRACT_ENTITIES` → `MEMENTO_AUTO_EXTRACT_ENTITIES`
+    - `CONTEXT_SESSION_BRIEFING` → `MEMENTO_SESSION_BRIEFING`
+    - `CONTEXT_BRIEFING_VERBOSITY` → `MEMENTO_BRIEFING_VERBOSITY`
+    - `CONTEXT_BRIEFING_RECENCY_DAYS` → `MEMENTO_BRIEFING_RECENCY_DAYS`
+  * Standardized configuration file name from `context-keeper.yaml` to `memento.yaml`
+  * Updated all documentation references to use new configuration file name
+  * Fixed remaining references in integration guides and examples
+  * Updated configuration loading logic to prioritize `memento.yaml` over legacy names
+  * Enhanced backward compatibility with deprecation warnings for old variable names
+  * All 159 tests passing with new environment variable naming
+  * Complete project renaming from Context Keeper to Memento finalized
+
 * 2026-03-15: v0.1.16 - Documentation reorganization and README restructuring (Hannibal)
   * Completely reorganized README.md to focus on user needs (636 → 441 lines)
   * Created clear separation between MCP server usage and Python library usage
@@ -20,11 +40,11 @@
 * 2026-03-15: v0.1.15 - Confidence system reorganization and tool distribution optimization (Hannibal)
   * Reorganized confidence system tools for better accessibility across profiles
   * Moved 3 essential confidence tools to Core profile (13 tools total):
-    - get_persistent_low_confidence_memories - Identify obsolete knowledge
-    - boost_persistent_confidence - Reinforce valid knowledge  
-    - adjust_persistent_confidence - Manual confidence correction
-  * Moved apply_persistent_confidence_decay to Extended profile (17 tools total)
-  * Kept set_persistent_decay_factor in Advanced profile (25 tools total)
+    - get_low_confidence_mementos - Identify obsolete knowledge
+    - boost_memento_confidence - Reinforce valid knowledge  
+    - adjust_memento_confidence - Manual confidence correction
+  * Moved apply_memento_confidence_decay to Extended profile (17 tools total)
+  * Kept set_memento_decay_factor in Advanced profile (25 tools total)
   * Updated tool documentation with new distribution strategy
   * Enhanced TOOLS.md with comprehensive confidence system guidance
   * All confidence system tests passing (13/13)
@@ -36,20 +56,20 @@
   * Fixed critical 'no such column: T.title' error in SQLite FTS table
   * Updated database schema to create FTS tables without problematic content='nodes' option
   * Added refresh_fts_support() method to properly detect FTS availability after schema creation
-  * Fixed get_persistent_memory tool by adding missing get_memory() method to database interface
+  * Fixed get_memento tool by adding missing get_memory() method to database interface
   * Enhanced FTS table population with INSERT OR REPLACE for reliable updates
   * Created fix_fts_schema.py script to repair existing corrupted databases
   * Added comprehensive testing for new database creation with correct FTS schema
   * Improved error handling and logging for FTS operations
-  * All persistent memory tools now fully functional with proper FTS support
+  * All memento tools now fully functional with proper FTS support
 
 * 2026-03-15: v0.1.13 - ID generation pattern implementation and database schema initialization fix (Hannibal)
   * Implemented functional ID generation pattern with automatic UUID generation and optional override
   * Fixed database schema initialization bug in server startup (missing initialize_schema() call)
   * Added import asyncio to server.py to fix missing dependency
-  * Enhanced store_persistent_memory tool with automatic ID generation when no ID provided
+  * Enhanced store_memento tool with automatic ID generation when no ID provided
   * Added support for custom IDs with validation and duplicate detection
-  * Updated tool schema to include optional id field in store_persistent_memory
+  * Updated tool schema to include optional id field in store_memento
   * Improved error handling for ID validation and conflict scenarios
   * All 128 tests passing with comprehensive ID pattern validation
 
@@ -68,7 +88,7 @@
   * Fixed API inconsistency between tool handlers and database interface methods
   * Enhanced get_related_memories to properly handle relationship type filtering and depth traversal
   * Improved error handling and validation for relationship operations
-  * All relationship tools now functional: create_persistent_relationship, get_related_persistent_memories, etc.
+  * All relationship tools now functional: create_memento_relationship, get_related_mementos, etc.
 
 * 2026-03-14: v0.1.10 - Complete test suite reconstruction and bug fixes (Hannibal)
   * Fixed 18 failing tests in the test suite (from 18 to 0 failures)
@@ -109,35 +129,35 @@
   * Ensured all tests pass with new file structure
 
 * 2026-03-15: v0.1.6 - Memory tools guidance and usage clarification (Hannibal)
-  * Added `help_memory_tools_usage` tool for comprehensive guidance on persistent vs session memory usage
+  * Added `help_memento_tools_usage` tool for comprehensive guidance on memento vs session memory usage
   * Added clear distinction guidance to prevent confusion with Serena Context Server tools
   * Added decision matrices and practical examples for tool selection
-  * Renamed guide tool from `get_persistent_memory_guide` to `help_memory_tools_usage` for better LLM discoverability
-  * Added best practices documentation for persistent memory usage
+  * Renamed guide tool from `get_memento_guide` to `help_memento_tools_usage` for better LLM discoverability
+  * Added best practices documentation for memento usage
   * Updated tool count: Core profile now has 10 tools (including guide tool)
-  * Enhanced documentation with persistent vs session memory distinction
+  * Enhanced documentation with memento vs session memory distinction
   * Improved README.md with usage guidance and common mistakes to avoid
-  * Fixed potential confusion between persistent memory tools (`_persistent` suffix) and session memory tools (no suffix)
+  * Fixed potential confusion between memento tools (`_persistent` suffix) and session memory tools (no suffix)
   * Fixed documentation inconsistencies regarding tool naming conventions
   * Fixed integration guidance for using multiple MCP context servers together
 
-* 2026-03-14: v0.1.5 - Persistent tool naming convention and configuration updates (Hannibal)
-  * Added persistent tool naming convention to avoid conflicts with Serena Context Server
-  * Added clear distinction between persistent (cross-session) and session memory storage
-  * Updated environment variable prefixes from MEMORY_ to CONTEXT_
+* 2026-03-14: v0.1.5 - Memento tool naming convention and configuration updates (Hannibal)
+  * Added memento tool naming convention to avoid conflicts with Serena Context Server
+  * Added clear distinction between memento (cross-session) and session memory storage
+  * Updated environment variable prefixes from MEMORY_ to MEMENTO_
   * Changed default database path to ~/.mcp-memento/context.db
   * Updated configuration file names to context-keeper.yaml
   * Fixed module entry point to properly handle CLI arguments
   * Improved Zed editor MCP configuration compatibility
   * **BREAKING CHANGE**: Renamed all MCP tools with `_persistent` suffix:
-    - Core tools: `store_memory` → `store_persistent_memory`, `get_memory` → `get_persistent_memory`, etc.
-    - Extended tools: `get_memory_statistics` → `get_persistent_memory_statistics`, etc.
-    - Advanced tools: `find_memory_path` → `find_path_between_persistent_memories`, etc.
+    - Core tools: `store_memory` → `store_memento`, `get_memory` → `get_memento`, etc.
+    - Extended tools: `get_memory_statistics` → `get_memento_statistics`, etc.
+    - Advanced tools: `find_memory_path` → `find_path_between_mementos`, etc.
   * Fixed module execution with `python -m memento` now works correctly
   * Fixed CLI arguments like `--health` and `--show-config` are properly handled
   * Fixed environment variable support for Zed editor integration
   * Fixed configuration file path references
-  * Fixed tool registry mapping with new persistent tool names
+  * Fixed tool registry mapping with new memento tool names
 
 * 2026-03-13: v0.1.4 - NetworkX dependency removal and SimpleGraph implementation (Hannibal)
   * Added SimpleGraph class to replace NetworkX dependency

@@ -172,14 +172,14 @@ Memories with these tags never decay:
 ### 1. Search Strategy
 ```python
 # 1. Start with natural language search
-results = recall_persistent_memories(
+results = recall_mementos(
     query="how to handle database migrations",
     limit=10
 )
 
 # 2. If no results, try advanced search
 if not results:
-    results = search_persistent_memories(
+    results = search_mementos(
         query="database migration",
         tags=["postgresql", "migration"],
         memory_types=["solution", "pattern"],
@@ -188,7 +188,7 @@ if not results:
 
 # 3. Explore relationships
 if results:
-    related = get_related_persistent_memories(
+    related = get_related_mementos(
         memory_id=results[0]["id"],
         relationship_types=["RELATED_TO", "USES"],
         max_depth=2
@@ -248,8 +248,8 @@ When using a shared database:
 - **Team review** of shared memories
 
 ### 3. Monthly
-- **Apply confidence decay**: `apply_persistent_confidence_decay()`
-- **Export backup**: `export_persistent_memories()`
+- **Apply confidence decay**: `apply_memento_confidence_decay()`
+- **Export backup**: `export_mementos()`
 - **Database maintenance**: `memento --maintenance`
 - **Review tags**: Clean up unused or inconsistent tags
 
@@ -400,7 +400,7 @@ Use these tags for compliance:
 **Problem**: Can't find a memory you know exists
 **Solutions**:
 - Try different search terms
-- Use `recall_persistent_memories()` for fuzzy matching
+- Use `recall_mementos()` for fuzzy matching
 - Check if memory has appropriate tags
 - Verify memory wasn't deleted or archived
 
@@ -415,7 +415,7 @@ Use these tags for compliance:
 ### 3. Duplicate Memories
 **Problem**: Multiple memories with similar content
 **Solutions**:
-- Merge duplicates using `update_persistent_memory()`
+- Merge duplicates using `update_memento()`
 - Add relationships between similar memories
 - Establish clearer creation guidelines
 - Regular duplicate detection and cleanup

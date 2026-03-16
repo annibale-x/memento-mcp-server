@@ -172,9 +172,7 @@ class TestCLIHealthCheck:
             }
         )
 
-        with patch(
-            "memento.database.engine.SQLiteBackend", return_value=mock_backend
-        ):
+        with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
             result = await perform_health_check(timeout=1.0)
 
             assert result["status"] == "healthy"
@@ -195,9 +193,7 @@ class TestCLIHealthCheck:
         mock_backend = AsyncMock()
         mock_backend.connect = AsyncMock(side_effect=asyncio.TimeoutError("Timeout"))
 
-        with patch(
-            "memento.database.engine.SQLiteBackend", return_value=mock_backend
-        ):
+        with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
             result = await perform_health_check(timeout=0.1)
 
             assert result["status"] == "unhealthy"
@@ -212,9 +208,7 @@ class TestCLIHealthCheck:
         mock_backend = AsyncMock()
         mock_backend.connect = AsyncMock(side_effect=Exception("Connection failed"))
 
-        with patch(
-            "memento.database.engine.SQLiteBackend", return_value=mock_backend
-        ):
+        with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
             result = await perform_health_check(timeout=1.0)
 
             assert result["status"] == "unhealthy"
@@ -305,9 +299,7 @@ class TestCLIExportImport:
             mock_db.initialize_schema = AsyncMock()
 
             # Mock export_to_json function
-            with patch(
-                "memento.utils.export_import.export_to_json"
-            ) as mock_export:
+            with patch("memento.utils.export_import.export_to_json") as mock_export:
                 mock_export.return_value = {
                     "memory_count": 10,
                     "relationship_count": 5,
@@ -360,9 +352,7 @@ class TestCLIExportImport:
             mock_db.initialize_schema = AsyncMock()
 
             # Mock export_to_markdown function
-            with patch(
-                "memento.utils.export_import.export_to_markdown"
-            ) as mock_export:
+            with patch("memento.utils.export_import.export_to_markdown") as mock_export:
                 mock_export.return_value = None  # Function doesn't return value
 
                 with patch("memento.cli._create_backend_and_db") as mock_create:
@@ -408,9 +398,7 @@ class TestCLIExportImport:
             mock_db.initialize_schema = AsyncMock()
 
             # Mock import_from_json function
-            with patch(
-                "memento.utils.export_import.import_from_json"
-            ) as mock_import:
+            with patch("memento.utils.export_import.import_from_json") as mock_import:
                 mock_import.return_value = {
                     "imported_memories": 5,
                     "imported_relationships": 3,
@@ -609,8 +597,8 @@ class TestCLIEnvironmentVariables:
     """Test CLI environment variable handling."""
 
     def test_environment_variable_profile(self):
-        """Test CONTEXT_TOOL_PROFILE environment variable."""
-        with patch.dict(os.environ, {"CONTEXT_TOOL_PROFILE": "extended"}, clear=True):
+        """Test MEMENTO_TOOL_PROFILE environment variable."""
+        with patch.dict(os.environ, {"MEMENTO_TOOL_PROFILE": "extended"}, clear=True):
             with patch("sys.argv", ["memento.cli", "--show-config"]):
                 with patch("sys.exit") as mock_exit:
                     with patch("memento.cli._eprint") as mock_eprint:
@@ -629,8 +617,8 @@ class TestCLIEnvironmentVariables:
                         assert "extended" in call_text.lower()
 
     def test_environment_variable_log_level(self):
-        """Test CONTEXT_LOG_LEVEL environment variable."""
-        with patch.dict(os.environ, {"CONTEXT_LOG_LEVEL": "DEBUG"}, clear=True):
+        """Test MEMENTO_LOG_LEVEL environment variable."""
+        with patch.dict(os.environ, {"MEMENTO_LOG_LEVEL": "DEBUG"}, clear=True):
             with patch("sys.argv", ["memento.cli", "--show-config"]):
                 with patch("sys.exit") as mock_exit:
                     with patch("memento.cli._eprint") as mock_eprint:
@@ -648,7 +636,7 @@ class TestCLIEnvironmentVariables:
 
     def test_cli_args_override_env_vars(self):
         """Test that CLI arguments override environment variables."""
-        with patch.dict(os.environ, {"CONTEXT_TOOL_PROFILE": "core"}, clear=True):
+        with patch.dict(os.environ, {"MEMENTO_TOOL_PROFILE": "core"}, clear=True):
             with patch(
                 "sys.argv",
                 ["memento.cli", "--profile", "extended", "--show-config"],

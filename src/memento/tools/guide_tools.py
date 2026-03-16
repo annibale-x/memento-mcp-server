@@ -1,8 +1,8 @@
 """
-Guide tools for persistent memory usage guidance and distinction from session memory.
+Guide tools for memento usage guidance and distinction from session memory.
 
 This module provides tools to help users understand the difference between
-persistent memory (cross-session, global) and session memory (project-specific, temporary).
+memento (cross-session, global) and session memory (project-specific, temporary).
 """
 
 from typing import Any, Dict
@@ -10,13 +10,13 @@ from typing import Any, Dict
 from mcp.types import CallToolResult, TextContent
 
 
-async def handle_help_memory_tools_usage(
+async def handle_help_memento_tools_usage(
     context: Any, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """
-    Handle help_memory_tools_usage tool call.
+    Handle help_memento_tools_usage tool call.
 
-    Provides comprehensive guidance on using persistent memory tools and
+    Provides comprehensive guidance on using memento tools and
     distinguishing them from session memory tools.
 
     Args:
@@ -61,17 +61,17 @@ def _generate_guide_content(topic: str) -> str:
 
 
 def _generate_distinction_guide() -> str:
-    """Generate guide focusing on the distinction between persistent and session memory."""
-    return """# PERSISTENT MEMORY vs SESSION MEMORY - CRITICAL DISTINCTION
+    """Generate guide focusing on the distinction between memento and session memory."""
+    return """# MEMENTO vs SESSION MEMORY - CRITICAL DISTINCTION
 
-## PERSISTENT MEMORY (mcp-memento tools with '_persistent' suffix)
+## MEMENTO (mcp-memento tools with '_persistent' suffix)
 - Scope: Global - accessible from ANY project or session
 - Persistence: Long-term - survives across ALL sessions
 - Purpose: Store reusable knowledge, solutions, patterns
 - Tool Examples:
-  - store_persistent_memory - Store long-term solutions
-  - get_persistent_memory - Retrieve cross-session knowledge
-  - search_persistent_memories - Search global patterns
+  - store_memento - Store long-term solutions
+  - get_memento - Retrieve cross-session knowledge
+  - search_mementos - Search global patterns
 
 ## SESSION MEMORY (Serena Context Server tools WITHOUT suffix)
 - Scope: Project-specific - only accessible within current project
@@ -83,10 +83,10 @@ def _generate_distinction_guide() -> str:
   - search_memories - Search within session
 
 ## WHEN TO USE WHICH - DECISION MATRIX
-- Bug fix solution: Use Persistent ALWAYS
-- Architecture decision: Use Persistent ALWAYS
-- Reusable code pattern: Use Persistent ALWAYS
-- Technology evaluation: Use Persistent ALWAYS
+- Bug fix solution: Use Memento ALWAYS
+- Architecture decision: Use Memento ALWAYS
+- Reusable code pattern: Use Memento ALWAYS
+- Technology evaluation: Use Memento ALWAYS
 - Current file context: Use Session ALWAYS
 - Temporary calculation: Use Session ALWAYS
 - Project-specific variable: Use Session ALWAYS
@@ -94,13 +94,13 @@ def _generate_distinction_guide() -> str:
 
 ## COMMON CONFUSIONS TO AVOID
 1. Using store_memory (Serena) for long-term solutions
-   Use store_persistent_memory instead
+   Use store_memento instead
 
 2. Using get_memory (Serena) for cross-session knowledge
-   Use get_persistent_memory instead
+   Use get_memento instead
 
 3. Using search_memories (Serena) for global patterns
-   Use search_persistent_memories instead
+   Use search_mementos instead
 
 ## KEY TAKEAWAY
 ALWAYS CHECK FOR '_persistent' SUFFIX when you need knowledge to survive across sessions.
@@ -109,18 +109,18 @@ No suffix = session-only, temporary storage."""
 
 def _generate_examples_guide() -> str:
     """Generate guide with practical examples."""
-    return """# PRACTICAL EXAMPLES - PERSISTENT vs SESSION MEMORY
+    return """# PRACTICAL EXAMPLES - MEMENTO vs SESSION MEMORY
 
 ## CORRECT USAGE EXAMPLES
 
 ### Example 1: Storing a bug fix solution
-Use store_persistent_memory for long-term solution
+Use store_memento for long-term solution
 
 ### Example 2: Storing current file context
 Use store_memory for session-specific context
 
 ### Example 3: Searching for authentication patterns
-Use search_persistent_memories for global knowledge search
+Use search_mementos for global knowledge search
 
 ## INCORRECT USAGE EXAMPLES
 
@@ -128,22 +128,22 @@ Use search_persistent_memories for global knowledge search
 Using store_memory for database optimization solution
 PROBLEM: This solution will be lost when session ends
 
-### Example 2: WRONG - Using persistent memory for temporary context
-Using store_persistent_memory for temporary calculation
-PROBLEM: Pollutes persistent storage with ephemeral data
+### Example 2: WRONG - Using memento for temporary context
+Using store_memento for temporary calculation
+PROBLEM: Pollutes memento storage with ephemeral data
 
 ## SCENARIO-BASED EXAMPLES
 
 ### Scenario: Learning a new framework
-- Persistent: Store framework patterns, best practices, gotchas
+- Memento: Store framework patterns, best practices, gotchas
 - Session: Store current file you're working on, temporary test code
 
 ### Scenario: Debugging a complex issue
-- Persistent: Store the root cause and solution
+- Memento: Store the root cause and solution
 - Session: Store current stack trace, temporary variables
 
 ### Scenario: Refactoring code
-- Persistent: Store refactoring patterns, before/after examples
+- Memento: Store refactoring patterns, before/after examples
 - Session: Store current method being refactored, temporary imports
 
 ## QUICK REFERENCE
@@ -155,19 +155,19 @@ PROBLEM: Pollutes persistent storage with ephemeral data
 
 def _generate_best_practices_guide() -> str:
     """Generate guide with best practices."""
-    return """# BEST PRACTICES FOR PERSISTENT MEMORY USAGE
+    return """# BEST PRACTICES FOR MEMENTO USAGE
 
 ## 1. NAMING CONVENTION
 ALWAYS use '_persistent' suffix for long-term storage
-- store_persistent_memory - Correct for solutions
+- store_memento - Correct for solutions
 - store_memory - Wrong for solutions (session-only)
 
 ## 2. TAGGING STRATEGY
-Always tag acronyms in persistent memories
+Always tag acronyms in mementos
 Tags: ["jwt", "api", "redis", "oauth2"]  # Good tagging
 - Why: Fuzzy search struggles with acronyms
 - Tags provide exact match fallback
-- Enables reliable retrieval via search_persistent_memories(tags=["jwt"])
+- Enables reliable retrieval via search_mementos(tags=["jwt"])
 
 ## 3. IMPORTANCE SCORING
 Use importance scores (0.0-1.0) to prioritize
@@ -177,7 +177,7 @@ Use importance scores (0.0-1.0) to prioritize
 - 0.0-0.4: General knowledge, references
 
 ## 4. RELATIONSHIP BUILDING
-Connect related persistent memories
+Connect related mementos
 Benefits:
 - Creates knowledge graph
 - Enables path finding between related concepts
@@ -192,14 +192,14 @@ Choose appropriate memory types
 - general: For miscellaneous knowledge
 
 ## 6. CONTEXT ENRICHMENT
-Add rich context to persistent memories
+Add rich context to mementos
 Context fields: project, language, framework, timestamp
 
 ## 7. REGULAR MAINTENANCE
 Use these tools for database health:
-- get_persistent_memory_statistics: Monitor database size
-- get_persistent_recent_activity: Track usage patterns
-- analyze_persistent_memory_graph: Analyze relationship density
+- get_memento_statistics: Monitor database size
+- get_recent_memento_activity: Track usage patterns
+- analyze_memento_graph: Analyze relationship density
 
 ## 8. AVOID THESE COMMON MISTAKES
 1. Over-persisting: Don't use _persistent for temporary data
@@ -211,8 +211,8 @@ Use these tools for database health:
 ## 9. INTEGRATION WITH SESSION MEMORY
 Use both systems together:
 1. Store current work in session memory
-2. Extract patterns and solutions to persistent memory
-3. Reference persistent knowledge during session work
+2. Extract patterns and solutions to memento
+3. Reference memento knowledge during session work
 4. Clean up session memory at end of project
 
 ## 10. CONFIDENCE SYSTEM MANAGEMENT (Advanced Profile Only)
@@ -225,16 +225,16 @@ For comprehensive confidence system documentation, see docs/DECAY_SYSTEM.md
 - Search ordering: confidence * importance
 
 ### Available Tools
-1. adjust_persistent_confidence - Manual confidence adjustment
-2. get_persistent_low_confidence_memories - Find obsolete knowledge
-3. apply_persistent_confidence_decay - Apply automatic decay
-4. boost_persistent_confidence - Boost when validated
-5. set_persistent_decay_factor - Custom decay rates
+1. adjust_memento_confidence - Manual confidence adjustment
+2. get_low_confidence_mementos - Find obsolete knowledge
+3. apply_memento_confidence_decay - Apply automatic decay
+4. boost_memento_confidence - Boost when validated
+5. set_memento_decay_factor - Custom decay rates
 
 ## 11. PERFORMANCE OPTIMIZATION
-- Use recall_persistent_memories for conceptual queries
-- Use search_persistent_memories for exact term matching
-- Use persistent_contextual_search for scoped exploration
+- Use recall_mementos for conceptual queries
+- Use search_mementos for exact term matching
+- Use contextual_memento_search for scoped exploration
 - Set appropriate limit parameters to avoid large result sets"""
 
 
@@ -276,12 +276,12 @@ def _generate_comprehensive_guide() -> str:
 
 # NEED HELP?
 Use these tools for assistance:
-- get_persistent_memory_guide(topic="distinction") - Focus on differences
-- get_persistent_memory_guide(topic="examples") - Practical examples
-- get_persistent_memory_guide(topic="best_practices") - Usage guidelines
-- get_persistent_memory_statistics() - Database health check
-- get_persistent_recent_activity() - Usage patterns
-- get_persistent_low_confidence_memories() - Find obsolete knowledge (Advanced)
+- get_memento_guide(topic="distinction") - Focus on differences
+- get_memento_guide(topic="examples") - Practical examples
+- get_memento_guide(topic="best_practices") - Usage guidelines
+- get_memento_statistics() - Database health check
+- get_recent_memento_activity() - Usage patterns
+- get_low_confidence_mementos() - Find obsolete knowledge (Advanced)
 
 # CONFIDENCE SYSTEM QUICK REFERENCE
 
@@ -291,5 +291,5 @@ For complete confidence system documentation, see docs/DECAY_SYSTEM.md
 - Confidence scores: 0.0-1.0 (higher = more reliable)
 - No decay tags: security, auth, api_key, password, critical, no_decay
 - Search ordering: confidence * importance
-- Monthly maintenance: apply_persistent_confidence_decay()
+- Monthly maintenance: apply_memento_confidence_decay()
 """

@@ -348,13 +348,13 @@ class TestToolDefinitions:
 
         # Check for essential core tools
         essential_core_tools = [
-            "store_persistent_memory",
-            "get_persistent_memory",
-            "search_persistent_memories",
-            "update_persistent_memory",
-            "delete_persistent_memory",
-            "create_persistent_relationship",
-            "get_related_persistent_memories",
+            "store_memento",
+            "get_memento",
+            "search_mementos",
+            "update_memento",
+            "delete_memento",
+            "create_memento_relationship",
+            "get_related_mementos",
         ]
 
         for tool_name in essential_core_tools:

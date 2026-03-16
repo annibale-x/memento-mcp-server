@@ -44,7 +44,7 @@ def _get_memory_attr(
 
 
 @handle_tool_errors("get memory statistics")
-async def handle_get_memory_statistics(
+async def handle_get_memento_statistics(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle get_memory_statistics tool call.
@@ -88,7 +88,7 @@ async def handle_get_memory_statistics(
 
 
 @handle_tool_errors("get recent activity")
-async def handle_get_recent_activity(
+async def handle_get_recent_memento_activity(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle get_recent_activity tool call.
@@ -183,7 +183,7 @@ async def handle_get_recent_activity(
 
 
 @handle_tool_errors("search relationships by context")
-async def handle_search_relationships_by_context(
+async def handle_search_memento_relationships_by_context(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle search_relationships_by_context tool call.

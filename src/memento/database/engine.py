@@ -173,7 +173,7 @@ class SQLiteBackend(GraphBackend):
         Raises:
             SchemaError: If schema initialization fails
         """
-        logger.info("Initializing SQLite schema for Context Keeper...")
+        logger.info("Initializing SQLite schema for MCP Memento...")
 
         if not self.conn:
             raise SchemaError("Schema operation failed: not connected to database")

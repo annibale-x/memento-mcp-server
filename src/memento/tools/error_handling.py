@@ -15,7 +15,7 @@ def handle_tool_errors(operation_name: str):
 
     Usage:
         @handle_tool_errors("store memory")
-        async def handle_store_memory(memory_db, arguments):
+        async def handle_store_memento(memory_db, arguments):
             # Just the happy path - errors handled by decorator
             ...
     """

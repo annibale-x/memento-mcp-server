@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @handle_tool_errors("adjust confidence")
-async def handle_adjust_confidence(
+async def handle_adjust_memento_confidence(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle adjust_confidence tool call.
@@ -53,7 +53,7 @@ async def handle_adjust_confidence(
 
 
 @handle_tool_errors("get low confidence memories")
-async def handle_get_low_confidence_memories(
+async def handle_get_low_confidence_mementos(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle get_low_confidence_memories tool call.
@@ -156,7 +156,7 @@ async def handle_get_low_confidence_memories(
 
 
 @handle_tool_errors("apply confidence decay")
-async def handle_apply_confidence_decay(
+async def handle_apply_memento_confidence_decay(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle apply_confidence_decay tool call.
@@ -191,7 +191,7 @@ async def handle_apply_confidence_decay(
 
 
 @handle_tool_errors("boost confidence")
-async def handle_boost_confidence(
+async def handle_boost_memento_confidence(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle boost_confidence tool call.
@@ -342,7 +342,7 @@ async def handle_boost_confidence(
 
 
 @handle_tool_errors("set decay factor")
-async def handle_set_decay_factor(
+async def handle_set_memento_decay_factor(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle set_decay_factor tool call.

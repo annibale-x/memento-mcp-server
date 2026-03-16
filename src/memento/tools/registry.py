@@ -1,5 +1,5 @@
 """
-Tool registry for Context Keeper MCP server.
+Tool registry for MCP Memento server.
 
 This module maps MCP tool names to their handler functions. The registry
 pattern allows for clean separation between tool definitions and implementations.
@@ -18,34 +18,34 @@ from typing import Any, Awaitable, Callable, Dict
 from mcp.types import CallToolResult
 
 from .activity_tools import (
-    handle_get_memory_statistics,
-    handle_get_recent_activity,
-    handle_search_relationships_by_context,
+    handle_get_memento_statistics,
+    handle_get_recent_memento_activity,
+    handle_search_memento_relationships_by_context,
 )
 from .confidence_tools import (
-    handle_adjust_confidence,
-    handle_apply_confidence_decay,
-    handle_boost_confidence,
-    handle_get_low_confidence_memories,
-    handle_set_decay_factor,
+    handle_adjust_memento_confidence,
+    handle_apply_memento_confidence_decay,
+    handle_boost_memento_confidence,
+    handle_get_low_confidence_mementos,
+    handle_set_memento_decay_factor,
 )
 from .guide_tools import (
-    handle_help_memory_tools_usage,
+    handle_help_memento_tools_usage,
 )
 from .memory_tools import (
-    handle_delete_memory,
-    handle_get_memory,
-    handle_store_memory,
-    handle_update_memory,
+    handle_delete_memento,
+    handle_get_memento,
+    handle_store_memento,
+    handle_update_memento,
 )
 from .relationship_tools import (
-    handle_create_relationship,
-    handle_get_related_memories,
+    handle_create_memento_relationship,
+    handle_get_related_mementos,
 )
 from .search_tools import (
-    handle_contextual_search,
-    handle_recall_memories,
-    handle_search_memories,
+    handle_contextual_memento_search,
+    handle_recall_mementos,
+    handle_search_mementos,
 )
 
 # Type alias for tool handlers
@@ -53,25 +53,25 @@ ToolHandler = Callable[[Any, Dict[str, Any]], Awaitable[CallToolResult]]
 
 # Registry mapping tool names to handlers
 TOOL_HANDLERS: Dict[str, ToolHandler] = {
-    "store_persistent_memory": handle_store_memory,
-    "get_persistent_memory": handle_get_memory,
-    "update_persistent_memory": handle_update_memory,
-    "delete_persistent_memory": handle_delete_memory,
-    "search_persistent_memories": handle_search_memories,
-    "recall_persistent_memories": handle_recall_memories,
-    "persistent_contextual_search": handle_contextual_search,
-    "create_persistent_relationship": handle_create_relationship,
-    "get_related_persistent_memories": handle_get_related_memories,
-    "get_persistent_memory_statistics": handle_get_memory_statistics,
-    "help_memory_tools_usage": handle_help_memory_tools_usage,
-    "get_persistent_recent_activity": handle_get_recent_activity,
-    "search_persistent_relationships_by_context": handle_search_relationships_by_context,
+    "store_memento": handle_store_memento,
+    "get_memento": handle_get_memento,
+    "update_memento": handle_update_memento,
+    "delete_memento": handle_delete_memento,
+    "search_mementos": handle_search_mementos,
+    "recall_mementos": handle_recall_mementos,
+    "contextual_memento_search": handle_contextual_memento_search,
+    "create_memento_relationship": handle_create_memento_relationship,
+    "get_related_mementos": handle_get_related_mementos,
+    "get_memento_statistics": handle_get_memento_statistics,
+    "help_memento_tools_usage": handle_help_memento_tools_usage,
+    "get_recent_memento_activity": handle_get_recent_memento_activity,
+    "search_memento_relationships_by_context": handle_search_memento_relationships_by_context,
     # Confidence system tools
-    "adjust_persistent_confidence": handle_adjust_confidence,
-    "get_persistent_low_confidence_memories": handle_get_low_confidence_memories,
-    "apply_persistent_confidence_decay": handle_apply_confidence_decay,
-    "boost_persistent_confidence": handle_boost_confidence,
-    "set_persistent_decay_factor": handle_set_decay_factor,
+    "adjust_memento_confidence": handle_adjust_memento_confidence,
+    "get_low_confidence_mementos": handle_get_low_confidence_mementos,
+    "apply_memento_confidence_decay": handle_apply_memento_confidence_decay,
+    "boost_memento_confidence": handle_boost_memento_confidence,
+    "set_memento_decay_factor": handle_set_memento_decay_factor,
 }
 
 

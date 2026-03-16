@@ -21,9 +21,9 @@ RUN pip install --no-cache-dir -e .
 RUN mkdir -p /data
 
 # Set default environment variables
-ENV CONTEXT_SQLITE_PATH=/data/memory.db \
-    CONTEXT_TOOL_PROFILE=core \
-    CONTEXT_LOG_LEVEL=INFO
+ENV MEMENTO_SQLITE_PATH=/data/memory.db \
+    MEMENTO_TOOL_PROFILE=core \
+    MEMENTO_LOG_LEVEL=INFO
 
 # Expose port (not used for MCP stdio, but useful for future web UI)
 EXPOSE 8000

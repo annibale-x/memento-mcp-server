@@ -105,10 +105,10 @@ class TestConfiguration:
         with patch.dict(
             os.environ,
             {
-                "CONTEXT_TOOL_PROFILE": "extended",
-                "CONTEXT_ENABLE_ADVANCED_TOOLS": "true",
-                "CONTEXT_LOG_LEVEL": "DEBUG",
-                "CONTEXT_SQLITE_PATH": test_db_path,
+                "MEMENTO_TOOL_PROFILE": "extended",
+                "MEMENTO_ENABLE_ADVANCED_TOOLS": "true",
+                "MEMENTO_LOG_LEVEL": "DEBUG",
+                "MEMENTO_SQLITE_PATH": test_db_path,
             },
             clear=True,
         ):
@@ -129,14 +129,14 @@ class TestConfiguration:
         ]
 
         for profile, expected_min_count in test_cases:
-            with patch.dict(os.environ, {"CONTEXT_TOOL_PROFILE": profile}, clear=True):
+            with patch.dict(os.environ, {"MEMENTO_TOOL_PROFILE": profile}, clear=True):
                 Config.reload_config()
                 tools = Config.get_enabled_tools()
 
                 assert isinstance(tools, list)
                 assert len(tools) >= expected_min_count
-                assert "store_persistent_memory" in tools
-                assert "get_persistent_memory" in tools
+                assert "store_memento" in tools
+                assert "get_memento" in tools
 
     def test_config_summary_structure(self):
         """Test that get_config_summary returns a properly structured dictionary."""
@@ -178,7 +178,7 @@ class TestConfiguration:
             assert Config.TOOL_PROFILE == "core"
 
         # Change environment and reload
-        with patch.dict(os.environ, {"CONTEXT_TOOL_PROFILE": "extended"}, clear=True):
+        with patch.dict(os.environ, {"MEMENTO_TOOL_PROFILE": "extended"}, clear=True):
             Config.reload_config()
             assert Config.TOOL_PROFILE == "extended"
 
@@ -728,7 +728,7 @@ class TestCLI:
 
             # Version should be printed
             captured = capsys.readouterr()
-            assert "context-keeper" in captured.out
+            assert "memento" in captured.out
 
     def test_cli_show_config(self):
         """Test --show-config option."""
@@ -775,9 +775,7 @@ class TestCLI:
             }
         )
 
-        with patch(
-            "memento.database.engine.SQLiteBackend", return_value=mock_backend
-        ):
+        with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
             result = await perform_health_check(timeout=1.0)
 
             assert result["status"] == "healthy"
@@ -798,9 +796,9 @@ class TestCLI:
         with patch.dict(
             os.environ,
             {
-                "CONTEXT_TOOL_PROFILE": "extended",
-                "CONTEXT_LOG_LEVEL": "DEBUG",
-                "CONTEXT_SQLITE_PATH": test_db_path,
+                "MEMENTO_TOOL_PROFILE": "extended",
+                "MEMENTO_LOG_LEVEL": "DEBUG",
+                "MEMENTO_SQLITE_PATH": test_db_path,
             },
             clear=True,
         ):
@@ -848,12 +846,8 @@ class TestIntegration:
         mock_db = AsyncMock()
         mock_db.initialize_schema = AsyncMock()
 
-        with patch(
-            "memento.database.engine.SQLiteBackend", return_value=mock_backend
-        ):
-            with patch(
-                "memento.server.SQLiteMemoryDatabase", return_value=mock_db
-            ):
+        with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
+            with patch("memento.server.SQLiteMemoryDatabase", return_value=mock_db):
                 # Create server
                 server = Memento()
 
@@ -890,15 +884,11 @@ class TestIntegration:
 
         # Mock tool handler
         async def mock_store_handler(database, arguments):
-            """Mock handler for store_persistent_memory."""
+            """Mock handler for store_memento."""
             return {"content": [{"type": "text", "text": "Memory stored successfully"}]}
 
-        with patch(
-            "memento.database.engine.SQLiteBackend", return_value=mock_backend
-        ):
-            with patch(
-                "memento.server.SQLiteMemoryDatabase", return_value=mock_db
-            ):
+        with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
+            with patch("memento.server.SQLiteMemoryDatabase", return_value=mock_db):
                 with patch(
                     "memento.tools.registry.get_handler",
                     return_value=mock_store_handler,
@@ -936,7 +926,7 @@ class TestIntegration:
         }
 
         for profile, expected_count in profile_tool_counts.items():
-            with patch.dict(os.environ, {"CONTEXT_TOOL_PROFILE": profile}, clear=True):
+            with patch.dict(os.environ, {"MEMENTO_TOOL_PROFILE": profile}, clear=True):
                 Config.reload_config()
                 tools = Config.get_enabled_tools()
 
@@ -946,9 +936,9 @@ class TestIntegration:
 
                 # Verify essential tools are present
                 essential_tools = [
-                    "store_persistent_memory",
-                    "get_persistent_memory",
-                    "search_persistent_memories",
+                    "store_memento",
+                    "get_memento",
+                    "search_mementos",
                 ]
 
                 for tool_name in essential_tools:

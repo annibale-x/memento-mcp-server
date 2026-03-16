@@ -105,7 +105,7 @@ Every time a relationship is accessed:
 
 ### Manual Boosting
 When knowledge is successfully validated:
-- Use `boost_persistent_confidence` tool
+- Use `boost_memento_confidence` tool
 - Typical boost: +0.1 to +0.3
 - Requires reason for the boost
 
@@ -116,7 +116,7 @@ new_confidence = min(1.0, current_confidence + boost_amount)
 
 ## MCP Tools for Confidence Management
 
-### 1. `adjust_persistent_confidence`
+### 1. `adjust_memento_confidence`
 **Purpose**: Manual confidence adjustment
 **When to use**: When you know a relationship's accuracy has changed
 ```json
@@ -127,7 +127,7 @@ new_confidence = min(1.0, current_confidence + boost_amount)
 }
 ```
 
-### 2. `get_persistent_low_confidence_memories`
+### 2. `get_low_confidence_mementos`
 **Purpose**: Find obsolete knowledge
 **When to use**: Periodic cleanup or when search results seem unreliable
 ```json
@@ -137,7 +137,7 @@ new_confidence = min(1.0, current_confidence + boost_amount)
 }
 ```
 
-### 3. `apply_persistent_confidence_decay`
+### 3. `apply_memento_confidence_decay`
 **Purpose**: Apply automatic decay
 **When to use**: Monthly maintenance or after long periods of inactivity
 ```json
@@ -146,7 +146,7 @@ new_confidence = min(1.0, current_confidence + boost_amount)
 }
 ```
 
-### 4. `boost_persistent_confidence`
+### 4. `boost_memento_confidence`
 **Purpose**: Boost confidence after successful usage
 **When to use**: After implementing a solution or validating knowledge
 ```json
@@ -157,7 +157,7 @@ new_confidence = min(1.0, current_confidence + boost_amount)
 }
 ```
 
-### 5. `set_persistent_decay_factor`
+### 5. `set_memento_decay_factor`
 **Purpose**: Set custom decay rates
 **When to use**: For special memory types requiring different decay
 ```json
@@ -193,15 +193,15 @@ Results with confidence < 0.3 include warnings:
 ### Monthly Maintenance Script
 ```python
 # 1. Apply decay to all relationships
-apply_persistent_confidence_decay()
+apply_memento_confidence_decay()
 
 # 2. Find low confidence memories
-low_conf = get_persistent_low_confidence_memories(threshold=0.3)
+low_conf = get_low_confidence_mementos(threshold=0.3)
 
 # 3. Review or delete obsolete knowledge
 for memory in low_conf:
     if should_delete(memory):
-        delete_persistent_memory(memory.id)
+        delete_memento(memory.id)
     else:
         # Flag for human review
         flag_for_review(memory)
@@ -241,13 +241,13 @@ confidence_system:
 ### Environment Variables
 ```bash
 # Enable/disable confidence system
-CONTEXT_KEEPER_CONFIDENCE_ENABLED=true
+MEMENTO_KEEPER_CONFIDENCE_ENABLED=true
 
 # Base decay factor
-CONTEXT_KEEPER_BASE_DECAY=0.95
+MEMENTO_KEEPER_BASE_DECAY=0.95
 
 # Low confidence threshold
-CONTEXT_KEEPER_WARNING_THRESHOLD=0.3
+MEMENTO_KEEPER_WARNING_THRESHOLD=0.3
 ```
 
 ## Best Practices

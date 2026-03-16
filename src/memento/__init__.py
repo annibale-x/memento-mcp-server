@@ -2,7 +2,7 @@
 MCP Memento for Zed Editor
 
 A context-aware MCP server that provides intelligent memory capabilities for Zed editor,
-enabling persistent knowledge tracking, relationship mapping, and contextual development assistance.
+enabling memento knowledge tracking, relationship mapping, and contextual development assistance.
 
 Supports SQLite backend only for simplified deployment with Zed editor.
 """

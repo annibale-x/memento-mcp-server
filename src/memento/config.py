@@ -17,40 +17,40 @@ from typing import Any, Dict, Optional
 import yaml
 
 _CORE_TOOLS = [
-    "store_persistent_memory",
-    "get_persistent_memory",
-    "search_persistent_memories",
-    "update_persistent_memory",
-    "delete_persistent_memory",
-    "create_persistent_relationship",
-    "get_related_persistent_memories",
-    "recall_persistent_memories",
-    "get_persistent_recent_activity",
-    "help_memory_tools_usage",
+    "store_memento",
+    "get_memento",
+    "search_mementos",
+    "update_memento",
+    "delete_memento",
+    "create_memento_relationship",
+    "get_related_mementos",
+    "recall_mementos",
+    "get_recent_memento_activity",
+    "help_memento_tools_usage",
     # Confidence system tools (essential for all users)
-    "get_persistent_low_confidence_memories",
-    "boost_persistent_confidence",
-    "adjust_persistent_confidence",
+    "get_low_confidence_mementos",
+    "boost_memento_confidence",
+    "adjust_memento_confidence",
 ]
 
 _EXTENDED_EXTRA_TOOLS = [
-    "get_persistent_memory_statistics",
-    "search_persistent_relationships_by_context",
-    "persistent_contextual_search",
+    "get_memento_statistics",
+    "search_memento_relationships_by_context",
+    "contextual_memento_search",
     # Confidence system tools (technical maintenance)
-    "apply_persistent_confidence_decay",
+    "apply_memento_confidence_decay",
 ]
 
 _ADVANCED_TOOLS = [
-    "analyze_persistent_memory_graph",
-    "find_persistent_patterns",
-    "suggest_persistent_relationships",
-    "get_persistent_memory_clusters",
-    "get_persistent_central_memories",
-    "find_path_between_persistent_memories",
-    "get_persistent_memory_network",
+    "analyze_memento_graph",
+    "find_memento_patterns",
+    "suggest_memento_relationships",
+    "get_memento_clusters",
+    "get_central_mementos",
+    "find_path_between_mementos",
+    "get_memento_network",
     # Confidence system tools (advanced configuration)
-    "set_persistent_decay_factor",
+    "set_memento_decay_factor",
 ]
 
 TOOL_PROFILES = {
@@ -114,7 +114,7 @@ class _EnvVar:
 
 _DEFAULT_DB_PATH = os.path.expanduser("~/.mcp-memento/context.db")
 _DEFAULT_CONFIG_PATHS = [
-    Path.cwd() / "context-keeper.yaml",
+    Path.cwd() / "memento.yaml",
     Path.home() / ".mcp-memento" / "config.yaml",
 ]
 
@@ -131,7 +131,7 @@ class YAMLConfig:
         Hierarchy (highest priority last):
         1. Default values
         2. Global config (~/.mcp-memento/config.yaml)
-        3. Project config (./context-keeper.yaml)
+        3. Project config (./memento.yaml)
         4. Environment variables
         """
         config = cls._get_defaults()
@@ -147,7 +147,7 @@ class YAMLConfig:
             pass
 
         # Load from project config
-        project_config_path = Path.cwd() / "context-keeper.yaml"
+        project_config_path = Path.cwd() / "memento.yaml"
         if project_config_path.exists():
             config.update(cls._load_yaml_file(project_config_path))
 
@@ -192,30 +192,30 @@ class YAMLConfig:
     def _apply_env_overrides(cls, config: Dict[str, Any]) -> Dict[str, Any]:
         """Apply environment variable overrides to configuration."""
         # Backend configuration
-        if os.getenv("CONTEXT_BACKEND"):
-            config["backend"] = os.getenv("CONTEXT_BACKEND")
+        if os.getenv("MEMENTO_BACKEND"):
+            config["backend"] = os.getenv("MEMENTO_BACKEND")
 
         # SQLite configuration
-        if os.getenv("CONTEXT_SQLITE_PATH"):
-            config["sqlite_path"] = os.getenv("CONTEXT_SQLITE_PATH")
+        if os.getenv("MEMENTO_SQLITE_PATH"):
+            config["sqlite_path"] = os.getenv("MEMENTO_SQLITE_PATH")
 
         # Tool configuration
-        if os.getenv("CONTEXT_TOOL_PROFILE"):
-            config["tool_profile"] = os.getenv("CONTEXT_TOOL_PROFILE")
+        if os.getenv("MEMENTO_TOOL_PROFILE"):
+            config["tool_profile"] = os.getenv("MEMENTO_TOOL_PROFILE")
 
-        if os.getenv("CONTEXT_ENABLE_ADVANCED_TOOLS"):
+        if os.getenv("MEMENTO_ENABLE_ADVANCED_TOOLS"):
             config["enable_advanced_tools"] = (
-                os.getenv("CONTEXT_ENABLE_ADVANCED_TOOLS").lower() == "true"
+                os.getenv("MEMENTO_ENABLE_ADVANCED_TOOLS").lower() == "true"
             )
 
         # Logging configuration
-        if os.getenv("CONTEXT_LOG_LEVEL"):
-            config["logging"]["level"] = os.getenv("CONTEXT_LOG_LEVEL")
+        if os.getenv("MEMENTO_LOG_LEVEL"):
+            config["logging"]["level"] = os.getenv("MEMENTO_LOG_LEVEL")
 
         # Feature configuration
-        if os.getenv("CONTEXT_ALLOW_CYCLES"):
+        if os.getenv("MEMENTO_ALLOW_CYCLES"):
             config["features"]["allow_relationship_cycles"] = (
-                os.getenv("CONTEXT_ALLOW_CYCLES").lower() == "true"
+                os.getenv("MEMENTO_ALLOW_CYCLES").lower() == "true"
             )
 
         return config
@@ -224,7 +224,7 @@ class YAMLConfig:
     def save_config(cls, config: Dict[str, Any], path: Optional[Path] = None) -> None:
         """Save configuration to a YAML file."""
         if path is None:
-            path = Path.cwd() / "context-keeper.yaml"
+            path = Path.cwd() / "memento.yaml"
 
         # Ensure directory exists
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -249,11 +249,11 @@ class Config:
     for testing or programmatic configuration.
 
     Environment Variables:
-        CONTEXT_SQLITE_PATH or CONTEXT_SQLITE_PATH: Database file path [default: ~/.mcp-memento/context.db]
-        CONTEXT_TOOL_PROFILE or CONTEXT_TOOL_PROFILE: Tool profile (core|extended|advanced) [default: core]
-        CONTEXT_ENABLE_ADVANCED_TOOLS: Enable advanced tools [default: false]
-        CONTEXT_LOG_LEVEL: Log level (DEBUG|INFO|WARNING|ERROR) [default: INFO]
-        CONTEXT_ALLOW_CYCLES: Allow cycles in relationship graph [default: false]
+        MEMENTO_SQLITE_PATH or MEMENTO_SQLITE_PATH: Database file path [default: ~/.mcp-memento/context.db]
+        MEMENTO_TOOL_PROFILE or MEMENTO_TOOL_PROFILE: Tool profile (core|extended|advanced) [default: core]
+        MEMENTO_ENABLE_ADVANCED_TOOLS: Enable advanced tools [default: false]
+        MEMENTO_LOG_LEVEL: Log level (DEBUG|INFO|WARNING|ERROR) [default: INFO]
+        MEMENTO_ALLOW_CYCLES: Allow cycles in relationship graph [default: false]
     """
 
     # Load YAML configuration
@@ -261,25 +261,25 @@ class Config:
 
     # Backend configuration (SQLite only)
     SQLITE_PATH = _EnvVar(
-        "CONTEXT_SQLITE_PATH", default=_yaml_config.get("sqlite_path", _DEFAULT_DB_PATH)
+        "MEMENTO_SQLITE_PATH", default=_yaml_config.get("sqlite_path", _DEFAULT_DB_PATH)
     )
 
     # Backend configuration
-    BACKEND = _EnvVar("CONTEXT_BACKEND", default=_yaml_config.get("backend", "sqlite"))
+    BACKEND = _EnvVar("MEMENTO_BACKEND", default=_yaml_config.get("backend", "sqlite"))
 
     # Tool configuration
     TOOL_PROFILE = _EnvVar(
-        "CONTEXT_TOOL_PROFILE", default=_yaml_config.get("tool_profile", "core")
+        "MEMENTO_TOOL_PROFILE", default=_yaml_config.get("tool_profile", "core")
     )
     ENABLE_ADVANCED_TOOLS = _EnvVar(
-        "CONTEXT_ENABLE_ADVANCED_TOOLS",
+        "MEMENTO_ENABLE_ADVANCED_TOOLS",
         default=_yaml_config.get("enable_advanced_tools", False),
         cast=bool,
     )
 
     # Logging configuration
     LOG_LEVEL = _EnvVar(
-        "CONTEXT_LOG_LEVEL",
+        "MEMENTO_LOG_LEVEL",
         default=_yaml_config.get("logging", {}).get("level", "INFO"),
     )
     LOG_FORMAT = _yaml_config.get("logging", {}).get(
@@ -288,7 +288,7 @@ class Config:
 
     # Feature configuration
     ALLOW_RELATIONSHIP_CYCLES = _EnvVar(
-        "CONTEXT_ALLOW_CYCLES",
+        "MEMENTO_ALLOW_CYCLES",
         default=_yaml_config.get("features", {}).get(
             "allow_relationship_cycles", False
         ),
@@ -401,7 +401,7 @@ class Config:
     def create_default_config(cls, path: Optional[Path] = None) -> None:
         """Create a default configuration file."""
         if path is None:
-            path = Path.cwd() / "context-keeper.yaml"
+            path = Path.cwd() / "memento.yaml"
 
         default_config = {
             "backend": "sqlite",

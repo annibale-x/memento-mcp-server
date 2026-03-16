@@ -319,7 +319,7 @@ git push origin feature/your-feature
 ### Debugging
 ```bash
 # Run with debug logging
-CONTEXT_LOG_LEVEL=DEBUG python -m memento
+MEMENTO_LOG_LEVEL=DEBUG python -m memento
 
 # Use pdb for debugging
 import pdb; pdb.set_trace()

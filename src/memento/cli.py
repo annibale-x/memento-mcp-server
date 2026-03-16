@@ -1,5 +1,5 @@
 """
-Command-line interface for Context Keeper MCP Server.
+Command-line interface for MCP Memento Server.
 
 Provides easy server startup with configuration options for AI coding agents.
 """
@@ -228,39 +228,37 @@ def validate_profile(profile: str) -> None:
 def main() -> None:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Context Keeper - MCP memory server for AI coding agents",
+        description="MCP Memento - MCP memory server for AI coding agents",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Start with default settings (SQLite database, core profile)
-  context-keeper
+  memento
 
   # Use extended profile (11 tools)
-  context-keeper --profile extended
+  memento --profile extended
 
   # Use advanced profile (18 tools, includes confidence system)
-  context-keeper --profile advanced
+  memento --profile advanced
 
   # Show current configuration
-  context-keeper --show-config
+  memento --show-config
 
   # Run health check
-  context-keeper --health
+  memento --health
 
 Environment Variables:
-  CONTEXT_TOOL_PROFILE    Tool profile (core|extended|advanced) [default: core]
-  CONTEXT_ENABLE_ADVANCED_TOOLS  Enable advanced tools [default: false]
-  CONTEXT_SQLITE_PATH     SQLite database path [default: ~/.mcp-memento/context.db]
-  CONTEXT_LOG_LEVEL       Log level (DEBUG|INFO|WARNING|ERROR) [default: INFO]
+  MEMENTO_TOOL_PROFILE    Tool profile (core|extended|advanced) [default: core]
+  MEMENTO_ENABLE_ADVANCED_TOOLS  Enable advanced tools [default: false]
+  MEMENTO_SQLITE_PATH     SQLite database path [default: ~/.mcp-memento/context.db]
+  MEMENTO_LOG_LEVEL       Log level (DEBUG|INFO|WARNING|ERROR) [default: INFO]
 
   Feature Configuration:
-    CONTEXT_ALLOW_CYCLES           Allow cycles in relationship graph [default: false]
+    MEMENTO_ALLOW_CYCLES           Allow cycles in relationship graph [default: false]
         """,
     )
 
-    parser.add_argument(
-        "--version", action="version", version=f"context-keeper {__version__}"
-    )
+    parser.add_argument("--version", action="version", version=f"memento {__version__}")
 
     parser.add_argument(
         "--profile",
@@ -280,7 +278,7 @@ Environment Variables:
         "--log-level",
         type=str,
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-        help="Logging level (overrides CONTEXT_LOG_LEVEL env var)",
+        help="Logging level (overrides MEMENTO_LOG_LEVEL env var)",
     )
 
     parser.add_argument(
@@ -355,10 +353,10 @@ Environment Variables:
         profile = {"lite": "core", "standard": "extended", "full": "extended"}.get(
             args.profile, args.profile
         )
-        os.environ["CONTEXT_TOOL_PROFILE"] = profile
+        os.environ["MEMENTO_TOOL_PROFILE"] = profile
 
     if args.log_level:
-        os.environ["CONTEXT_LOG_LEVEL"] = args.log_level
+        os.environ["MEMENTO_LOG_LEVEL"] = args.log_level
 
     # Configure logging to stderr (default) so it doesn't pollute MCP stdout
     logging.basicConfig(
@@ -369,7 +367,7 @@ Environment Variables:
 
     # Handle special commands
     if args.show_config:
-        _eprint(f"Context Keeper MCP Server v{__version__}")
+        _eprint(f"MCP Memento Server v{__version__}")
         print_config_summary()
         sys.exit(0)
 
@@ -382,7 +380,7 @@ Environment Variables:
             print(json.dumps(result, indent=2))
         else:
             # Human-readable format goes to stderr
-            _eprint(f"Context Keeper MCP Server v{__version__}")
+            _eprint(f"MCP Memento Server v{__version__}")
             _eprint("\nHealth Check Results\n")
             _eprint(
                 f"Status: {'Healthy' if result['status'] == 'healthy' else 'Unhealthy'}"
@@ -428,7 +426,7 @@ Environment Variables:
 
     # Start the server - all diagnostic output to stderr to keep stdout
     # clean for MCP JSON-RPC transport
-    _eprint(f"Starting Context Keeper MCP Server v{__version__}")
+    _eprint(f"Starting MCP Memento Server v{__version__}")
     _eprint(f"Database: SQLite ({Config.SQLITE_PATH})")
     _eprint(f"Profile: {Config.TOOL_PROFILE}")
     _eprint(f"Log Level: {Config.LOG_LEVEL}")

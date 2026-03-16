@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @handle_tool_errors("search memories")
-async def handle_search_memories(
+async def handle_search_mementos(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle search_memories tool call.
@@ -87,7 +87,7 @@ async def handle_search_memories(
 
 
 @handle_tool_errors("recall memories")
-async def handle_recall_memories(
+async def handle_recall_mementos(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle recall_memories tool call - convenience wrapper around search_memories.
@@ -207,7 +207,7 @@ async def handle_recall_memories(
 
 
 @handle_tool_errors("perform contextual search")
-async def handle_contextual_search(
+async def handle_contextual_memento_search(
     memory_db: SQLiteMemoryDatabase, arguments: Dict[str, Any]
 ) -> CallToolResult:
     """Handle contextual_search tool call.

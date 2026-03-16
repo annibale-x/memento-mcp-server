@@ -9,9 +9,9 @@ Usage:
     python run_mcp_memento.py
 
 Environment Variables:
-    CONTEXT_SQLITE_PATH: Path to SQLite database file
-    CONTEXT_TOOL_PROFILE: Tool profile (core|extended)
-    CONTEXT_LOG_LEVEL: Logging level (DEBUG|INFO|WARNING|ERROR)
+    MEMENTO_SQLITE_PATH: Path to SQLite database file
+    MEMENTO_TOOL_PROFILE: Tool profile (core|extended)
+    MEMENTO_LOG_LEVEL: Logging level (DEBUG|INFO|WARNING|ERROR)
 """
 
 import asyncio
@@ -56,20 +56,20 @@ def run_server():
     env_config = {}
 
     # SQLite database path
-    if sqlite_path := os.getenv("CONTEXT_SQLITE_PATH"):
+    if sqlite_path := os.getenv("MEMENTO_SQLITE_PATH"):
         env_config["sqlite_path"] = sqlite_path
         # Also set environment variable directly to ensure Config reads it
-        os.environ["CONTEXT_SQLITE_PATH"] = sqlite_path
+        os.environ["MEMENTO_SQLITE_PATH"] = sqlite_path
 
     # Tool profile
-    if tool_profile := os.getenv("CONTEXT_TOOL_PROFILE"):
+    if tool_profile := os.getenv("MEMENTO_TOOL_PROFILE"):
         env_config["tool_profile"] = tool_profile
-        os.environ["CONTEXT_TOOL_PROFILE"] = tool_profile
+        os.environ["MEMENTO_TOOL_PROFILE"] = tool_profile
 
     # Log level
-    if log_level := os.getenv("CONTEXT_LOG_LEVEL"):
+    if log_level := os.getenv("MEMENTO_LOG_LEVEL"):
         env_config["log_level"] = log_level
-        os.environ["CONTEXT_LOG_LEVEL"] = log_level
+        os.environ["MEMENTO_LOG_LEVEL"] = log_level
 
     # Apply environment configuration
     if env_config:
@@ -97,9 +97,9 @@ def show_help():
     print("  python run_mcp_memento.py --help   - Show this help")
     print()
     print("Environment Variables:")
-    print("  CONTEXT_SQLITE_PATH    - Path to SQLite database file")
-    print("  CONTEXT_TOOL_PROFILE   - Tool profile (core|extended)")
-    print("  CONTEXT_LOG_LEVEL      - Logging level (DEBUG|INFO|WARNING|ERROR)")
+    print("  MEMENTO_SQLITE_PATH    - Path to SQLite database file")
+    print("  MEMENTO_TOOL_PROFILE   - Tool profile (core|extended)")
+    print("  MEMENTO_LOG_LEVEL      - Logging level (DEBUG|INFO|WARNING|ERROR)")
     print()
     print("For more CLI options, use the memento module directly:")
     print("  python -m memento.cli --help")

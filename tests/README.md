@@ -84,11 +84,11 @@ chmod +x run_tests.sh      # Make executable (first time)
 - **Memory Connectivity**: Graph connectivity and path finding
 
 ### 2. MCP Tools Tests (`test_tools.py`)
-- **Basic Operations**: `store_persistent_memory`, `get_persistent_memory`, `update_persistent_memory`, `delete_persistent_memory`
-- **Search Operations**: `search_persistent_memories`, `persistent_contextual_search`
-- **Relationship Tools**: `create_persistent_relationship`, `get_related_persistent_memories`
-- **Analytics Tools**: `get_persistent_memory_statistics`, `get_persistent_recent_activity`
-- **Advanced Tools**: `find_path_between_persistent_memories`, `analyze_persistent_memory_graph`
+- **Basic Operations**: `store_memento`, `get_memento`, `update_memento`, `delete_memento`
+- **Search Operations**: `search_mementos`, `contextual_memento_search`
+- **Relationship Tools**: `create_memento_relationship`, `get_related_mementos`
+- **Analytics Tools**: `get_memento_statistics`, `get_recent_memento_activity`
+- **Advanced Tools**: `find_path_between_mementos`, `analyze_memento_graph`
 
 ### 3. Server Startup Tests (`test_server_startup.py`)
 - **CLI Commands**: `--show-config`, `--health`, `--profile` options
@@ -98,7 +98,7 @@ chmod +x run_tests.sh      # Make executable (first time)
 
 ### 4. Integration Tests
 - **Zed MCP Protocol**: Proper JSON-RPC communication
-- **Environment Variables**: `CONTEXT_SQLITE_PATH`, `CONTEXT_TOOL_PROFILE` handling
+- **Environment Variables**: `MEMENTO_SQLITE_PATH`, `MEMENTO_TOOL_PROFILE` handling
 - **Database Operations**: SQLite connection and transaction management
 - **Unicode Support**: UTF-8 encoding for tool descriptions and memory content
 
@@ -217,13 +217,13 @@ The test suite is designed for seamless CI/CD integration:
 ### Environment Variables for CI
 ```bash
 # Database configuration
-export CONTEXT_SQLITE_PATH=tests/test_data/ci_test.db
+export MEMENTO_SQLITE_PATH=tests/test_data/ci_test.db
 
 # Tool profile
-export CONTEXT_TOOL_PROFILE=extended
+export MEMENTO_TOOL_PROFILE=extended
 
 # Logging
-export CONTEXT_LOG_LEVEL=INFO
+export MEMENTO_LOG_LEVEL=INFO
 
 # Encoding (important for Windows CI)
 export PYTHONIOENCODING=utf-8

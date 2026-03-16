@@ -1,7 +1,7 @@
 """
-Database layer for Context Keeper MCP Server.
+Database layer for MCP Memento Server.
 
-This package provides SQLite database implementation for the context keeper,
+This package provides SQLite database implementation for the memento,
 including the backend interface, SQLite engine, and memory database operations.
 """
 

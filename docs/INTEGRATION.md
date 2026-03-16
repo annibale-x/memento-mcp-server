@@ -1,6 +1,6 @@
 # Integration Guide
 
-This guide covers how to integrate Context Keeper with various IDEs, editors, and AI agents.
+This guide covers how to integrate Memento with various IDEs, editors, and AI agents.
 
 ## Table of Contents
 - [Quick Start](#quick-start)
@@ -16,7 +16,7 @@ This guide covers how to integrate Context Keeper with various IDEs, editors, an
 ## Quick Start
 
 ### Prerequisites
-1. Install Context Keeper:
+1. Install Memento:
    ```bash
    pipx install mcp-memento
    ```
@@ -43,8 +43,8 @@ Add to `~/.config/zed/settings.json`:
       "command": "memento",
       "args": ["--profile", "extended"],
       "env": {
-        "CONTEXT_SQLITE_PATH": "~/.mcp-memento/context.db",
-        "CONTEXT_TOOL_PROFILE": "extended"
+        "MEMENTO_SQLITE_PATH": "~/.mcp-memento/context.db",
+        "MEMENTO_TOOL_PROFILE": "extended"
       }
     }
   }
@@ -73,9 +73,9 @@ Add to `~/.config/zed/settings.json`:
       "command": "memento",
       "args": ["--profile", "advanced", "--log-level", "INFO"],
       "env": {
-        "CONTEXT_SQLITE_PATH": "~/projects/.context/team.db",
-        "CONTEXT_TOOL_PROFILE": "advanced",
-        "CONTEXT_ENABLE_ADVANCED_TOOLS": "true"
+        "MEMENTO_SQLITE_PATH": "~/projects/.context/team.db",
+        "MEMENTO_TOOL_PROFILE": "advanced",
+        "MEMENTO_ENABLE_ADVANCED_TOOLS": "true"
       }
     }
   }
@@ -90,7 +90,7 @@ Create or edit `~/.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "context-keeper": {
+    "memento": {
       "command": "memento",
       "args": ["--profile", "core"]
     }
@@ -127,14 +127,12 @@ Create `.cursor/mcp.json` in your project root:
 ```json
 {
   "mcpServers": {
-    "context-keeper": {
+    "memento": {
       "command": "memento",
-      "args": ["--profile", "extended"],
-      "env": {
-        "CONTEXT_SQLITE_PATH": "./.cursor/context.db"
-      }
+      "args": ["--profile", "extended"]
     }
   }
+}
 }
 ```
 
@@ -146,9 +144,9 @@ Create or edit `~/.windsurf/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "context-keeper": {
+    "memento": {
       "command": "memento",
-      "args": ["--profile", "core"]
+      "args": ["--profile", "extended"]
     }
   }
 }
@@ -176,11 +174,11 @@ Create or edit `~/.windsurf/mcp.json`:
 {
   "mcp": {
     "servers": {
-      "context-keeper": {
+      "memento": {
         "command": "memento",
         "args": ["--profile", "core"],
         "env": {
-          "CONTEXT_SQLITE_PATH": "${env:HOME}/.vscode/context.db"
+          "MEMENTO_SQLITE_PATH": "${env:HOME}/.vscode/context.db"
         }
       }
     }
@@ -200,12 +198,12 @@ For more control, use a dedicated configuration file:
 ```json
 {
   "mcp.servers": {
-    "context-keeper": {
+    "memento": {
       "command": "memento",
       "args": ["--profile", "extended", "--log-level", "WARNING"],
       "env": {
-        "CONTEXT_SQLITE_PATH": "${workspaceFolder}/.vscode/context.db",
-        "CONTEXT_TOOL_PROFILE": "extended"
+        "MEMENTO_SQLITE_PATH": "${workspaceFolder}/.vscode/context.db",
+        "MEMENTO_TOOL_PROFILE": "extended"
       },
       "disabled": false,
       "autoStart": true
@@ -226,7 +224,7 @@ Add to Claude Desktop configuration:
 ```json
 {
   "mcpServers": {
-    "context-keeper": {
+    "memento": {
       "command": "memento",
       "args": ["--profile", "core"]
     }
@@ -282,12 +280,12 @@ Create a wrapper script `gemini-with-context`:
 #!/bin/bash
 # ~/bin/gemini-with-context
 
-export CONTEXT_SQLITE_PATH="${CONTEXT_SQLITE_PATH:-~/.gemini-context/context.db}"
-export CONTEXT_TOOL_PROFILE="${CONTEXT_TOOL_PROFILE:-extended}"
+export MEMENTO_SQLITE_PATH="${MEMENTO_SQLITE_PATH:-~/.gemini-context/context.db}"
+export MEMENTO_TOOL_PROFILE="${MEMENTO_TOOL_PROFILE:-extended}"
 
 # Start Context Keeper server in background
-memento --profile "$CONTEXT_TOOL_PROFILE" &
-CONTEXT_PID=$!
+memento --profile "$MEMENTO_TOOL_PROFILE" &
+MEMENTO_PID=$!
 
 # Wait for server to start
 sleep 2
@@ -296,7 +294,7 @@ sleep 2
 gemini --mcp-servers memento "$@"
 
 # Cleanup
-kill $CONTEXT_PID
+kill $MEMENTO_PID
 ```
 
 ### Usage Examples
@@ -331,7 +329,7 @@ class CustomAgent:
         """Process a query using Context Keeper."""
         # Search for relevant memories
         tools = self.keeper.tools
-        memories = await tools["recall_persistent_memories"](
+        memories = await tools["recall_mementos"](
             query=query,
             limit=5
         )
@@ -429,7 +427,7 @@ class MementoClient {
     const response = await this._sendMCPRequest({
       method: "tools/call",
       params: {
-        name: "recall_persistent_memories",
+        name: "recall_mementos",
         arguments: {
           query: query,
           limit: 10
@@ -510,14 +508,14 @@ ls -lh ~/.mcp-memento/context.db
 
 **4. Memory not found in search**
 - Try different search terms
-- Use `recall_persistent_memories` for fuzzy matching
+- Use `recall_mementos` for fuzzy matching
 - Check if memories have appropriate tags
 - Verify the memory was actually stored
 
 ### Debug Mode
 ```bash
 # Enable verbose logging
-CONTEXT_LOG_LEVEL=DEBUG memento --profile core
+MEMENTO_LOG_LEVEL=DEBUG memento --profile core
 
 # Or from IDE configuration
 {

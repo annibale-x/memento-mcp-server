@@ -1,26 +1,13 @@
 # Python API Usage Guide
 
-This guide covers how to use Context Keeper as a Python library for programmatic access to persistent memory management.
+## Overview
 
-## Table of Contents
-- [Installation](#installation)
-- [Basic Usage](#basic-usage)
-- [Core Classes](#core-classes)
-- [Memory Operations](#memory-operations)
-- [Relationship Management](#relationship-management)
-- [Search and Retrieval](#search-and-retrieval)
-- [Confidence System](#confidence-system)
-- [Advanced Features](#advanced-features)
-- [Examples](#examples)
+The Memento Python API provides programmatic access to all MCP tool functionality, allowing you to integrate persistent memory management directly into your Python applications, scripts, or custom AI agents.
 
 ## Installation
 
 ```bash
-# Install the package
 pip install mcp-memento
-
-# Or install in development mode
-pip install -e .
 ```
 
 ## Basic Usage
@@ -43,11 +30,11 @@ async def main():
     
     # Your code here...
     
-    # Cleanup
+    # Cleanup when done
     await keeper.cleanup()
 
-# Run the async function
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 ### Configuration
@@ -69,142 +56,93 @@ async def main():
     keeper = Memento(config=config)
     await keeper.initialize()
     
-    # Use the keeper...
-    await keeper.cleanup()
+    # Your code...
 ```
 
-## Core Classes
+## Core Operations
 
-### Memento
-
-The main class that provides access to all functionality.
+### Storing Memories
 
 ```python
-class Memento:
-    def __init__(self, config: Optional[Config] = None):
-        """Initialize Memento with optional configuration."""
+async def store_solution(keeper: Memento):
+    tools = keeper.tools
     
-    async def initialize(self) -> None:
-        """Initialize database connection and setup."""
-    
-    async def cleanup(self) -> None:
-        """Cleanup resources."""
-    
-    @property
-    def memory_db(self) -> MemoryDatabase:
-        """Access the database interface directly."""
-    
-    @property
-    def tools(self) -> Dict[str, Callable]:
-        """Get available MCP tools as callable functions."""
-    
-    async def get_statistics(self) -> Dict[str, Any]:
-        """Get database statistics."""
-```
-
-### MemoryDatabase
-
-Direct database access for advanced operations.
-
-```python
-class MemoryDatabase:
-    async def store_memory(
-        self,
-        type: str,
-        title: str,
-        content: str,
-        tags: Optional[List[str]] = None,
-        importance: float = 0.5,
-        context: Optional[Dict[str, Any]] = None
-    ) -> str:
-        """Store a new memory and return its ID."""
-    
-    async def get_memory(self, memory_id: str) -> Optional[Dict[str, Any]]:
-        """Retrieve a memory by ID."""
-    
-    async def update_memory(
-        self,
-        memory_id: str,
-        **updates: Any
-    ) -> bool:
-        """Update an existing memory."""
-    
-    async def delete_memory(self, memory_id: str) -> bool:
-        """Delete a memory by ID."""
-    
-    async def search_memories(
-        self,
-        query: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        memory_types: Optional[List[str]] = None,
-        min_importance: float = 0.0,
-        limit: int = 50,
-        offset: int = 0
-    ) -> List[Dict[str, Any]]:
-        """Search memories with various filters."""
-```
-
-## Memory Operations
-
-### Creating Memories
-
-```python
-async def create_example_memories(keeper: Memento):
-    db = keeper.memory_db
-    
-    # Store a solution
-    solution_id = await db.store_memory(
+    # Store a new memory
+    memory_id = await tools["store_memento"](
         type="solution",
-        title="Fixed database connection timeout",
-        content="Increased connection timeout to 30s and added retry logic...",
-        tags=["database", "postgresql", "timeout", "fix"],
-        importance=0.8,
-        context={
-            "project": "backend-api",
-            "language": "python",
-            "framework": "fastapi"
-        }
+        title="Fixed Redis timeout with connection pooling",
+        content="Increased connection timeout to 30s and added connection pooling...",
+        tags=["redis", "timeout", "production_fix"],
+        importance=0.8
     )
     
-    # Store a pattern
-    pattern_id = await db.store_memory(
-        type="pattern",
-        title="Database connection pooling pattern",
-        content="Always use connection pooling for database connections...",
-        tags=["database", "pattern", "best-practice"],
-        importance=0.7
-    )
-    
-    return solution_id, pattern_id
+    print(f"Stored memory with ID: {memory_id}")
+    return memory_id
 ```
 
-### Reading and Updating
+### Retrieving Memories
 
 ```python
-async def manage_memory(keeper: Memento, memory_id: str):
-    db = keeper.memory_db
+async def retrieve_memory(keeper: Memento, memory_id: str):
+    tools = keeper.tools
     
-    # Get memory details
-    memory = await db.get_memory(memory_id)
-    if memory:
-        print(f"Title: {memory['title']}")
-        print(f"Type: {memory['type']}")
-        print(f"Tags: {memory['tags']}")
-        
-        # Update the memory
-        success = await db.update_memory(
-            memory_id,
-            importance=0.9,  # Increase importance
-            tags=memory['tags'] + ["verified"]  # Add a tag
-        )
-        
-        if success:
-            print("Memory updated successfully")
+    # Get a specific memory
+    memory = await tools["get_memento"](
+        memory_id=memory_id,
+        include_relationships=True
+    )
     
-    # Delete a memory
-    deleted = await db.delete_memory(memory_id)
-    if deleted:
-        print("Memory deleted")
+    print(f"Memory: {memory['title']}")
+    print(f"Content: {memory['content'][:100]}...")
+    
+    if memory.get("relationships"):
+        print(f"Related memories: {len(memory['relationships'])}")
+    
+    return memory
+```
+
+### Searching Memories
+
+```python
+async def search_memories(keeper: Memento, query: str):
+    tools = keeper.tools
+    
+    # Natural language search
+    results = await tools["recall_mementos"](
+        query=query,
+        limit=10,
+        memory_types=["solution", "pattern"]
+    )
+    
+    print(f"Found {len(results)} memories:")
+    for memory in results:
+        print(f"  - {memory['title']} (confidence: {memory.get('confidence', 'N/A')})")
+    
+    return results
+```
+
+### Advanced Search
+
+```python
+async def advanced_search(keeper: Memento):
+    tools = keeper.tools
+    
+    # Tag-based search
+    results = await tools["search_mementos"](
+        tags=["redis", "performance"],
+        min_importance=0.5,
+        search_tolerance="strict",
+        limit=20
+    )
+    
+    # Contextual search within related memories
+    contextual_results = await tools["contextual_memento_search"](
+        memory_id="existing_memory_id",
+        query="connection timeout",
+        max_depth=2
+    )
+    
+    return results, contextual_results
 ```
 
 ## Relationship Management
@@ -212,99 +150,41 @@ async def manage_memory(keeper: Memento, memory_id: str):
 ### Creating Relationships
 
 ```python
-async def create_relationships(keeper: Memento, solution_id: str, pattern_id: str):
-    db = keeper.memory_db
-    
-    # Create a relationship
-    relationship_id = await db.create_relationship(
-        from_memory_id=solution_id,
-        to_memory_id=pattern_id,
-        relationship_type="EXEMPLIFIES",
-        confidence=0.8,
-        context={
-            "reason": "Solution demonstrates the pattern",
-            "verified": True
-        }
-    )
-    
-    # Get related memories
-    related = await db.get_related_memories(
-        memory_id=solution_id,
-        relationship_types=["EXEMPLIFIES", "USES"],
-        max_depth=2
-    )
-    
-    return relationship_id, related
-```
-
-### Relationship Types
-
-Common relationship types:
-- `SOLVES`: Solution → Problem
-- `CAUSES`: Cause → Effect
-- `IMPROVES`: Improvement → Original
-- `RELATED_TO`: General relationship
-- `USES`: Component → Dependency
-- `EXEMPLIFIES`: Example → Pattern
-- `DEPENDS_ON`: Dependency relationship
-- `ALTERNATIVE_TO`: Alternative solutions
-
-## Search and Retrieval
-
-### Basic Search
-
-```python
-async def search_examples(keeper: Memento):
-    db = keeper.memory_db
-    
-    # Search by query
-    results = await db.search_memories(
-        query="database connection timeout",
-        limit=10
-    )
-    
-    # Search by tags
-    tagged_results = await db.search_memories(
-        tags=["database", "python"],
-        memory_types=["solution", "pattern"],
-        min_importance=0.6,
-        limit=20
-    )
-    
-    # Full-text search with filters
-    filtered_results = await db.search_memories(
-        query="authentication",
-        tags=["jwt", "oauth2"],
-        memory_types=["solution"],
-        limit=15
-    )
-    
-    return results, tagged_results, filtered_results
-```
-
-### Advanced Search
-
-```python
-async def advanced_search(keeper: Memento):
-    # Use the MCP tools interface for advanced features
+async def create_relationships(keeper: Memento):
     tools = keeper.tools
     
-    # Natural language search (fuzzy matching)
-    recall_results = await tools["recall_persistent_memories"](
-        query="how to handle rate limiting in APIs",
-        memory_types=["solution", "pattern"],
-        limit=10
+    # Link two memories
+    relationship_id = await tools["create_memento_relationship"](
+        from_memory_id="solution_123",
+        to_memory_id="problem_456",
+        relationship_type="SOLVES",
+        strength=0.9,
+        confidence=0.8,
+        context="Production deployment confirmed fix"
     )
     
-    # Contextual search
-    contextual_results = await tools["persistent_contextual_search"](
-        query="authentication",
-        context_tags=["web", "api"],
-        similarity_threshold=0.7,
-        limit=15
+    print(f"Created relationship: {relationship_id}")
+    return relationship_id
+```
+
+### Exploring Relationships
+
+```python
+async def explore_relationships(keeper: Memento, memory_id: str):
+    tools = keeper.tools
+    
+    # Get related memories
+    related = await tools["get_related_mementos"](
+        memory_id=memory_id,
+        relationship_types=["SOLVES", "CAUSES"],
+        max_depth=3
     )
     
-    return recall_results, contextual_results
+    print(f"Found {len(related)} related memories:")
+    for memory, rel_type in related:
+        print(f"  - {memory['title']} ({rel_type})")
+    
+    return related
 ```
 
 ## Confidence System
@@ -312,53 +192,96 @@ async def advanced_search(keeper: Memento):
 ### Managing Confidence
 
 ```python
-async def confidence_management(keeper: Memento):
+async def manage_confidence(keeper: Memento):
     tools = keeper.tools
     
-    # Find low-confidence memories
-    low_confidence = await tools["get_persistent_low_confidence_memories"](
+    # Find low confidence memories
+    low_conf = await tools["get_low_confidence_mementos"](
         threshold=0.3,
-        limit=50
+        limit=20
     )
     
-    # Boost confidence for validated knowledge
-    for memory in low_confidence:
+    print(f"Found {len(low_conf)} low confidence memories")
+    
+    # Boost confidence for validated memories
+    for memory in low_conf[:5]:  # First 5
         if validate_memory(memory):
-            await tools["boost_persistent_confidence"](
+            await tools["boost_memento_confidence"](
                 memory_id=memory["id"],
                 boost_amount=0.2,
                 reason="Monthly verification passed"
             )
     
-    # Manual confidence adjustment
-    await tools["adjust_persistent_confidence"](
-        relationship_id="rel-123",
+    # Apply automatic decay
+    decay_results = await tools["apply_memento_confidence_decay"]()
+    print(f"Applied decay to {decay_results['updated_count']} relationships")
+    
+    # Set custom decay factor for critical memories
+    await tools["set_memento_decay_factor"](
+        memory_id="critical_memory_123",
+        decay_factor=1.0,  # No decay
+        reason="Security-critical information"
+    )
+```
+
+### Manual Confidence Adjustment
+
+```python
+async def adjust_confidence(keeper: Memento):
+    tools = keeper.tools
+    
+    # Manual adjustment
+    await tools["adjust_memento_confidence"](
+        relationship_id="relationship_123",
         new_confidence=0.9,
         reason="Verified in production environment"
     )
-    
-    # Apply automatic decay
-    decay_stats = await tools["apply_persistent_confidence_decay"]()
-    print(f"Decay applied to {decay_stats['affected_memories']} memories")
 ```
 
-### Confidence Configuration
+## Analytics and Statistics
+
+### Database Statistics
 
 ```python
-async def configure_confidence(keeper: Memento):
+async def get_statistics(keeper: Memento):
     tools = keeper.tools
     
-    # Set custom decay factors (Advanced profile only)
-    await tools["set_persistent_decay_factor"](
-        memory_type="solution",
-        decay_factor=0.97,  # 3% monthly decay instead of 5%
-        reason="Solutions should decay slower"
+    # Get overall statistics
+    stats = await tools["get_memento_statistics"]()
+    
+    print(f"Total memories: {stats['memory_count']}")
+    print(f"Total relationships: {stats['relationship_count']}")
+    print(f"Memory types: {stats['memory_types']}")
+    
+    # Get recent activity
+    recent = await tools["get_recent_memento_activity"](
+        days=7,
+        project="/current/project"
     )
     
-    # Get confidence statistics
-    stats = await tools["get_persistent_memory_statistics"]()
-    print(f"Average confidence: {stats['average_confidence']:.2f}")
-    print(f"High confidence memories: {stats['high_confidence_count']}")
+    print(f"Recent memories: {recent['recent_memory_count']}")
+    print(f"Unresolved problems: {len(recent['unresolved_problems'])}")
+    
+    return stats, recent
+```
+
+### Relationship Context Search
+
+```python
+async def search_relationship_context(keeper: Memento):
+    tools = keeper.tools
+    
+    # Search by structured context
+    results = await tools["search_memento_relationships_by_context"](
+        scope="full",
+        conditions=["production", "high-traffic"],
+        evidence=["integration_tests", "load_tests"],
+        components=["auth", "database"],
+        has_evidence=True,
+        limit=10
+    )
+    
+    return results
 ```
 
 ## Advanced Features
@@ -370,52 +293,74 @@ async def graph_analysis(keeper: Memento):
     tools = keeper.tools
     
     # Find memory clusters
-    clusters = await tools["find_persistent_memory_clusters"](
+    clusters = await tools["find_memento_clusters"](
         min_cluster_size=3,
         similarity_threshold=0.6
     )
     
     # Analyze relationship patterns
-    patterns = await tools["analyze_persistent_relationship_patterns"](
-        min_support=2,
-        min_confidence=0.7
+    patterns = await tools["find_memento_patterns"](
+        min_pattern_size=2,
+        min_support=0.5
     )
     
-    # Get graph statistics
-    graph_stats = await tools["get_persistent_memory_graph_statistics"]()
+    # Get graph analytics
+    analytics = await tools["analyze_memento_graph"]()
     
-    return clusters, patterns, graph_stats
+    # Find central memories
+    central = await tools["get_central_mementos"]()
+    
+    # Get complete network
+    network = await tools["get_memento_network"]()
+    
+    return {
+        "clusters": clusters,
+        "patterns": patterns,
+        "analytics": analytics,
+        "central_memories": central,
+        "network": network
+    }
 ```
 
-### Export and Import
+### Path Finding
 
 ```python
-async def backup_restore(keeper: Memento):
+async def find_paths(keeper: Memento):
     tools = keeper.tools
     
-    # Export to JSON
-    export_data = await tools["export_persistent_memories"](
-        format="json",
-        include_relationships=True,
-        include_confidence=True
+    # Find shortest path between memories
+    path = await tools["find_path_between_mementos"](
+        from_memory_id="problem_123",
+        to_memory_id="solution_456",
+        max_depth=5,
+        relationship_types=["SOLVES", "RELATED_TO"]
     )
     
-    # Save to file
-    import json
-    with open("backup.json", "w") as f:
-        json.dump(export_data, f, indent=2)
+    if path["found"]:
+        print(f"Path found with {path['hops']} hops")
+    else:
+        print("No path found within max depth")
     
-    # Import from JSON
-    with open("backup.json", "r") as f:
-        import_data = json.load(f)
+    return path
+```
+
+### Relationship Suggestions
+
+```python
+async def get_relationship_suggestions(keeper: Memento):
+    tools = keeper.tools
     
-    import_stats = await tools["import_persistent_memories"](
-        data=import_data,
-        skip_duplicates=True,
-        preserve_confidence=True
+    # Get intelligent suggestions
+    suggestions = await tools["suggest_memento_relationships"](
+        from_memory_id="memory_123",
+        to_memory_id="memory_456"
     )
     
-    return import_stats
+    print("Suggested relationship types:")
+    for suggestion in suggestions:
+        print(f"  - {suggestion['type']}: {suggestion['confidence']:.2f} confidence")
+    
+    return suggestions
 ```
 
 ## Examples
@@ -442,71 +387,70 @@ class KnowledgeBaseManager:
             await self.keeper.cleanup()
     
     async def store_solution(self, title: str, content: str, tags: list, context: dict = None):
-        """Store a solution with automatic tagging."""
-        db = self.keeper.memory_db
+        """Store a solution in the knowledge base."""
+        tools = self.keeper.tools
         
-        memory_id = await db.store_memory(
+        memory_id = await tools["store_memento"](
             type="solution",
             title=title,
             content=content,
-            tags=tags + ["solution", "auto-stored"],
-            importance=0.8,
-            context={
-                "stored_at": datetime.now().isoformat(),
-                "source": "python_api",
-                **(context or {})
-            }
+            tags=tags,
+            importance=0.7,
+            context=context or {}
         )
         
+        print(f"Stored solution: {title}")
         return memory_id
     
-    async def find_solutions(self, query: str, project: str = None):
-        """Find solutions, optionally filtered by project."""
-        db = self.keeper.memory_db
-        
-        filters = {
-            "query": query,
-            "memory_types": ["solution"],
-            "min_importance": 0.5,
-            "limit": 20
-        }
-        
-        if project:
-            # This would require custom search logic
-            # For simplicity, we'll filter after search
-            pass
-        
-        results = await db.search_memories(**filters)
-        
-        # Sort by confidence × importance
-        results.sort(key=lambda x: x.get('confidence', 0.5) * x.get('importance', 0.5), reverse=True)
-        
-        return results
-    
-    async def monthly_maintenance(self):
-        """Perform monthly confidence maintenance."""
+    async def find_solutions(self, problem: str, limit: int = 5):
+        """Find solutions for a problem."""
         tools = self.keeper.tools
         
-        # Apply decay
-        decay_stats = await tools["apply_persistent_confidence_decay"]()
-        
-        # Find obsolete knowledge
-        low_conf = await tools["get_persistent_low_confidence_memories"](
-            threshold=0.2,
-            limit=100
+        # Search for related problems
+        problems = await tools["recall_mementos"](
+            query=problem,
+            memory_types=["problem", "error"],
+            limit=limit
         )
         
-        # Archive very low confidence memories
-        archived = 0
-        for memory in low_conf:
-            if memory['confidence'] < 0.1:
-                await self.keeper.memory_db.delete_memory(memory['id'])
-                archived += 1
+        solutions = []
+        for problem_memory in problems:
+            # Find solutions for each problem
+            related = await tools["get_related_mementos"](
+                memory_id=problem_memory["id"],
+                relationship_types=["SOLVES"],
+                max_depth=1
+            )
+            
+            for solution, _ in related:
+                solutions.append({
+                    "problem": problem_memory["title"],
+                    "solution": solution["title"],
+                    "confidence": solution.get("confidence", 0.5)
+                })
+        
+        return solutions
+    
+    async def get_insights(self, days: int = 30):
+        """Get insights from recent activity."""
+        tools = self.keeper.tools
+        
+        # Get statistics
+        stats = await tools["get_memento_statistics"]()
+        
+        # Get recent activity
+        recent = await tools["get_recent_memento_activity"](days=days)
+        
+        # Find patterns
+        patterns = await tools["find_memento_patterns"](
+            min_pattern_size=2,
+            min_support=0.3
+        )
         
         return {
-            "decay_applied": decay_stats['affected_memories'],
-            "low_confidence_found": len(low_conf),
-            "archived": archived
+            "stats": stats,
+            "recent_activity": recent,
+            "patterns": patterns
         }
 
 async def main():
@@ -520,14 +464,12 @@ async def main():
         )
         
         # Find solutions
-        solutions = await manager.find_solutions("memory leak")
-        for sol in solutions[:5]:
-            print(f"- {sol['title']} (confidence: {sol.get('confidence', 0.5):.2f})")
+        solutions = await manager.find_solutions("memory leak", limit=3)
+        print(f"Found {len(solutions)} solutions")
         
-        # Run maintenance
-        if datetime.now().day == 1:  # First day of month
-            stats = await manager.monthly_maintenance()
-            print(f"Monthly maintenance: {stats}")
+        # Get insights
+        insights = await manager.get_insights(days=7)
+        print(f"Total memories: {insights['stats']['memory_count']}")
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -547,58 +489,59 @@ class CodebaseAnalyzer:
     async def analyze_and_store_patterns(self, codebase_path: str):
         """Analyze codebase and store discovered patterns."""
         # This is a simplified example
-        patterns = await self.discover_patterns(codebase_path)
-        
-        for pattern in patterns:
-            await self.store_pattern(
-                title=pattern["name"],
-                content=pattern["description"],
-                examples=pattern["examples"],
-                tags=pattern["tags"]
-            )
-    
-    async def discover_patterns(self, path: str) -> List[Dict[str, Any]]:
-        """Discover patterns in codebase (simplified)."""
-        # Implement actual pattern discovery
-        return [
+        patterns = [
             {
-                "name": "Repository Pattern Implementation",
-                "description": "Consistent use of repository pattern with async/await...",
-                "examples": ["user_repository.py", "product_repository.py"],
-                "tags": ["design-pattern", "repository", "python", "async"]
+                "type": "pattern",
+                "title": "FastAPI dependency injection pattern",
+                "content": "Use Depends() for service layer injection...",
+                "tags": ["fastapi", "python", "dependency-injection"],
+                "importance": 0.8
+            },
+            {
+                "type": "solution",
+                "title": "SQLAlchemy session management",
+                "content": "Always use context managers for database sessions...",
+                "tags": ["sqlalchemy", "database", "python"],
+                "importance": 0.9
             }
         ]
+        
+        tools = self.keeper.tools
+        stored_patterns = []
+        
+        for pattern in patterns:
+            pattern_id = await tools["store_memento"](**pattern)
+            stored_patterns.append(pattern_id)
+        
+        # Create relationships between patterns
+        if len(stored_patterns) > 1:
+            await tools["create_memento_relationship"](
+                from_memory_id=stored_patterns[0],
+                to_memory_id=stored_patterns[1],
+                relationship_type="RELATED_TO",
+                context="Both are backend patterns"
+            )
+        
+        return stored_patterns
     
-    async def store_pattern(self, title: str, content: str, examples: list, tags: list):
-        """Store a discovered pattern."""
-        db = self.keeper.memory_db
+    async def find_relevant_patterns(self, task_description: str):
+        """Find patterns relevant to a development task."""
+        tools = self.keeper.tools
         
-        full_content = f"{content}\n\nExamples:\n" + "\n".join(f"- {ex}" for ex in examples)
-        
-        pattern_id = await db.store_memory(
-            type="pattern",
-            title=title,
-            content=full_content,
-            tags=tags + ["auto-discovered"],
-            importance=0.7
-        )
-        
-        # Connect to related patterns
-        related = await db.search_memories(
-            tags=tags[:2],  # First two tags
-            memory_types=["pattern"],
+        results = await tools["recall_mementos"](
+            query=task_description,
+            memory_types=["pattern", "solution"],
             limit=5
         )
         
-        for related_memory in related:
-            await db.create_relationship(
-                from_memory_id=pattern_id,
-                to_memory_id=related_memory["id"],
-                relationship_type="RELATED_TO",
-                confidence=0.6
-            )
-        
-        return pattern_id
+        return [
+            {
+                "title": r["title"],
+                "content": r["content"][:200] + "..." if len(r["content"]) > 200 else r["content"],
+                "confidence": r.get("confidence", 0.5)
+            }
+            for r in results
+        ]
 
 async def main():
     keeper = Memento()
@@ -607,53 +550,111 @@ async def main():
     analyzer = CodebaseAnalyzer(keeper)
     await analyzer.analyze_and_store_patterns("./src")
     
+    # Find patterns for a task
+    patterns = await analyzer.find_relevant_patterns("database connection management")
+    for pattern in patterns:
+        print(f"Pattern: {pattern['title']} (confidence: {pattern['confidence']:.2f})")
+    
     await keeper.cleanup()
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+## Error Handling
+
+### Basic Error Handling
+
+```python
+from memento.models import MemoryNotFoundError, ValidationError
+
+async def safe_memory_operation(keeper: Memento, memory_id: str):
+    tools = keeper.tools
+    
+    try:
+        memory = await tools["get_memento"](memory_id=memory_id)
+        return memory
+    except MemoryNotFoundError:
+        print(f"Memory {memory_id} not found")
+        return None
+    except ValidationError as e:
+        print(f"Validation error: {e}")
+        return None
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return None
+```
+
+### Tool Error Handling
+
+```python
+async def handle_tool_errors(keeper: Memento):
+    tools = keeper.tools
+    
+    try:
+        # This will fail if memory doesn't exist
+        result = await tools["get_memento"](memory_id="nonexistent")
+    except Exception as e:
+        error_response = {
+            "error": str(e),
+            "type": type(e).__name__,
+            "suggestion": "Check if memory ID is correct"
+        }
+        print(f"Tool error: {error_response}")
+        return error_response
+```
+
+## Performance Tips
+
+### Batch Operations
+
+```python
+async def batch_operations(keeper: Memento, memories: List[Dict]):
+    """Store multiple memories efficiently."""
+    tools = keeper.tools
+    
+    stored_ids = []
+    for memory in memories:
+        memory_id = await tools["store_memento"](**memory)
+        stored_ids.append(memory_id)
+    
+    return stored_ids
+```
+
+### Caching Frequently Accessed Memories
+
+```python
+from functools import lru_cache
+
+class CachedMementoAccess:
+    def __init__(self, keeper: Memento):
+        self.keeper = keeper
+        self._cache = {}
+    
+    async def get_memory_cached(self, memory_id: str):
+        """Get memory with caching."""
+        if memory_id in self._cache:
+            return self._cache[memory_id]
+        
+        tools = self.keeper.tools
+        memory = await tools["get_memento"](memory_id=memory_id)
+        self._cache[memory_id] = memory
+        return memory
+    
+    def invalidate_cache(self, memory_id: str = None):
+        """Invalidate cache entries."""
+        if memory_id:
+            self._cache.pop(memory_id, None)
+        else:
+            self._cache.clear()
+```
+
 ## Best Practices
 
-### 1. Use Async Context Managers
-
-```python
-async with Memento() as keeper:
-    # Your code here
-    # Automatic cleanup on exit
-```
-
-### 2. Batch Operations
-
-```python
-async def batch_store(keeper: Memento, memories: list):
-    """Store multiple memories efficiently."""
-    db = keeper.memory_db
-    
-    # Use transactions for batch operations
-    async with db.transaction():
-        for memory in memories:
-            await db.store_memory(**memory)
-```
-
-### 3. Error Handling
-
-```python
-async def safe_operation(keeper: Memento):
-    try:
-        db = keeper.memory_db
-        result = await db.get_memory("non-existent-id")
-        if not result:
-            print("Memory not found")
-    except Exception as e:
-        print(f"Error: {e}")
-        # Log error, retry, or handle gracefully
-```
-
-### 4. Resource Management
-
-```python
-async def process_with_timeout(keeper: Memento):
-    try:
-        # Set timeout for long operations
-        async with as
+1. **Always initialize and cleanup**: Use context managers or explicit `initialize()`/`cleanup()` calls
+2. **Use appropriate tool profiles**: Start with 'core', move to 'extended' or 'advanced' as needed
+3. **Handle errors gracefully**: Memento provides specific error types for common failure modes
+4. **Tag consistently**: Use consistent tagging conventions across your organization
+5. **Manage confidence**: Regularly review and adjust confidence scores for important memories
+6. **Use relationships**: Create meaningful relationships between memories for better context
+7. **Leverage search**: Use `recall_mementos` for natural language, `search_mementos` for precise

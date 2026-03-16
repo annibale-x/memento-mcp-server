@@ -1,6 +1,6 @@
-# Configuration Examples for Context Keeper
+# Configuration Examples for Memento
 
-Ready-to-use snippets for configuring your agent to proactively use Context Keeper.
+Ready-to-use snippets for configuring your agent to proactively use Memento.
 
 ---
 
@@ -12,8 +12,8 @@ Rules for basic memory functionality:
 ## Memory Protocol
 
 ### REQUIRED: Before Starting Work
-You MUST use `help_memory_tools_usage` before any task to get comprehensive guidance on using persistent memory tools.
-You MUST use `recall_persistent_memories` before any task. Query by project, tech, or task type.
+You MUST use `help_memento_tools_usage` before any task to get comprehensive guidance on using memento tools.
+You MUST use `recall_mementos` before any task. Query by project, tech, or task type.
 
 ### REQUIRED: Automatic Storage Triggers
 Store memories on ANY of:
@@ -47,8 +47,8 @@ Rules for full proactive memory usage:
 ## Memory Protocol
 
 ### REQUIRED: Before Starting Work
-You MUST use `help_memory_tools_usage` before any task to get comprehensive guidance on using persistent memory tools.
-You MUST use `recall_persistent_memories` before any task. Query by project, tech, or task type.
+You MUST use `help_memento_tools_usage` before any task to get comprehensive guidance on using memento tools.
+You MUST use `recall_mementos` before any task. Query by project, tech, or task type.
 
 ### REQUIRED: Automatic Storage Triggers
 Store memories on ANY of:
@@ -79,7 +79,7 @@ Store memories on ANY of:
 
 ### Session Management
 At the end of each session:
-1. Use `store_persistent_memory` with type=task to summarize what was accomplished
+1. Use `store_memento` with type=task to summarize what was accomplished
 2. Include what's next in the content
 3. Tag with project name and date
 

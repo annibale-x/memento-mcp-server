@@ -4,9 +4,9 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-blueviolet)](https://spec.modelcontextprotocol.io/)
 
-**Intelligent persistent memory management for MCP clients** with automatic confidence tracking, relationship mapping, and knowledge quality maintenance.
+**Intelligent memento management for MCP clients** with automatic confidence tracking, relationship mapping, and knowledge quality maintenance.
 
-Context Keeper is an MCP server that provides persistent memory capabilities to AI assistants in your IDE (Zed, VSCode, Cursor, Windsurf) or CLI agents (Gemini CLI, Claude, etc.). It helps you build a personal knowledge base that grows smarter over time.
+Context Keeper is an MCP server that provides memento capabilities to AI assistants in your IDE (Zed, VSCode, Cursor, Windsurf) or CLI agents (Gemini CLI, Claude, etc.). It helps you build a personal knowledge base that grows smarter over time.
 
 ## 🚀 Quick Start
 
@@ -30,7 +30,7 @@ pip install mcp-memento
       "command": "memento",
       "args": ["--profile", "extended"],
       "env": {
-        "CONTEXT_SQLITE_PATH": "~/.mcp-memento/context.db"
+        "MEMENTO_SQLITE_PATH": "~/.mcp-memento/context.db"
       }
     }
   }
@@ -55,7 +55,7 @@ Once configured, your AI assistant can now:
 
 ```python
 # Store solutions and knowledge
-store_persistent_memory(
+store_memento(
     type="solution",
     title="Fixed Redis timeout with connection pooling",
     content="Increased connection timeout to 30s and added connection pooling...",
@@ -64,10 +64,10 @@ store_persistent_memory(
 )
 
 # Find knowledge later
-recall_persistent_memories(query="Redis timeout solutions")
+recall_mementos(query="Redis timeout solutions")
 
 # Connect related concepts
-create_persistent_relationship(
+create_memento_relationship(
     from_memory_id="redis-fix-123",
     to_memory_id="database-optimization-456",
     relationship_type="RELATED_TO"
@@ -95,7 +95,7 @@ create_persistent_relationship(
 | **Extended** | 17 tools | Power users - Analytics + contextual search |
 | **Advanced** | 25 tools | Administrators - Graph analysis + advanced configuration |
 
-### 🗃️ Persistent Storage
+### 🗃️ Memento Storage
 - **SQLite backend**: Zero dependencies, local storage
 - **Full-text search**: Fast, fuzzy matching across all memories
 - **Automatic maintenance**: Confidence decay, relationship integrity
@@ -126,7 +126,7 @@ create_persistent_relationship(
 ### Store and Connect Knowledge
 ```python
 # Store a bug fix
-bug_fix_id = store_persistent_memory(
+bug_fix_id = store_memento(
     type="solution",
     title="Fixed memory leak in WebSocket handler",
     content="Added proper cleanup in on_close() and reduced buffer size...",
@@ -135,7 +135,7 @@ bug_fix_id = store_persistent_memory(
 )
 
 # Store related pattern
-pattern_id = store_persistent_memory(
+pattern_id = store_memento(
     type="pattern",
     title="WebSocket connection management pattern",
     content="Always implement heartbeat and cleanup in finally block...",
@@ -144,7 +144,7 @@ pattern_id = store_persistent_memory(
 )
 
 # Connect them
-create_persistent_relationship(
+create_memento_relationship(
     from_memory_id=bug_fix_id,
     to_memory_id=pattern_id,
     relationship_type="EXEMPLIFIES"
@@ -154,7 +154,7 @@ create_persistent_relationship(
 ### Find Obsolete Knowledge
 ```python
 # Find low-confidence memories (potentially outdated)
-low_confidence = get_persistent_low_confidence_memories(threshold=0.3)
+low_confidence = get_low_confidence_mementos(threshold=0.3)
 
 for memory in low_confidence:
     print(f"Review: {memory['title']} (confidence: {memory['confidence']:.2f})")
@@ -164,7 +164,7 @@ for memory in low_confidence:
 ### Natural Language Search
 ```python
 # Find relevant knowledge using natural language
-results = recall_persistent_memories(
+results = recall_mementos(
     query="how to handle database connection timeouts",
     limit=5
 )
@@ -180,19 +180,19 @@ for result in results:
 ### Environment Variables
 ```bash
 # Database location
-export CONTEXT_SQLITE_PATH="~/.mcp-memento/context.db"
+export MEMENTO_SQLITE_PATH="~/.mcp-memento/context.db"
 
 # Tool profile (core, extended, advanced)
-export CONTEXT_TOOL_PROFILE="extended"
+export MEMENTO_TOOL_PROFILE="extended"
 
 # Enable advanced tools
-export CONTEXT_ENABLE_ADVANCED_TOOLS="true"
+export MEMENTO_ENABLE_ADVANCED_TOOLS="true"
 
 # Logging level
-export CONTEXT_LOG_LEVEL="INFO"
+export MEMENTO_LOG_LEVEL="INFO"
 ```
 
-### YAML Configuration File (`context-keeper.yaml`)
+### YAML Configuration File (`memento.yaml`)
 ```yaml
 backend: sqlite
 sqlite_path: ~/.mcp-memento/context.db
@@ -291,8 +291,8 @@ Add to `~/.config/zed/settings.json`:
       "command": "memento",
       "args": ["--profile", "extended"],
       "env": {
-        "CONTEXT_SQLITE_PATH": "~/.mcp-memento/context.db",
-        "CONTEXT_TOOL_PROFILE": "extended"
+        "MEMENTO_SQLITE_PATH": "~/.mcp-memento/context.db",
+        "MEMENTO_TOOL_PROFILE": "extended"
       }
     }
   }
@@ -329,10 +329,10 @@ async def analyze_knowledge():
 - **Protect critical**: Tag security/auth memories with `no_decay`
 
 ### Search Optimization
-- **Start with recall**: Use `recall_persistent_memories()` for natural language
+- **Start with recall**: Use `recall_mementos()` for natural language
 - **Use tags for acronyms**: Tag `jwt`, `api`, `oauth2` for reliable retrieval
 - **Filter by type**: Search `solution` or `pattern` when looking for specific formats
-- **Leverage relationships**: Use `get_related_persistent_memories()` to explore connections
+- **Leverage relationships**: Use `get_related_mementos()` to explore connections
 
 ## 🚨 Troubleshooting
 
@@ -364,7 +364,7 @@ ls -la ~/.mcp-memento/
 ### Debug Mode
 ```bash
 # Enable verbose logging
-CONTEXT_LOG_LEVEL=DEBUG memento
+MEMENTO_LOG_LEVEL=DEBUG memento
 
 # Or use command line
 memento --log-level DEBUG --profile core
