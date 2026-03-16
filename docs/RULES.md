@@ -1,372 +1,434 @@
-# Configuration Examples for Context Keeper
+# Usage Rules and Best Practices
 
-Ready-to-use snippets for configuring your agent to proactively use Context Keeper.
+This document outlines the rules, conventions, and best practices for using Context Keeper effectively.
 
----
+## Table of Contents
+- [Memory Creation Rules](#memory-creation-rules)
+- [Tagging Conventions](#tagging-conventions)
+- [Importance Scoring](#importance-scoring)
+- [Relationship Guidelines](#relationship-guidelines)
+- [Confidence Management](#confidence-management)
+- [Search Optimization](#search-optimization)
+- [Team Collaboration](#team-collaboration)
+- [Maintenance Schedule](#maintenance-schedule)
 
-## Quick Start (Minimal)
+## Memory Creation Rules
 
-Rules for basic memory functionality:
+### 1. What to Store
+**DO store:**
+- Solutions to recurring problems
+- Architecture decisions and trade-offs
+- Code patterns and best practices
+- Configuration examples that work
+- Debugging procedures
+- Team conventions and standards
+- Learning resources and references
 
+**AVOID storing:**
+- Temporary work in progress
+- Personal notes unrelated to work
+- Highly specific one-time fixes
+- Sensitive information (passwords, keys)
+- Duplicate information
+
+### 2. Title Guidelines
+- **Be descriptive**: "Fixed Redis connection timeout with connection pooling" not "Bug fix"
+- **Include key terms**: Mention technologies and problem types
+- **Keep it concise**: 5-10 words maximum
+- **Use present tense**: "Handles" not "Handled"
+
+### 3. Content Structure
 ```markdown
-## Memory Protocol
+# Problem/Context
+Brief description of the situation
 
-### REQUIRED: Before Starting Work
-You MUST use `help_memory_tools_usage` before any task to get comprehensive guidance on using persistent memory tools.
-You MUST use `recall_persistent_memories` before any task. Query by project, tech, or task type.
+# Solution/Pattern
+Detailed explanation of the solution
 
-### REQUIRED: Automatic Storage Triggers
-Store memories on ANY of:
-- **Git commit** → what was fixed/added
-- **Bug fix** → problem + solution
-- **Version release** → summarize changes
-- **Architecture decision** → choice + rationale
-- **Pattern discovered** → reusable approach
+# Implementation
+Code examples or configuration
 
-### Timing Mode (default: on-commit)
-`memory_mode: immediate | on-commit | session-end`
-
-### Memory Fields
-- **Type**: solution | problem | code_pattern | fix | error | workflow
-- **Title**: Specific, searchable (not generic)
-- **Content**: Accomplishment, decisions, patterns
-- **Tags**: project, tech, category (REQUIRED)
-- **Importance**: 0.8+ critical, 0.5-0.7 standard, 0.3-0.4 minor
-- **Relationships**: Link related memories when they exist
-
-Do NOT wait to be asked. Memory storage is automatic.
+# Notes
+Additional context, alternatives considered, trade-offs
 ```
 
----
+## Tagging Conventions
 
-## Recommended (Comprehensive)
+### 1. Tag Categories
+Use consistent tag categories:
 
-Rules for full proactive memory usage:
+| Category | Examples | Purpose |
+|----------|----------|---------|
+| **Technology** | `python`, `react`, `postgresql`, `docker` | Primary technology |
+| **Problem Type** | `bug`, `performance`, `security`, `scaling` | Type of issue |
+| **Solution Type** | `fix`, `pattern`, `optimization`, `refactor` | Nature of solution |
+| **Domain** | `auth`, `database`, `api`, `ui`, `devops` | Functional area |
+| **Status** | `verified`, `production`, `deprecated` | Current state |
 
+### 2. Tag Format
+- **Lowercase only**: `python` not `Python`
+- **Hyphens for multi-word**: `web-socket` not `websocket` or `web_socket`
+- **No spaces**: Use `database-migration` not `database migration`
+- **Singular form**: Prefer `library` over `libraries`
+
+### 3. Required Tags
+Every memory should have at least:
+- One technology tag
+- One domain tag
+- One solution type tag
+
+### 4. Special Tags
+- `no_decay`: Prevents confidence decay (use sparingly)
+- `critical`: High importance, appears in critical searches
+- `security`, `auth`, `api_key`: Protected from decay
+- `deprecated`: Mark as obsolete
+- `team-*`: Team-specific tags (e.g., `team-backend`)
+
+## Importance Scoring
+
+### 1. Scoring Guidelines
+| Score | When to Use | Examples |
+|-------|-------------|----------|
+| **0.9-1.0** | Critical solutions, security fixes, core patterns | Authentication bypass fix, Production outage solution |
+| **0.7-0.8** | Important patterns, architecture decisions | Database schema pattern, API design decision |
+| **0.5-0.6** | Useful tips, common patterns, best practices | Logging configuration, Error handling pattern |
+| **0.3-0.4** | General knowledge, references, learning resources | Library overview, Tutorial summary |
+| **0.1-0.2** | Minor tips, personal preferences, experimental | Code style preference, Experimental approach |
+
+### 2. Scoring Factors
+Consider these factors when assigning importance:
+- **Impact**: How many users/features are affected?
+- **Frequency**: How often does this problem occur?
+- **Complexity**: How difficult was the solution?
+- **Novelty**: Is this a unique or innovative approach?
+- **Verification**: Has this been proven in production?
+
+## Relationship Guidelines
+
+### 1. Relationship Types
+Use the most specific relationship type available:
+
+| Type | Direction | When to Use |
+|------|-----------|-------------|
+| **SOLVES** | Solution → Problem | A solution fixes a specific problem |
+| **CAUSES** | Cause → Effect | One thing causes another |
+| **IMPROVES** | Improved → Original | Better version of something |
+| **USES** | Component → Dependency | One thing uses another |
+| **DEPENDS_ON** | Dependent → Dependency | Requires another component |
+| **RELATED_TO** | Any → Any | General relationship |
+| **ALTERNATIVE_TO** | Alternative → Original | Different approach to same problem |
+| **EXEMPLIFIES** | Example → Pattern | Concrete example of a pattern |
+| **PRECEDES** | Earlier → Later | Temporal sequence |
+| **CONTRADICTS** | Contradiction → Statement | Contradictory information |
+
+### 2. Relationship Strength
+Set appropriate confidence for relationships:
+- **0.9-1.0**: Strong, verified relationships
+- **0.7-0.8**: Good evidence, likely correct
+- **0.5-0.6**: Moderate evidence, needs verification
+- **0.3-0.4**: Weak connection, speculative
+- **0.1-0.2**: Very weak, needs validation
+
+### 3. Relationship Creation Rules
+1. **Create immediately**: Link memories when you create them
+2. **Be specific**: Use the most precise relationship type
+3. **Add context**: Include why the relationship exists
+4. **Review periodically**: Verify relationships are still valid
+5. **Avoid cycles**: Be careful with circular relationships
+
+## Confidence Management
+
+### 1. Automatic Decay Rules
+- **Base decay**: 5% monthly for unused memories
+- **No decay**: Memories with `no_decay`, `security`, `auth`, `api_key`, `critical` tags
+- **Reduced decay**: High importance (0.8+) memories decay 2.5% monthly
+- **Accelerated decay**: Low importance (0.3-) memories decay 7.5% monthly
+
+### 2. Confidence Boosting
+Boost confidence when:
+- **Solution is reused** successfully (+0.01 per use)
+- **Memory is verified** in production (+0.05 to +0.20)
+- **Multiple team members** confirm (+0.10)
+- **Time-based validation** (quarterly review, +0.05)
+
+### 3. Low Confidence Handling
+When confidence drops below 0.3:
+1. **Review**: Check if memory is still valid
+2. **Update**: Refresh content if needed
+3. **Boost**: Increase confidence if still relevant
+4. **Archive**: Delete or deprecate if obsolete
+
+### 4. Critical Memory Protection
+Memories with these tags never decay:
+- `security`
+- `auth`
+- `api_key`
+- `password`
+- `critical`
+- `no_decay`
+
+## Search Optimization
+
+### 1. Search Strategy
+```python
+# 1. Start with natural language search
+results = recall_persistent_memories(
+    query="how to handle database migrations",
+    limit=10
+)
+
+# 2. If no results, try advanced search
+if not results:
+    results = search_persistent_memories(
+        query="database migration",
+        tags=["postgresql", "migration"],
+        memory_types=["solution", "pattern"],
+        limit=15
+    )
+
+# 3. Explore relationships
+if results:
+    related = get_related_persistent_memories(
+        memory_id=results[0]["id"],
+        relationship_types=["RELATED_TO", "USES"],
+        max_depth=2
+    )
+```
+
+### 2. Query Optimization
+- **Use natural language**: "how to fix memory leaks" not "memory leak fix"
+- **Include context**: Add technology and domain terms
+- **Be specific**: "Python async memory leak" not just "memory leak"
+- **Try variations**: Different phrasings may yield different results
+
+### 3. Filter Usage
+Use filters to narrow results:
+- `memory_types`: Filter by solution, pattern, problem, etc.
+- `tags`: Filter by specific tags
+- `min_importance`: Exclude low-importance memories
+- `min_confidence`: Exclude low-confidence memories
+
+## Team Collaboration
+
+### 1. Shared Database Rules
+When using a shared database:
+1. **Prefix personal tags**: `user:john/` for personal memories
+2. **Review team memories**: Weekly review of team contributions
+3. **Resolve conflicts**: Discuss and merge duplicate memories
+4. **Maintain quality**: Peer review important memories
+
+### 2. Team Tag Conventions
+- `team-{name}`: Team-specific memories
+- `project-{name}`: Project-specific memories
+- `sprint-{number}`: Sprint-related memories
+- `review-needed`: Needs team review
+- `approved`: Team-approved memory
+
+### 3. Collaboration Workflow
+```
+1. Individual creates memory
+2. Adds `review-needed` tag
+3. Team reviews weekly
+4. If approved, add `approved` tag
+5. If needs work, provide feedback
+6. Archive or delete rejected memories
+```
+
+## Maintenance Schedule
+
+### 1. Daily
+- **Store new memories** as you work
+- **Create relationships** between related memories
+- **Boost confidence** for validated solutions
+
+### 2. Weekly
+- **Review low-confidence** memories (< 0.3)
+- **Check for duplicates** and merge if found
+- **Update outdated** information
+- **Team review** of shared memories
+
+### 3. Monthly
+- **Apply confidence decay**: `apply_persistent_confidence_decay()`
+- **Export backup**: `export_persistent_memories()`
+- **Database maintenance**: `context_keeper --maintenance`
+- **Review tags**: Clean up unused or inconsistent tags
+
+### 4. Quarterly
+- **Comprehensive review**: All memories below 0.5 confidence
+- **Archive obsolete**: Memories not used in 6+ months
+- **Update patterns**: Refresh established patterns
+- **Team retrospective**: Review what's working/not working
+
+### 5. Yearly
+- **Major cleanup**: Archive memories older than 2 years
+- **Schema review**: Check if database schema needs updates
+- **Process review**: Update rules and conventions
+- **Training**: Refresh team on best practices
+
+## Template Examples
+
+### Solution Template
 ```markdown
-## Memory Protocol
+# Problem
+[Brief description of the problem]
 
-### REQUIRED: Before Starting Work
-You MUST use `help_memory_tools_usage` before any task to get comprehensive guidance on using persistent memory tools.
-You MUST use `recall_persistent_memories` before any task. Query by project, tech, or task type.
+# Context
+- **Technology**: [Python, React, etc.]
+- **Environment**: [Production, Development, Testing]
+- **Symptoms**: [Error messages, performance issues]
+- **Impact**: [Users affected, business impact]
 
-### REQUIRED: Automatic Storage Triggers
-Store memories on ANY of:
-- **Git commit** → what was fixed/added
-- **Bug fix** → problem + solution
-- **Version release** → summarize changes
-- **Architecture decision** → choice + rationale
-- **Pattern discovered** → reusable approach
+# Solution
+[Detailed explanation of the solution]
 
-### Timing Mode (default: on-commit)
-`memory_mode: immediate | on-commit | session-end`
-
-### Memory Fields
-- **Type**: solution | problem | code_pattern | fix | error | workflow
-- **Title**: Specific, searchable (not generic)
-- **Content**: Accomplishment, decisions, patterns
-- **Tags**: project, tech, category (REQUIRED)
-- **Importance**: 0.8+ critical, 0.5-0.7 standard, 0.3-0.4 minor
-- **Relationships**: Link related memories when they exist
-
-### Common Relationship Patterns
-- Solutions SOLVE problems
-- Fixes ADDRESS errors
-- Patterns APPLY_TO projects
-- Decisions IMPROVE previous approaches
-- Errors TRIGGER problems
-- Changes CAUSE issues
-
-### Session Management
-At the end of each session:
-1. Use `store_persistent_memory` with type=task to summarize what was accomplished
-2. Include what's next in the content
-3. Tag with project name and date
-
-Do NOT wait to be asked. Memory storage is automatic.
+# Implementation
+```language
+[Code or configuration example]
 ```
 
----
+# Verification
+- **Tested**: [Yes/No]
+- **Production**: [Yes/No]
+- **Duration**: [How long it's been running]
 
-## Project-Specific Configuration
+# Alternatives Considered
+1. [Alternative 1] - [Why rejected]
+2. [Alternative 2] - [Why rejected]
 
-Add this to in your project root for project-specific memory:
+# Notes
+[Additional context, lessons learned, references]
+```
 
+### Pattern Template
 ```markdown
-## Project: [Your Project Name]
+# Pattern Name
+[Descriptive name]
 
-### Memory Storage Protocol
-This project uses MemoryGraph for team knowledge sharing.
+# Intent
+[What problem this pattern solves]
 
-When working on this project:
-1. Before starting: "What do you remember about [component]?"
-2. After solving issues: Store the problem and solution, link them
-3. After implementing features: Store the pattern used
-4. At session end: Store a task summary
+# Context
+- **When to use**: [Appropriate situations]
+- **When not to use**: [Inappropriate situations]
+- **Related patterns**: [Other patterns to consider]
 
-### Tagging Convention
-Always tag memories with:
-- `project:[project-name]`
-- `component:[auth|api|database|frontend|etc]`
-- `type:[fix|feature|optimization|refactor]`
-- Relevant technologies: `fastapi`, `react`, `postgresql`, etc.
+# Structure
+[Diagram or description of structure]
 
-### Memory Types for This Project
-- **solution**: Working implementations (API endpoints, features)
-- **problem**: Issues we encountered (performance, bugs)
-- **code_pattern**: Reusable patterns (error handling, validation)
-- **decision**: Architecture choices (why we chose X over Y)
-- **task**: Sprint work, feature completion
-
-### Example Memory Flow
-When fixing a bug:
-1. Store problem: type=problem, title="API timeout under load"
-2. Store solution: type=solution, title="Fixed with connection pooling"
-3. Link them: solution SOLVES problem
-4. Both tagged: `project:myapp`, `component:api`, `postgresql`
+# Implementation
+```language
+[Example implementation]
 ```
 
----
+# Consequences
+**Benefits:**
+- [Benefit 1]
+- [Benefit 2]
 
-## Advanced: Team Collaboration
+**Drawbacks:**
+- [Drawback 1]
+- [Drawback 2]
 
-For teams using shared memory, add this your rules:
+# Known Uses
+- [Project/Component 1]
+- [Project/Component 2]
 
+# See Also
+- [Related documentation]
+- [Reference implementations]
+```
+
+### Decision Record Template
 ```markdown
-## Team Memory Protocol
+# Decision Record: [Decision Title]
 
-### Shared Memory Guidelines
-This team uses MemoryGraph for collective knowledge. Follow these practices:
+## Status
+[Proposed | Accepted | Deprecated | Superseded]
 
-#### Storage Standards
-- **Be descriptive**: Others will search for your memories
-- **Include context**: Why decisions were made, not just what
-- **Tag consistently**: Use agreed-upon tags (see below)
-- **Link everything**: Create relationships between related memories
+## Context
+[What led to this decision? What problem are we solving?]
 
-#### Team Tagging Convention
-Required tags for all team memories:
-- `team:[team-name]` - Which team stored this
-- `project:[project-name]` - Which project it applies to
-- `component:[component-name]` - Which part of the system
-- Technology tags: `python`, `fastapi`, `postgresql`, `react`, etc.
+## Decision
+[What are we deciding to do?]
 
-#### Memory Ownership
-- Add your name or initials in tags: `author:[yourname]`
-- Update existing memories if you discover new information
-- Leave a comment in the content explaining changes
+## Rationale
+[Why did we make this decision?]
 
-#### Session Routine
-**Start of day**:
-- "What did the team work on yesterday?"
-- "Recall any issues in [component] I should know about"
+## Alternatives Considered
+1. [Alternative 1] - [Pros/Cons]
+2. [Alternative 2] - [Pros/Cons]
 
-**During work**:
-- Store solutions to non-trivial problems
-- Link to existing problems when you solve them
-- Update memories if approach changes
+## Implications
+- **Technical**: [Technical implications]
+- **Team**: [Team implications]
+- **Timeline**: [Timeline implications]
 
-**End of day**:
-- "Store a summary of what I accomplished today"
-- Tag with `daily-summary` and current date
+## Related Decisions
+- [Decision 1]
+- [Decision 2]
 
-#### Common Memory Flows
-**Bug fixing**:
-1. Check: "Have we seen [error] before?"
-2. Store: Problem (if new) + Solution
-3. Link: solution SOLVES problem
-4. Tag: `bug-fix`, component, technologies
-
-**Feature development**:
-1. Check: "What patterns have we used for [use case]?"
-2. Store: Implementation as code_pattern
-3. Link: pattern APPLIES_TO project
-4. Tag: `feature`, component, pattern-name
-
-**Architecture decisions**:
-1. Store: Decision with full rationale
-2. Link: decision IMPROVES previous_approach (if applicable)
-3. Tag: `architecture`, `decision`, affected components
-
-### Sprint Workflows
-**Sprint planning**:
-- "Recall problems from last sprint"
-- "What technical debt did we identify?"
-
-**Sprint retro**:
-- "What solutions worked well this sprint?"
-- Store top improvements as decision memories
-
-**Onboarding**:
-- New team members: "Catch me up on [project/component]"
-- Returns: Decisions, patterns, known issues
+## Notes
+[Additional context, references, follow-up actions]
 ```
 
----
+## Compliance and Security
 
-## Domain-Specific Examples
+### 1. Sensitive Information
+**NEVER store:**
+- Passwords or secrets
+- API keys or tokens
+- Personal identifiable information
+- Proprietary business logic
+- Security vulnerability details
 
-### Web Development
+### 2. Compliance Tags
+Use these tags for compliance:
+- `pii`: Contains personally identifiable information
+- `confidential`: Company confidential information
+- `ndaprotected`: Protected by NDA
+- `exportcontrolled`: Export-controlled information
 
-```markdown
-## Memory Protocol - Web Development
+### 3. Access Control
+- **Personal database**: Store in user home directory
+- **Team database**: Use appropriate file permissions
+- **Backup encryption**: Encrypt backups containing sensitive info
+- **Access logs**: Consider logging access to sensitive memories
 
-### Store These Patterns
-- **API Design**: Endpoint structure, error handling, validation
-- **Authentication**: JWT flows, session management, OAuth patterns
-- **Database**: Query optimization, migration patterns, schema decisions
-- **Frontend**: Component patterns, state management, performance tricks
-- **Deployment**: CI/CD configs, environment setup, rollback procedures
+## Troubleshooting Common Issues
 
-### Common Relationships
-- API endpoint patterns APPLY_TO projects
-- Performance optimizations IMPROVE slow_queries
-- Security fixes ADDRESS vulnerabilities
-- New patterns REPLACE deprecated_patterns
-
-### Typical Session Flow
-1. Start: "Recall API patterns for [feature]"
-2. Develop: [Implementation]
-3. Store: "Store this error handling pattern"
-4. Link: pattern APPLIES_TO this_project
-5. End: "Store feature completion summary"
-```
-
-### Data Science / ML
-
-```markdown
-## Memory Protocol - Data Science
-
-### Store These Patterns
-- **Model Training**: Hyperparameters, architectures, training tricks
-- **Data Pipeline**: ETL patterns, preprocessing steps, validation
-- **Experiments**: Results, what worked/didn't, insights
-- **Deployment**: Serving patterns, monitoring, drift detection
-
-### Common Relationships
-- Model improvements IMPROVE baseline_model
-- Feature engineering SOLVES data_quality_problem
-- Experiment results CONFIRM hypothesis
-- New approach CONTRADICTS previous_assumption
-
-### Experiment Tracking
-After each experiment:
-1. Store: Results with type=solution or type=problem
-2. Tag: `experiment`, model-type, dataset-name
-3. Link: If improvement, link: new_model IMPROVES previous_model
-4. Include: Metrics, parameters, insights in content
-```
-
-### DevOps / Infrastructure
-
-```markdown
-## Memory Protocol - DevOps
-
-### Store These Patterns
-- **Deployment**: CI/CD configs, rollback procedures
-- **Monitoring**: Alert configurations, runbook procedures
-- **Incidents**: Root causes, resolutions, preventions
-- **Infrastructure**: IaC patterns, networking configs, security setups
-
-### Common Relationships
-- Incident resolution SOLVES incident
-- Infrastructure change CAUSES issue (if it breaks)
-- Runbook procedure ADDRESSES alert_type
-- New config IMPROVES previous_config
-
-### Incident Response Flow
-1. Alert fires: "Recall similar incidents for [service]"
-2. Debug: [Investigation]
-3. Store incident: type=problem with root cause
-4. Store resolution: type=solution with fix steps
-5. Link: solution SOLVES incident
-6. Update runbook: Store updated procedure
-```
-
----
-
-## Testing Your Configuration
-
-After adding memory protocols, verify they work:
-
-### Test 1: Check Protocol Recognition
-```
-You: "What's our memory protocol?"
-Expected: The agent should reference the protocol from your rules.
-```
-
-### Test 2: Proactive Storage
-```
-You: [Fix a bug together]
-Expected: The agent should suggest storing the solution or ask if you want to store it
-```
-
-### Test 3: Proactive Recall
-```
-You: "Let's work on authentication"
-Expected: The agent should proactively check: "What do you remember about authentication?"
-```
-
-### Test 4: Relationship Creation
-```
-You: "Store this solution: [description]"
-Expected: The agent should ask if it relates to any existing memories or search for related problems
-```
-
-### Test 5: Session Wrap-Up
-```
-You: "Let's wrap up"
-Expected: The agent should suggest storing a session summary
-```
-
----
-
-## Troubleshooting
-
-### The agent Isn't Using Memory Tools
-
-**Issue**: The agent doesn't proactively store or recall memories.
-
+### 1. Memory Not Found
+**Problem**: Can't find a memory you know exists
 **Solutions**:
-1. **Verify your rules are loaded**: Ask "What's in your rules" - The agent should see your memory protocol
-2. **Be explicit initially**: Use trigger phrases like "Store this..." until the habit forms
-3. **Check file location**:
-4. **Restart your IDE**: After editing default rules, restart for changes to take effect
+- Try different search terms
+- Use `recall_persistent_memories()` for fuzzy matching
+- Check if memory has appropriate tags
+- Verify memory wasn't deleted or archived
 
-### The agent Stores Too Many/Few Memories
+### 2. Slow Performance
+**Problem**: Searches or operations are slow
+**Solutions**:
+- Run `context_keeper --maintenance`
+- Archive old, low-confidence memories
+- Check database file size
+- Ensure adequate disk space
 
-**Too many**: Make protocol more specific about what to store:
-```markdown
-### Storage Criteria
-Only store memories when:
-- Solution is non-trivial (not a simple one-liner)
-- Problem is likely to recur
-- Pattern is reusable across contexts
-- Decision has long-term impact
-```
+### 3. Duplicate Memories
+**Problem**: Multiple memories with similar content
+**Solutions**:
+- Merge duplicates using `update_persistent_memory()`
+- Add relationships between similar memories
+- Establish clearer creation guidelines
+- Regular duplicate detection and cleanup
 
-**Too few**: Make protocol more proactive:
-```markdown
-### Proactive Storage
-After ANY of these events, ALWAYS store a memory:
-- Solving a bug that took >30 minutes
-- Implementing a new feature
-- Making an architecture decision
-- Discovering a useful pattern
-- Encountering an error and fixing it
-```
+### 4. Low Search Relevance
+**Problem**: Search results aren't relevant
+**Solutions**:
+- Improve memory titles and content
+- Use consistent tagging
+- Set appropriate importance scores
+- Create meaningful relationships
 
-### Memories Aren't Well-Formatted
+---
 
-Add formatting requirements to your protocol:
-
-```markdown
-### Memory Content Template
-Always structure content like this:
-
-**What**: Brief description of what was done
-**Why**: Reasoning and context
-**How**: Key implementation details
-**Trade-offs**: What was considered and why this was chosen
-**Related**: Links to docs, PRs, or other resources
-```
+*Last updated: [Date]*
+*Version: 1.0*

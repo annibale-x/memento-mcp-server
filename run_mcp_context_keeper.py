@@ -6,7 +6,7 @@ This script provides a proper entry point for running the MCP Context Keeper
 as a standalone process, compatible with Zed Editor's MCP configuration.
 
 Usage:
-    python context_keeper.py
+    python run_mcp_context_keeper.py
 
 Environment Variables:
     CONTEXT_SQLITE_PATH: Path to SQLite database file
@@ -19,15 +19,25 @@ import os
 import sys
 from pathlib import Path
 
-# Add the project root to the Python path
+# Add the project root and src directory to the Python path
 project_root = Path(__file__).parent
+src_path = project_root / "src"
+
+# Clear any existing context_keeper modules to avoid conflicts
+for module_name in list(sys.modules.keys()):
+    if module_name.startswith("context_keeper"):
+        del sys.modules[module_name]
+
+# Add paths in correct order
+sys.path.insert(0, str(src_path))
 sys.path.insert(0, str(project_root))
 
 
 try:
-    from context_keeper.cli import main as cli_main
-    from context_keeper.config import Config
-    from context_keeper.server import main as server_main
+    # Import using absolute path to avoid conflicts
+    from src.context_keeper.cli import main as cli_main
+    from src.context_keeper.config import Config
+    from src.context_keeper.server import main as server_main
 except ImportError as e:
     print(f"Error importing context_keeper modules: {e}")
     print(
@@ -82,9 +92,9 @@ def show_help():
     print("=" * 40)
     print()
     print("Usage:")
-    print("  python context_keeper.py          - Start the MCP server")
-    print("  python context_keeper.py --health - Run health check")
-    print("  python context_keeper.py --help   - Show this help")
+    print("  python run_mcp_context_keeper.py          - Start the MCP server")
+    print("  python run_mcp_context_keeper.py --health - Run health check")
+    print("  python run_mcp_context_keeper.py --help   - Show this help")
     print()
     print("Environment Variables:")
     print("  CONTEXT_SQLITE_PATH    - Path to SQLite database file")

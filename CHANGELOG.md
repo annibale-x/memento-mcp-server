@@ -1,5 +1,22 @@
 # Changelog
 
+* 2026-03-15: v0.1.16 - Documentation reorganization and README restructuring (Hannibal)
+  * Completely reorganized README.md to focus on user needs (636 → 441 lines)
+  * Created clear separation between MCP server usage and Python library usage
+  * Added comprehensive documentation structure in docs/ directory:
+    - PYTHON_API.md - Complete guide to using Context Keeper as a Python library
+    - INTEGRATION.md - Detailed integration guides for different IDEs and agents
+    - RULES.md - Usage rules, best practices, and templates
+    - CONTRIBUTING.md - Contribution guidelines for developers
+  * Improved README structure to answer three key user questions:
+    1. How to install? - Clear installation instructions
+    2. How to run? - IDE configuration and execution modes
+    3. What can I do with it? - Use cases for developers, teams, and AI assistants
+  * Enhanced documentation navigation with clear links between files
+  * Maintained focus on MCP server usage for IDEs (Zed, Cursor, Windsurf, VSCode) and CLI agents
+  * Updated GitHub repository URLs to use placeholders for consistency
+  * All documentation cross-references verified and functional
+
 * 2026-03-15: v0.1.15 - Confidence system reorganization and tool distribution optimization (Hannibal)
   * Reorganized confidence system tools for better accessibility across profiles
   * Moved 3 essential confidence tools to Core profile (13 tools total):

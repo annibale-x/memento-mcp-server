@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-context-keeper"
-version = "0.1.15"
+version = "0.1.16"
 description = "MCP Context Keeper per gestione contestuale della memoria"
 authors = [
     {name = "Hannibal", email = "annibale.x@gmail.com"}
@@ -19,9 +19,19 @@ dependencies = [
     "aiosqlite>=0.20.0"
 ]
 
+[project.scripts]
+context-keeper = "context_keeper.cli:main"
+mcp-context-keeper = "context_keeper.cli:main"
+
+[project.gui-scripts]
+context-keeper-gui = "context_keeper.cli:main"
+
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 include = ["context_keeper*"]
+
+[tool.setuptools.package-data]
+"context_keeper" = ["*.yaml", "*.yml", "*.sql", "*.txt", "*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

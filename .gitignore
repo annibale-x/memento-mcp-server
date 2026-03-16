@@ -1,5 +1,6 @@
 .serena
 .agent
+.data
 db
 __pycache__/
 *.pyc
@@ -10,3 +11,5 @@ env/
 venv/
 .venv/
 .env
+dev/
+.pytest_cache/

@@ -1,0 +1,17 @@
+# Root-level files to include in distribution
+include README.md
+include CHANGELOG.md
+include context-keeper.yaml
+include docker-compose.yml
+include Dockerfile
+include pyproject.toml
+include run_mcp_context_keeper.py
+
+# Documentation files
+recursive-include docs *.md
+
+# Test files
+recursive-include tests *.py
+
+# Note: Package data (files inside src/context_keeper/)
+# is handled by pyproject.toml [tool.setuptools.package-data]

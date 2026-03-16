@@ -1,4 +1,4 @@
-# MCP Context Keeper v0.1.15
+# MCP Context Keeper
 
 [![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -6,22 +6,23 @@
 
 **Intelligent persistent memory management for MCP clients** with automatic confidence tracking, relationship mapping, and knowledge quality maintenance.
 
-**Version:** v0.1.15 | **Latest:** Confidence system reorganization with tools now available in Core profile
+Context Keeper is an MCP server that provides persistent memory capabilities to AI assistants in your IDE (Zed, VSCode, Cursor, Windsurf) or CLI agents (Gemini CLI, Claude, etc.). It helps you build a personal knowledge base that grows smarter over time.
 
 ## 🚀 Quick Start
 
-### Installation
+### 1. Installation
+
 ```bash
-# Install with pipx (recommended)
+# Install with pipx (recommended for MCP servers)
 pipx install mcp-context-keeper
 
 # Or with pip
 pip install mcp-context-keeper
 ```
 
-### Basic Configuration
-Add to your MCP client configuration (e.g., Zed Editor, Cursor, Windsurf):
+### 2. Configure Your IDE
 
+**Zed Editor** (`~/.config/zed/settings.json`):
 ```json
 {
   "mcpServers": {
@@ -36,9 +37,24 @@ Add to your MCP client configuration (e.g., Zed Editor, Cursor, Windsurf):
 }
 ```
 
-### First Memory
+**Cursor / Windsurf** (`~/.cursor/mcp.json` or `~/.windsurf/mcp.json`):
+```json
+{
+  "mcpServers": {
+    "context-keeper": {
+      "command": "context_keeper",
+      "args": ["--profile", "extended"]
+    }
+  }
+}
+```
+
+### 3. Start Using It
+
+Once configured, your AI assistant can now:
+
 ```python
-# Store a solution
+# Store solutions and knowledge
 store_persistent_memory(
     type="solution",
     title="Fixed Redis timeout with connection pooling",
@@ -47,327 +63,326 @@ store_persistent_memory(
     importance=0.8
 )
 
-# Find it later
+# Find knowledge later
 recall_persistent_memories(query="Redis timeout solutions")
+
+# Connect related concepts
+create_persistent_relationship(
+    from_memory_id="redis-fix-123",
+    to_memory_id="database-optimization-456",
+    relationship_type="RELATED_TO"
+)
 ```
 
 ## ✨ Key Features
 
-### 🧠 **Intelligent Confidence System**
+### 🧠 Intelligent Confidence System
 - **Automatic decay**: Unused knowledge loses confidence over time (5% monthly)
 - **Critical protection**: Security/auth/API key memories never decay
 - **Boost on validation**: Confidence increases when knowledge is successfully used
 - **Smart ordering**: Search results ranked by `confidence × importance`
 
-### 🔗 **Relationship Mapping**
+### 🔗 Relationship Mapping
 - **35+ relationship types**: SOLVES, CAUSES, IMPROVES, USED_IN, etc.
 - **Graph navigation**: Find connections between concepts
 - **Pattern detection**: Identify recurring solution patterns
 - **Knowledge clusters**: Discover topic groups and related concepts
 
-### 📊 **Three Profile System**
+### 📊 Three Profile System
 | Profile | Tools | Best For |
 |---------|-------|----------|
 | **Core** | 13 tools | All users - Essential operations + confidence basics |
 | **Extended** | 17 tools | Power users - Analytics + contextual search |
 | **Advanced** | 25 tools | Administrators - Graph analysis + advanced configuration |
 
-### 🗃️ **Persistent Storage**
+### 🗃️ Persistent Storage
 - **SQLite backend**: Zero dependencies, local storage
 - **Full-text search**: Fast, fuzzy matching across all memories
 - **Automatic maintenance**: Confidence decay, relationship integrity
 - **Export/import**: JSON export for backup and migration
 
-## 📚 Documentation
+## 📖 What Can I Do With It?
 
-### Essential Guides
-- **[Tools Reference](docs/TOOLS.md)** - Complete guide to all 25 MCP tools
-- **[Confidence System](docs/DECAY_SYSTEM.md)** - How confidence tracking works
-- **[Database Schema](docs/SCHEMA.md)** - Technical database structure
-- **[Usage Rules](docs/RULES.md)** - Best practices and templates
+### For Developers
+- **Remember solutions**: Store fixes for recurring bugs
+- **Track decisions**: Document architecture choices and trade-offs
+- **Build knowledge base**: Create personal documentation that improves over time
+- **Connect concepts**: See relationships between different technologies
 
-### Tool Profiles
+### For Teams
+- **Share knowledge**: Build team memory that survives member changes
+- **Onboard faster**: New members can search past solutions
+- **Reduce repetition**: Stop solving the same problems multiple times
+- **Pattern recognition**: Identify recurring issues across projects
 
-#### **Core Profile (13 tools) - Recommended for Everyone**
-```python
-# Essential memory operations
-store_persistent_memory()        # Store new knowledge
-get_persistent_memory()          # Retrieve by ID
-search_persistent_memories()     # Advanced search
-recall_persistent_memories()     # Natural language search (RECOMMENDED)
+### For AI Assistants
+- **Context persistence**: Remember conversations and decisions across sessions
+- **Intelligent recall**: Find relevant knowledge based on confidence and importance
+- **Relationship awareness**: Understand how concepts connect
+- **Quality maintenance**: Automatically deprecate outdated information
 
-# Relationships
-create_persistent_relationship() # Connect memories
-get_related_persistent_memories() # Explore connections
-
-# Confidence management (NEW in Core!)
-get_persistent_low_confidence_memories() # Find obsolete knowledge
-boost_persistent_confidence()    # Reinforce valid knowledge
-adjust_persistent_confidence()   # Manual correction
-```
-
-#### **Extended Profile (17 tools) - Power Users**
-All Core tools plus:
-- `get_persistent_memory_statistics()` - Database metrics
-- `persistent_contextual_search()` - Scoped search
-- `apply_persistent_confidence_decay()` - Automatic maintenance
-
-#### **Advanced Profile (25 tools) - Administrators**
-All Extended tools plus:
-- Graph analysis tools (7 tools)
-- Pattern detection
-- Cluster analysis
-- `set_persistent_decay_factor()` - Advanced confidence configuration
-
-## 🎯 Usage Examples
+## 🛠️ Usage Examples
 
 ### Store and Connect Knowledge
 ```python
-# Store a problem
-problem_id = store_persistent_memory(
-    type="problem",
-    title="API rate limiting causing timeouts",
-    content="External API returns 429 errors during peak loads...",
-    tags=["api", "rate-limiting", "production"],
-    importance=0.7
+# Store a bug fix
+bug_fix_id = store_persistent_memory(
+    type="solution",
+    title="Fixed memory leak in WebSocket handler",
+    content="Added proper cleanup in on_close() and reduced buffer size...",
+    tags=["websocket", "memory", "python", "fix"],
+    importance=0.9
 )
 
-# Store the solution
-solution_id = store_persistent_memory(
-    type="solution",
-    title="Implemented exponential backoff for API calls",
-    content="Added jitter and circuit breaker pattern...",
-    tags=["api", "resilience", "python"],
-    importance=0.8
+# Store related pattern
+pattern_id = store_persistent_memory(
+    type="pattern",
+    title="WebSocket connection management pattern",
+    content="Always implement heartbeat and cleanup in finally block...",
+    tags=["websocket", "pattern", "best-practice"],
+    importance=0.7
 )
 
 # Connect them
 create_persistent_relationship(
-    from_memory_id=solution_id,
-    to_memory_id=problem_id,
-    relationship_type="SOLVES"
+    from_memory_id=bug_fix_id,
+    to_memory_id=pattern_id,
+    relationship_type="EXEMPLIFIES"
 )
 ```
 
 ### Find Obsolete Knowledge
 ```python
-# Monthly maintenance
-low_conf = get_persistent_low_confidence_memories(threshold=0.3)
+# Find low-confidence memories (potentially outdated)
+low_confidence = get_persistent_low_confidence_memories(threshold=0.3)
 
-for memory in low_conf:
-    if validate_memory(memory):
-        # Still valid - boost confidence
-        boost_persistent_confidence(
-            memory_id=memory.id,
-            boost_amount=0.2,
-            reason="Monthly verification"
-        )
-    else:
-        # Obsolete - mark for review
-        adjust_persistent_confidence(
-            relationship_id=memory.relationship_id,
-            new_confidence=0.1,
-            reason="Obsolete after library update"
-        )
+for memory in low_confidence:
+    print(f"Review: {memory['title']} (confidence: {memory['confidence']:.2f})")
+    # Optionally boost or delete
 ```
 
 ### Natural Language Search
 ```python
-# Find authentication patterns
+# Find relevant knowledge using natural language
 results = recall_persistent_memories(
-    query="JWT authentication middleware patterns",
-    memory_types=["solution", "pattern"],
-    limit=10
+    query="how to handle database connection timeouts",
+    limit=5
 )
 
-# Results automatically sorted by confidence
-for memory in results:
-    print(f"{memory.title} (confidence: {memory.confidence:.2f})")
+for result in results:
+    print(f"📚 {result['title']}")
+    print(f"   Confidence: {result['confidence']:.2f}")
+    print(f"   Relevance: {result['relevance']:.2f}")
 ```
 
 ## ⚙️ Configuration
 
 ### Environment Variables
 ```bash
-# Database path
+# Database location
 export CONTEXT_SQLITE_PATH="~/.mcp-context-keeper/context.db"
 
-# Tool profile (core|extended|advanced)
+# Tool profile (core, extended, advanced)
 export CONTEXT_TOOL_PROFILE="extended"
 
-# Logging
+# Enable advanced tools
+export CONTEXT_ENABLE_ADVANCED_TOOLS="true"
+
+# Logging level
 export CONTEXT_LOG_LEVEL="INFO"
 ```
 
-### YAML Configuration
-Create `context-keeper.yaml` in your project:
+### YAML Configuration File (`context-keeper.yaml`)
 ```yaml
-backend: "sqlite"
-sqlite_path: "~/.mcp-context-keeper/context.db"
-tool_profile: "extended"
+backend: sqlite
+sqlite_path: ~/.mcp-context-keeper/context.db
+tool_profile: extended
 enable_advanced_tools: false
+
 logging:
-  level: "INFO"
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  level: INFO
+  format: "[{asctime}] {levelname}: {message}"
+
 features:
   allow_relationship_cycles: false
 ```
 
-### CLI Usage
+## 🔄 Execution Modes
+
+### As an MCP Server (Recommended)
 ```bash
-# Run server with specific profile
+# Default profile (core)
+context_keeper
+
+# Extended profile
 context_keeper --profile extended
+
+# Custom database location
+context_keeper --sqlite-path ~/my-context.db
+
+# Debug mode
+context_keeper --log-level DEBUG
+```
+
+### With Command-Line Options
+```bash
+# Show help
+context_keeper --help
 
 # Health check
 context_keeper --health
 
-# Show configuration
-context_keeper --show-config
+# List all tools
+context_keeper --list-tools
 
-# Export memories
-context_keeper --export memories.json
+# Export memories to JSON
+context_keeper --export ~/backup.json
 
-# Import memories
-context_keeper --import memories.json
+# Import from JSON
+context_keeper --import ~/backup.json
 ```
+
+### Available Entry Points
+After installation, you have multiple ways to run Context Keeper:
+
+| Command | Description |
+|---------|-------------|
+| `context_keeper` | Main executable (created by pip) |
+| `python -m context_keeper` | Run as Python module |
+| `python -m context_keeper.server` | Direct server access |
+| `python run_mcp_context_keeper.py` | Development script |
+
+## 📚 Documentation
+
+### Essential Guides
+- **[Tools Reference](docs/TOOLS.md)** - Complete guide to all 25 MCP tools
+- **[Confidence System](docs/DECAY_SYSTEM.md)** - How confidence tracking works
+- **[Python API Usage](docs/PYTHON_API.md)** - Using Context Keeper as a Python library
+- **[Usage Rules](docs/RULES.md)** - Best practices and templates
+
+### Advanced Topics
+- **[Database Schema](docs/dev/SCHEMA.md)** - Technical database structure
+- **[Development Guide](docs/dev/DEV.md)** - Contributing and development setup
+- **[Integration Examples](docs/INTEGRATION.md)** - Detailed setup for different IDEs
 
 ## 🏗️ Architecture
 
 ### Database Schema
-```sql
--- Core tables
-memories (id, type, title, content, tags, importance, created_at, updated_at)
-relationships (id, from_memory_id, to_memory_id, type, confidence, last_accessed)
-
--- Full-text search
-memories_fts (title, content, tags)  -- Virtual table for fast search
-
--- Confidence tracking
-confidence FLOAT DEFAULT 0.8
-last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-access_count INTEGER DEFAULT 0
-decay_factor FLOAT DEFAULT 0.95  -- 5% monthly decay
-```
+Context Keeper uses SQLite with three main tables:
+- `memories`: Core memory storage with full-text search
+- `relationships`: Directed graph of memory connections
+- `confidence_scores`: Time-decaying confidence values
 
 ### Confidence System
-- **Base decay**: 5% per month for unused knowledge
-- **No decay**: Security/auth/API key/critical tags
-- **Reduced decay**: High importance memories
-- **Automatic boost**: +0.01 per access, +0.05-0.20 for validation
+The confidence system automatically:
+1. **Tracks usage**: Each memory access boosts confidence
+2. **Applies decay**: Unused memories lose 5% confidence monthly
+3. **Protects critical**: Security/auth memories never decay
+4. **Optimizes search**: Results ordered by `confidence × importance`
 
-## 🔄 Integration Examples
+## 🔗 Integration Examples
 
 ### Zed Editor
+Add to `~/.config/zed/settings.json`:
 ```json
 {
-  "mcpServers": {
+  "context_servers": {
     "context_keeper": {
       "command": "context_keeper",
       "args": ["--profile", "extended"],
       "env": {
-        "CONTEXT_SQLITE_PATH": "~/.mcp-context-keeper/context.db"
+        "CONTEXT_SQLITE_PATH": "~/.mcp-context-keeper/context.db",
+        "CONTEXT_TOOL_PROFILE": "extended"
       }
     }
   }
 }
 ```
 
-### Cursor / Windsurf
-```json
-{
-  "mcpServers": {
-    "context-keeper": {
-      "command": "context_keeper",
-      "args": ["--profile", "core"]
-    }
-  }
-}
-```
-
-### Custom Script
+### Custom Script with Python API
 ```python
+# See docs/PYTHON_API.md for complete examples
+from context_keeper import ContextKeeper
 import asyncio
-from context_keeper.server import ContextKeeper
 
-async def main():
-    keeper = ContextKeeper()
-    # Use keeper.tools to access available tools
-    print(f"Available tools: {len(keeper.tools)}")
-
-asyncio.run(main())
+async def analyze_knowledge():
+    server = ContextKeeper()
+    await server.initialize()
+    
+    stats = await server.get_statistics()
+    print(f"Total memories: {stats['memory_count']}")
+    print(f"Total relationships: {stats['relationship_count']}")
 ```
 
 ## 📈 Best Practices
 
 ### Memory Creation
-1. **Store solutions, not just problems**
-2. **Use descriptive titles** - "Fixed Redis timeout" not "Bug fix"
-3. **Tag consistently** - Use existing tags when possible
-4. **Set appropriate importance** - 0.9+ for critical, 0.7-0.8 for important
-5. **Create relationships** - Connect related memories immediately
+- **Be specific**: Use descriptive titles and clear content
+- **Tag consistently**: Use lowercase tags without spaces (e.g., `redis`, `web-socket`)
+- **Set importance**: Use 0.9+ for critical solutions, 0.5-0.7 for general knowledge
+- **Add relationships**: Connect related memories immediately
 
 ### Confidence Management
-1. **Monthly review** - Check `get_persistent_low_confidence_memories()`
-2. **Boost validated knowledge** - Use `boost_persistent_confidence()` after successful application
-3. **Protect critical info** - Use `security`, `auth`, `api_key`, `critical` tags for no-decay
-4. **Adjust when needed** - Use `adjust_persistent_confidence()` for corrections
+- **Review quarterly**: Check low-confidence memories every 3 months
+- **Boost validated**: Increase confidence when solutions are confirmed
+- **Archive obsolete**: Delete or deprecate outdated information
+- **Protect critical**: Tag security/auth memories with `no_decay`
 
 ### Search Optimization
-1. **Start with `recall_persistent_memories()`** - Best for natural language
-2. **Use `search_persistent_memories()`** for exact matches
-3. **Filter by memory types** - `memory_types=["solution", "pattern"]`
-4. **Explore relationships** - Use `get_related_persistent_memories()` after finding a memory
+- **Start with recall**: Use `recall_persistent_memories()` for natural language
+- **Use tags for acronyms**: Tag `jwt`, `api`, `oauth2` for reliable retrieval
+- **Filter by type**: Search `solution` or `pattern` when looking for specific formats
+- **Leverage relationships**: Use `get_related_persistent_memories()` to explore connections
 
 ## 🚨 Troubleshooting
 
 ### Common Issues
 
-**"Command not found" after installation**
+**Server won't start:**
 ```bash
-# Ensure pipx is in PATH
-pipx ensurepath
-# Restart terminal
-```
+# Check installation
+which context_keeper
 
-**Database permission errors**
-```bash
-# Check file permissions
+# Test basic functionality
+context_keeper --health
+
+# Check permissions on database file
 ls -la ~/.mcp-context-keeper/
-
-# Fix permissions
-chmod 755 ~/.mcp-context-keeper
-chmod 644 ~/.mcp-context-keeper/context.db
 ```
 
-**Memory not found in search**
-```python
-# Try different search methods
-recall_persistent_memories(query="your query")  # Fuzzy matching
-search_persistent_memories(query="your query", search_tolerance="strict")  # Exact
-```
+**No tools available in IDE:**
+- Verify MCP configuration is correct
+- Restart your IDE after configuration changes
+- Check IDE logs for MCP server errors
+- Test with `context_keeper --list-tools` to verify installation
+
+**Slow searches:**
+- Database might need vacuuming: `context_keeper --maintenance`
+- Consider archiving old, low-confidence memories
+- Check disk space on database location
 
 ### Debug Mode
 ```bash
-# Enable debug logging
-export CONTEXT_LOG_LEVEL="DEBUG"
-context_keeper --profile core
+# Enable verbose logging
+CONTEXT_LOG_LEVEL=DEBUG context_keeper
 
-# Check server status
-context_keeper --health
+# Or use command line
+context_keeper --log-level DEBUG --profile core
 ```
 
 ## 🧪 Testing
 
 ```bash
 # Run all tests
-pytest
+pytest tests/
 
-# Run specific test suite
-pytest tests/test_confidence_system.py -v
-pytest tests/test_tools.py -v
+# Run specific test categories
+pytest tests/test_memory_operations.py
+pytest tests/test_confidence_system.py
+pytest tests/test_relationships.py
 
-# Run with coverage
-pytest --cov=context_keeper tests/
+# With coverage
+pytest --cov=src tests/
 ```
 
 ## 📦 Development
@@ -375,79 +390,64 @@ pytest --cov=context_keeper tests/
 ### Setup
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/mcp-context-keeper.git
+git clone https://github.com/your-username/mcp-context-keeper.git
 cd mcp-context-keeper
+
+# Install in development mode
+pip install -e .
 
 # Install development dependencies
 pip install -e ".[dev]"
 
 # Run tests
 pytest
-
-# Run demo
-python examples/confidence_system_demo.py
 ```
 
 ### Project Structure
 ```
 mcp-context-keeper/
-├── context_keeper/
-│   ├── __init__.py          # Package exports and version
-│   ├── server.py            # MCP server implementation
-│   ├── config.py            # Configuration management
-│   ├── models.py            # Data models (Memory, Relationship)
-│   ├── database/
-│   │   ├── engine.py        # SQLite connection management
-│   │   └── interface.py     # Database operations interface
-│   └── tools/
-│       ├── definitions.py   # MCP tool definitions
-│       ├── registry.py      # Tool handler registry
-│       ├── memory_tools.py  # Memory CRUD handlers
-│       ├── confidence_tools.py  # Confidence system handlers
-│       └── guide_tools.py   # Help and guidance tools
-├── docs/
-│   ├── TOOLS.md             # Complete tool reference
-│   ├── DECAY_SYSTEM.md      # Confidence system documentation
-│   ├── SCHEMA.md            # Database schema
-│   └── RULES.md             # Usage rules and templates
-├── examples/
-│   └── confidence_system_demo.py  # Demonstration script
-├── tests/
-│   ├── test_confidence_system.py  # Confidence system tests
-│   ├── test_tools.py        # Tool handler tests
-│   └── utils/               # Test utilities
-├── pyproject.toml           # Project configuration
-└── README.md               # This file
+├── src/                          # Source code
+│   └── context_keeper/          # Main package
+├── docs/                        # Documentation
+├── tests/                       # Test suite
+├── pyproject.toml              # Package configuration
+├── MANIFEST.in                 # Additional files for distribution
+├── CONTRIBUTING.md             # Contribution guidelines
+├── LICENSE                     # MIT License
+└── README.md                   # This file
 ```
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
+- Development setup and workflow
+- Code style and conventions
+- Testing requirements
+- Documentation standards
+- Pull request process
 
 ### Development Guidelines
-- Follow existing code style
-- Add comprehensive tests
-- Update documentation
-- Use Conventional Commits for commit messages
+- Follow existing code style and conventions
+- Add tests for new functionality
+- Update documentation for API changes
+- Use type hints and docstrings
 - Keep the confidence system backward compatible
+
+For complete development documentation, see:
+- **[Development Guide](docs/dev/DEV.md)** - Technical development setup
+- **[Database Schema](docs/dev/SCHEMA.md)** - Database structure and design
 
 ## 🔗 Links
 
-- **[Full Tool Reference](docs/TOOLS.md)** - Complete guide to all 25 MCP tools
-- **[Confidence System](docs/DECAY_SYSTEM.md)** - How confidence tracking works
-- **[Database Schema](docs/SCHEMA.md)** - Technical database structure
-- **[Issue Tracker](https://github.com/yourusername/mcp-context-keeper/issues)** - Report bugs or request features
-- **[MCP Specification](https://spec.modelcontextprotocol.io/)** - Model Context Protocol documentation
+- **[GitHub Repository](https://github.com/your-username/mcp-context-keeper)** - Source code and issues
+- **[MCP Protocol](https://spec.modelcontextprotocol.io/)** - Model Context Protocol specification
+- **[PyPI Package](https://pypi.org/project/mcp-context-keeper/)** - Python Package Index
+- **[Discussions](https://github.com/your-username/mcp-context-keeper/discussions)** - Community forum
 
 ---
 
-**MCP Context Keeper** transforms your coding assistant from a passive tool into an **intelligent knowledge partner** that learns from your work, maintains accuracy over time, and helps you build on past successes.
+**Need help?** Check the [documentation](docs/) or open an [issue](https://github.com/your-username/mcp-context-keeper/issues) on GitHub.
