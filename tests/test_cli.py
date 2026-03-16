@@ -143,8 +143,8 @@ class TestCLIHealthCheck:
         """Test successful health check."""
         # Mock SQLiteBackend
         mock_backend = AsyncMock()
-        mock_backend.connect = AsyncMock()
-        mock_backend.disconnect = AsyncMock()
+        mock_backend.connect = AsyncMock(return_value=True)
+        mock_backend.disconnect = AsyncMock(return_value=None)
         mock_backend.health_check = AsyncMock(
             return_value={
                 "status": "healthy",
@@ -176,7 +176,9 @@ class TestCLIHealthCheck:
         """Test health check timeout handling."""
         # Mock SQLiteBackend to timeout on connect
         mock_backend = AsyncMock()
-        mock_backend.connect = AsyncMock(side_effect=asyncio.TimeoutError("Timeout"))
+        mock_backend.connect = AsyncMock(
+            side_effect=asyncio.TimeoutError("Timeout"), return_value=None
+        )
 
         with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
             result = await perform_health_check(timeout=0.1)
@@ -191,7 +193,9 @@ class TestCLIHealthCheck:
         """Test health check exception handling."""
         # Mock SQLiteBackend to raise exception
         mock_backend = AsyncMock()
-        mock_backend.connect = AsyncMock(side_effect=Exception("Connection failed"))
+        mock_backend.connect = AsyncMock(
+            side_effect=Exception("Connection failed"), return_value=None
+        )
 
         with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
             result = await perform_health_check(timeout=1.0)
@@ -227,36 +231,43 @@ class TestCLIHealthCheck:
         """Test --health --health-json option."""
         with patch("sys.argv", ["memento.cli", "--health", "--health-json"]):
             with patch("sys.exit") as mock_exit:
-                with patch("memento.cli.perform_health_check") as mock_check:
+                with patch(
+                    "memento.cli.perform_health_check", new_callable=AsyncMock
+                ) as mock_check:
                     health_data = {
                         "status": "healthy",
                         "connected": True,
                         "backend_type": "sqlite",
                         "timestamp": "2024-01-15T10:30:00Z",
                     }
+                    # Configure AsyncMock to return value directly without creating coroutine
                     mock_check.return_value = health_data
+                    mock_check._is_coroutine = False
 
                     with patch("memento.cli.asyncio.run") as mock_run:
                         with patch("builtins.print") as mock_print:
                             # Mock asyncio.run to return the mock result directly
+                            # Use side_effect to avoid creating an AsyncMock
                             mock_run.side_effect = lambda coro: mock_check.return_value
+                            # Mark the mock as not a coroutine to avoid warnings
+                            mock_run._is_coroutine = False
                             main()
 
-                            # Should print JSON to stdout
-                            # Check that JSON was printed to stdout
-                            json_calls = [
-                                call
-                                for call in mock_print.call_args_list
-                                if len(call.args) > 0
-                                and isinstance(call.args[0], str)
-                                and call.args[0].strip().startswith("{")
-                            ]
-                            assert len(json_calls) == 1
-                            call_args = json_calls[0].args[0]
-                            parsed = json.loads(call_args)
-                            assert parsed["status"] == "healthy"
-                            # Should exit with 0
-                            mock_exit.assert_any_call(0)
+                        # Should print JSON to stdout
+                        # Check that JSON was printed to stdout
+                        json_calls = [
+                            call
+                            for call in mock_print.call_args_list
+                            if len(call.args) > 0
+                            and isinstance(call.args[0], str)
+                            and call.args[0].strip().startswith("{")
+                        ]
+                        assert len(json_calls) == 1
+                        call_args = json_calls[0].args[0]
+                        parsed = json.loads(call_args)
+                        assert parsed["status"] == "healthy"
+                        # Should exit with 0
+                        mock_exit.assert_any_call(0)
 
 
 class TestCLIExportImport:
@@ -274,14 +285,14 @@ class TestCLIExportImport:
             mock_args = MagicMock()
             mock_args.format = "json"
             mock_args.output = output_path
+            mock_args.force = False
 
             # Mock database and backend
             mock_backend = AsyncMock()
-            mock_backend.disconnect = AsyncMock()
+            mock_backend.disconnect = AsyncMock(return_value=None)
             mock_backend.backend_name = MagicMock(return_value="sqlite")
 
-            mock_db = AsyncMock()
-            mock_db.initialize_schema = AsyncMock()
+            mock_db = AsyncMock(return_value=None)
 
             # Mock export_to_json function
             with patch("memento.utils.export_import.export_to_json") as mock_export:
@@ -330,11 +341,11 @@ class TestCLIExportImport:
 
             # Mock database and backend
             mock_backend = AsyncMock()
-            mock_backend.disconnect = AsyncMock()
+            mock_backend.disconnect = AsyncMock(return_value=None)
             mock_backend.backend_name = MagicMock(return_value="sqlite")
 
-            mock_db = AsyncMock()
-            mock_db.initialize_schema = AsyncMock()
+            mock_db = AsyncMock(return_value=None)
+            mock_db.initialize_schema = AsyncMock(return_value=None)
 
             # Mock export_to_markdown function
             with patch("memento.utils.export_import.export_to_markdown") as mock_export:
@@ -376,11 +387,11 @@ class TestCLIExportImport:
 
             # Mock database and backend
             mock_backend = AsyncMock()
-            mock_backend.disconnect = AsyncMock()
+            mock_backend.disconnect = AsyncMock(return_value=None)
             mock_backend.backend_name = MagicMock(return_value="sqlite")
 
-            mock_db = AsyncMock()
-            mock_db.initialize_schema = AsyncMock()
+            mock_db = AsyncMock(return_value=None)
+            mock_db.initialize_schema = AsyncMock(return_value=None)
 
             # Mock import_from_json function
             with patch("memento.utils.export_import.import_from_json") as mock_import:
@@ -422,14 +433,15 @@ class TestCLIExportImport:
             mock_args = MagicMock()
             mock_args.format = "json"
             mock_args.output = output_path
+            mock_args.force = False
 
             # Mock database and backend to raise exception
             mock_backend = AsyncMock()
-            mock_backend.disconnect = AsyncMock()
+            mock_backend.disconnect = AsyncMock(return_value=None)
             mock_backend.backend_name = MagicMock(return_value="sqlite")
 
-            mock_db = AsyncMock()
-            mock_db.initialize_schema = AsyncMock()
+            mock_db = AsyncMock(return_value=None)
+            mock_db.initialize_schema = AsyncMock(return_value=None)
 
             with patch("memento.cli._create_backend_and_db") as mock_create:
                 mock_create.side_effect = Exception("Export failed")

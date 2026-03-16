@@ -1,12 +1,20 @@
-# MCP Context Keeper
+# MCP Memento
 
 [![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-blueviolet)](https://spec.modelcontextprotocol.io/)
 
-**Intelligent memento management for MCP clients** with automatic confidence tracking, relationship mapping, and knowledge quality maintenance.
+**Universal intelligent memory management for MCP clients** with automatic confidence tracking, relationship mapping, and knowledge quality maintenance across all platforms.
 
-Context Keeper is an MCP server that provides memento capabilities to AI assistants in your IDE (Zed, VSCode, Cursor, Windsurf) or CLI agents (Gemini CLI, Claude, etc.). It helps you build a personal knowledge base that grows smarter over time.
+Memento is a universal MCP server that provides persistent memory capabilities across all major platforms:
+- **IDEs**: Zed, Cursor, Windsurf, VSCode, Claude Desktop
+- **CLI Agents**: Gemini CLI, Claude CLI, custom agents
+- **Programmatic Usage**: Python API, REST API, custom integrations
+- **Applications**: Any MCP-compatible application
+
+
+
+Build a personal or team knowledge base that grows smarter over time, accessible from all your development tools.
 
 ## 🚀 Quick Start
 
@@ -20,12 +28,12 @@ pipx install mcp-memento
 pip install mcp-memento
 ```
 
-### 2. Configure Your IDE
+### 2. Choose Your Integration
 
-**Zed Editor** (`~/.config/zed/settings.json`):
+**IDEs** (Zed, Cursor, Windsurf, VSCode, Claude Desktop):
 ```json
 {
-  "mcpServers": {
+  "context_servers": {
     "memento": {
       "command": "memento",
       "args": ["--profile", "extended"],
@@ -37,16 +45,17 @@ pip install mcp-memento
 }
 ```
 
-**Cursor / Windsurf** (`~/.cursor/mcp.json` or `~/.windsurf/mcp.json`):
-```json
-{
-  "mcpServers": {
-    "memento": {
-      "command": "memento",
-      "args": ["--profile", "extended"]
-    }
-  }
-}
+**CLI Agents** (Gemini CLI, Claude CLI):
+```bash
+gemini --mcp-servers memento
+# or
+claude --mcp-servers memento
+```
+
+**Python API**:
+```python
+import memento
+server = memento.Memento()
 ```
 
 ### 3. Start Using It
@@ -86,204 +95,177 @@ create_memento_relationship(
 - **35+ relationship types**: SOLVES, CAUSES, IMPROVES, USED_IN, etc.
 - **Graph navigation**: Find connections between concepts
 - **Pattern detection**: Identify recurring solution patterns
-- **Knowledge clusters**: Discover topic groups and related concepts
 
 ### 📊 Three Profile System
 | Profile | Tools | Best For |
 |---------|-------|----------|
-| **Core** | 13 tools | All users - Essential operations + confidence basics |
+| **Core** | 13 tools | All users - Essential operations |
 | **Extended** | 17 tools | Power users - Analytics + contextual search |
-| **Advanced** | 25 tools | Administrators - Graph analysis + advanced configuration |
+| **Advanced** | 25 tools | Administrators - Graph analysis |
 
-### 🗃️ Memento Storage
+### 🗃️ Universal Memento Storage
 - **SQLite backend**: Zero dependencies, local storage
 - **Full-text search**: Fast, fuzzy matching across all memories
 - **Automatic maintenance**: Confidence decay, relationship integrity
-- **Export/import**: JSON export for backup and migration
+- **Cross-platform**: Same database works across all integrations
 
 ## 📖 What Can I Do With It?
 
-### For Developers
-- **Remember solutions**: Store fixes for recurring bugs
-- **Track decisions**: Document architecture choices and trade-offs
-- **Build knowledge base**: Create personal documentation that improves over time
-- **Connect concepts**: See relationships between different technologies
-
-### For Teams
-- **Share knowledge**: Build team memory that survives member changes
-- **Onboard faster**: New members can search past solutions
-- **Reduce repetition**: Stop solving the same problems multiple times
+### For Developers & Teams
+- **Remember solutions**: Store fixes for recurring bugs across all tools
+- **Track decisions**: Document architecture choices accessible from any IDE
+- **Build knowledge base**: Create personal or team documentation
+- **Connect concepts**: See relationships between technologies
+- **Share knowledge**: Build team memory accessible to all members
+- **Onboard faster**: New members can search past solutions from day one
+- **Reduce repetition**: Stop solving the same problems across different tools
 - **Pattern recognition**: Identify recurring issues across projects
 
-### For AI Assistants
-- **Context persistence**: Remember conversations and decisions across sessions
-- **Intelligent recall**: Find relevant knowledge based on confidence and importance
-- **Relationship awareness**: Understand how concepts connect
+### For AI Assistants & Tools
+- **Context persistence**: Remember conversations across sessions and tools
+- **Intelligent recall**: Find relevant knowledge regardless of which tool you're using
+- **Relationship awareness**: Understand how concepts connect across your entire workflow
 - **Quality maintenance**: Automatically deprecate outdated information
+- **Universal access**: Same knowledge base from CLI, IDE, or API
 
-## 🛠️ Usage Examples
+## 🛠️ Quick Examples
 
-### Store and Connect Knowledge
+### Store and Search (Works Everywhere)
 ```python
-# Store a bug fix
-bug_fix_id = store_memento(
+# Store a solution - same API across all integrations
+memory_id = store_memento(
     type="solution",
     title="Fixed memory leak in WebSocket handler",
-    content="Added proper cleanup in on_close() and reduced buffer size...",
-    tags=["websocket", "memory", "python", "fix"],
+    content="Added proper cleanup in on_close()...",
+    tags=["websocket", "memory", "python"],
     importance=0.9
 )
 
-# Store related pattern
-pattern_id = store_memento(
-    type="pattern",
-    title="WebSocket connection management pattern",
-    content="Always implement heartbeat and cleanup in finally block...",
-    tags=["websocket", "pattern", "best-practice"],
-    importance=0.7
-)
-
-# Connect them
-create_memento_relationship(
-    from_memory_id=bug_fix_id,
-    to_memory_id=pattern_id,
-    relationship_type="EXEMPLIFIES"
-)
+# Search for solutions - accessible from any tool
+results = recall_mementos(query="WebSocket memory leak")
 ```
 
-### Find Obsolete Knowledge
+### Confidence Management (Universal)
 ```python
-# Find low-confidence memories (potentially outdated)
+# Find low-confidence memories - system works across all platforms
 low_confidence = get_low_confidence_mementos(threshold=0.3)
 
-for memory in low_confidence:
-    print(f"Review: {memory['title']} (confidence: {memory['confidence']:.2f})")
-    # Optionally boost or delete
+# Boost confidence when validated - updates reflected everywhere
+boost_memento_confidence(memory_id="abc-123", reason="Verified in production")
 ```
 
-### Natural Language Search
-```python
-# Find relevant knowledge using natural language
-results = recall_mementos(
-    query="how to handle database connection timeouts",
-    limit=5
-)
-
-for result in results:
-    print(f"📚 {result['title']}")
-    print(f"   Confidence: {result['confidence']:.2f}")
-    print(f"   Relevance: {result['relevance']:.2f}")
-```
-
-## ⚙️ Configuration
-
-### Environment Variables
+### Cross-Tool Workflow
 ```bash
-# Database location
+# Store from CLI agent
+gemini --mcp-servers memento "Store this Redis fix: $(cat redis-fix.txt)"
+
+# Access from IDE later
+# (Same memory appears in Zed, Cursor, VSCode, etc.)
+
+# Query from Python API
+import memento
+# Access the same memory stored from CLI
+```
+
+## ⚙️ Universal Configuration
+
+### Single Configuration, Multiple Integrations
+Configure once, use everywhere. Memento's configuration system works identically across all integrations.
+
+### Environment Variables (Universal)
+```bash
+# Database location - same for all tools
 export MEMENTO_SQLITE_PATH="~/.mcp-memento/context.db"
 
-# Tool profile (core, extended, advanced)
+# Tool profile - consistent across IDE, CLI, and API
 export MEMENTO_TOOL_PROFILE="extended"
 
-# Enable advanced tools
-export MEMENTO_ENABLE_ADVANCED_TOOLS="true"
-
-# Logging level
+# Logging level - unified logging system
 export MEMENTO_LOG_LEVEL="INFO"
 ```
 
-### YAML Configuration File (`memento.yaml`)
+### YAML Configuration (Shared Across Tools)
+Memento supports YAML configuration files with the following hierarchy (highest priority last):
+
+1. **Default values** - Hardcoded in code
+2. **Global config** - `~/.mcp-memento/config.yaml` (user home directory)
+3. **Project config** - `./memento.yaml` (current project directory)
+4. **Environment variables** - Highest priority
+
+**Project configuration** (`./memento.yaml` in your project root):
 ```yaml
-backend: sqlite
 sqlite_path: ~/.mcp-memento/context.db
 tool_profile: extended
-enable_advanced_tools: false
-
-logging:
-  level: INFO
-  format: "[{asctime}] {levelname}: {message}"
-
-features:
-  allow_relationship_cycles: false
+log_level: INFO
 ```
 
-## 🔄 Execution Modes
+**Global configuration** (`~/.mcp-memento/config.yaml`):
+```yaml
+# Global settings for all projects and tools
+sqlite_path: ~/.mcp-memento/global.db
+tool_profile: extended
+log_level: INFO
+```
 
-### As an MCP Server (Recommended)
+**Configuration works identically for:**
+- IDE integrations (Zed, Cursor, Windsurf, VSCode, Claude Desktop)
+- CLI agents (Gemini CLI, Claude CLI)
+- Python API and custom applications
+- REST API and HTTP integrations
+
+## 🔄 Universal Execution
+
+### As an MCP Server (All Integrations)
 ```bash
-# Default profile (core)
+# Start server - same binary works for all integrations
 memento
 
-# Extended profile
+# Extended profile - consistent across tools
 memento --profile extended
 
-# Custom database location
-memento --sqlite-path ~/my-context.db
-
-# Debug mode
-memento --log-level DEBUG
-```
-
-### With Command-Line Options
-```bash
-# Show help
-memento --help
-
-# Health check
+# Health check - verify server works for all clients
 memento --health
 
-# List all tools
-memento --list-tools
-
-# Export memories to JSON
-memento --export ~/backup.json
-
-# Import from JSON
-memento --import ~/backup.json
+# Show configuration - see unified settings
+memento --show-config
 ```
 
-### Available Entry Points
-After installation, you have multiple ways to run Context Keeper:
+### Multiple Entry Points (Same Functionality)
+- `memento` - Main executable (used by IDEs and CLI agents)
+- `python -m memento` - Python module (for Python API)
+- `python -m memento.server` - Direct server (custom integrations)
+- `python run_mcp_memento.py` - Wrapper script (flexible deployment)
 
-| Command | Description |
-|---------|-------------|
-| `memento` | Main executable (created by pip) |
-| `python -m memento` | Run as Python module |
-| `python -m memento.server` | Direct server access |
-| `python run_mcp_memento.py` | Development script |
+### Integration-Specific Examples
+```bash
+# IDE: Configure in IDE settings, then use normally
+# CLI: gemini --mcp-servers memento
+# Python: import memento; server = memento.Memento()
+# All access the same memories with the same configuration
+```
 
-## 📚 Documentation
+## 📚 Universal Documentation
 
-### Essential Guides
-- **[Tools Reference](docs/TOOLS.md)** - Complete guide to all 25 MCP tools
-- **[Confidence System](docs/DECAY_SYSTEM.md)** - How confidence tracking works
-- **[Python API Usage](docs/PYTHON_API.md)** - Using Context Keeper as a Python library
-- **[Usage Rules](docs/RULES.md)** - Best practices and templates
+### Essential Guides (Apply to All Integrations)
+- **[Tools Reference](docs/TOOLS.md)** - Complete guide to all MCP tools (same tools everywhere)
+- **[Confidence System](docs/DECAY_SYSTEM.md)** - How confidence tracking works (unified system)
+- **[Python API](docs/integrations/PYTHON.md)** - Using Memento as a Python library
+- **[Usage Rules](docs/RULES.md)** - Best practices and conventions (cross-platform)
+- **[Agent Configuration](docs/AGENT_CONFIGURATION.md)** - Templates for AI agents
 
-### Advanced Topics
-- **[Database Schema](docs/dev/SCHEMA.md)** - Technical database structure
-- **[Development Guide](docs/dev/DEV.md)** - Contributing and development setup
-- **[Integration Examples](docs/INTEGRATION.md)** - Detailed setup for different IDEs
+### Integration-Specific Guides
+- **[IDE Integration](docs/integrations/IDE.md)** - Zed, Cursor, Windsurf, VSCode, Claude Desktop
+- **[Python Integration](docs/integrations/PYTHON.md)** - Programmatic usage and custom agents
+- **[Agent Integration](docs/integrations/AGENT.md)** - Gemini CLI, Claude CLI, custom agents
+- **[API & Programmatic Integration](docs/integrations/API.md)** - HTTP REST API, Node.js SDK, Docker deployment
 
-## 🏗️ Architecture
+### Advanced Topics (Universal Architecture)
+- **[Database Schema](docs/dev/SCHEMA.md)** - Technical database structure (shared storage)
+- **[API & Programmatic Integration](docs/integrations/API.md)** - HTTP REST API, Node.js SDK, Docker deployment
 
-### Database Schema
-Context Keeper uses SQLite with three main tables:
-- `memories`: Core memory storage with full-text search
-- `relationships`: Directed graph of memory connections
-- `confidence_scores`: Time-decaying confidence values
+## 🔗 Universal Integrations
 
-### Confidence System
-The confidence system automatically:
-1. **Tracks usage**: Each memory access boosts confidence
-2. **Applies decay**: Unused memories lose 5% confidence monthly
-3. **Protects critical**: Security/auth memories never decay
-4. **Optimizes search**: Results ordered by `confidence × importance`
-
-## 🔗 Integration Examples
-
-### Zed Editor
-Add to `~/.config/zed/settings.json`:
+### IDE Integration (All Major IDEs)
 ```json
 {
   "context_servers": {
@@ -291,28 +273,71 @@ Add to `~/.config/zed/settings.json`:
       "command": "memento",
       "args": ["--profile", "extended"],
       "env": {
-        "MEMENTO_SQLITE_PATH": "~/.mcp-memento/context.db",
-        "MEMENTO_TOOL_PROFILE": "extended"
+        "MEMENTO_SQLITE_PATH": "~/.mcp-memento/context.db"
       }
     }
   }
 }
 ```
 
-### Custom Script with Python API
-```python
-# See docs/PYTHON_API.md for complete examples
-from memento import Memento
-import asyncio
+### Agent Integration Example (Gemini CLI)
+```bash
+# Start Gemini with Memento (using default configuration)
+gemini --mcp-servers memento
 
-async def analyze_knowledge():
-    server = Memento()
-    await server.initialize()
-    
-    stats = await server.get_statistics()
-    print(f"Total memories: {stats['memory_count']}")
-    print(f"Total relationships: {stats['relationship_count']}")
+# With custom profile via CLI arguments
+gemini --mcp-servers 'memento --profile extended'
+
+# Or use wrapper script with environment variables
+MEMENTO_TOOL_PROFILE="advanced" gemini --mcp-servers memento
+
+# Or use wrapper script
+gemini-with-memory "Search for Redis timeout solutions"
 ```
+
+**Configuration methods for agents:**
+1. **Environment variables** (highest priority):
+   ```bash
+   export MEMENTO_SQLITE_PATH="~/.gemini-memento/context.db"
+   export MEMENTO_TOOL_PROFILE="extended"
+   export MEMENTO_LOG_LEVEL="INFO"
+   ```
+
+2. **YAML configuration files** (automatic detection):
+   - Project config: `./memento.yaml` in current directory
+   - Global config: `~/.mcp-memento/config.yaml`
+
+3. **CLI arguments** (passed to MCP server):
+   ```bash
+   gemini --mcp-servers 'memento --profile advanced --log-level DEBUG'
+   ```
+
+### Detailed Integration Guides
+For complete integration instructions, see:
+- **[IDE Integration](docs/integrations/IDE.md)** - Detailed setup for all supported IDEs
+- **[Python Integration](docs/integrations/PYTHON.md)** - Programmatic usage and API reference
+- **[Agent Integration](docs/integrations/AGENT.md)** - CLI agents and custom applications
+
+## 🏗️ Universal Architecture
+
+### Universal Database Schema
+Memento uses a unified SQLite schema accessible from all integrations:
+- **Core tables** (shared across all platforms):
+  - `nodes`: Memory storage with properties and metadata
+  - `relationships`: Directed graph with bi-temporal tracking and confidence system
+- **Virtual table** (conditional creation):
+  - `nodes_fts`: FTS5 virtual table for full-text search
+- **Indexes**: Optimized for temporal queries, confidence filtering, and relationship lookups
+
+The schema includes automatic confidence tracking with 5% monthly decay for unused knowledge, ensuring consistent behavior across all integration points.
+
+### Universal Confidence System
+The confidence system works identically across all platforms:
+1. **Tracks usage**: Each memory access boosts confidence (from any tool)
+2. **Applies decay**: Unused memories lose 5% confidence monthly (consistent timing)
+3. **Protects critical**: Security/auth memories never decay (global protection)
+4. **Optimizes search**: Results ordered by `confidence × importance` (same ranking everywhere)
+5. **Cross-platform sync**: Confidence updates from one tool immediately reflected in all others
 
 ## 📈 Best Practices
 
@@ -407,7 +432,7 @@ pytest
 ```
 mcp-memento/
 ├── src/                          # Source code
-│   └── memento/          # Main package
+│   └── memento/                  # Main package
 ├── docs/                        # Documentation
 ├── tests/                       # Test suite
 ├── pyproject.toml              # Package configuration
@@ -417,10 +442,25 @@ mcp-memento/
 └── README.md                   # This file
 ```
 
+### Setup
+```bash
+# Clone repository
+git clone https://github.com/annibale-x/memento-mcp-server.git
+cd mcp-memento
+
+# Install in development mode
+pip install -e .
+
+# Install development dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+```
+
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
@@ -438,7 +478,6 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 - Keep the confidence system backward compatible
 
 For complete development documentation, see:
-- **[Development Guide](docs/dev/DEV.md)** - Technical development setup
 - **[Database Schema](docs/dev/SCHEMA.md)** - Database structure and design
 
 ## 🔗 Links

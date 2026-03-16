@@ -1,5 +1,5 @@
 """
-Test script for FTS functionality in Context Keeper database.
+Test script for FTS functionality in Memento database.
 
 This script tests the full-text search functionality after fixing the schema issue.
 """

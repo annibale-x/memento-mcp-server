@@ -1,5 +1,5 @@
 """
-SQLite database implementation for Context Keeper.
+SQLite database implementation for Memento.
 
 This module provides a simplified SQLiteMemoryDatabase class that handles
 all memory and relationship operations directly with SQLite.

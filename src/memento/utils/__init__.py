@@ -1,5 +1,5 @@
 """
-Utility modules for Context Keeper.
+Utility modules for Memento.
 
 This package contains utility functions for context extraction and other
 supporting functionality.

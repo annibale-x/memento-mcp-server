@@ -1,7 +1,7 @@
 # Root-level files to include in distribution
 include README.md
 include CHANGELOG.md
-include context-keeper.yaml
+include memento.yaml
 include docker-compose.yml
 include Dockerfile
 include pyproject.toml

@@ -1,5 +1,5 @@
 """
-Script to refresh FTS support in the Context Keeper database.
+Script to refresh FTS support in the Memento database.
 
 This script forces the SQLite backend to refresh its FTS support detection
 after fixing the FTS schema issue.
@@ -193,7 +193,7 @@ def get_database_path() -> Path:
     if project_path.exists():
         return project_path
 
-    # Default path used by Context Keeper
+    # Default path used by Memento
     default_path = Path.home() / ".mcp-memento" / "context.db"
     if default_path.exists():
         return default_path
@@ -211,7 +211,7 @@ async def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Refresh FTS support in Context Keeper database"
+        description="Refresh FTS support in Memento database"
     )
     parser.add_argument(
         "--db-path",

@@ -1,8 +1,8 @@
 """
-Configuration management for Context Keeper.
+Configuration management for Memento.
 
 This module centralizes all configuration options and environment variable handling
-for the SQLite context keeper with YAML file support.
+for the SQLite Memento with YAML file support.
 
 Config attributes are dynamic descriptors that read environment variables on each
 access. This ensures tests using patch.dict(os.environ) and direct Config attribute

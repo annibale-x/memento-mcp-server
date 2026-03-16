@@ -1,5 +1,5 @@
 """
-Export and import utilities for Context Keeper data.
+Export and import utilities for Memento data.
 
 Supports JSON and Markdown export formats.
 Works with SQLite backend.

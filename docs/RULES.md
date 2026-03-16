@@ -1,6 +1,6 @@
 # Usage Rules and Best Practices
 
-This document outlines the rules, conventions, and best practices for using Context Keeper effectively.
+This document outlines the rules, conventions, and best practices for using Memento effectively.
 
 ## Table of Contents
 - [Memory Creation Rules](#memory-creation-rules)
@@ -10,6 +10,7 @@ This document outlines the rules, conventions, and best practices for using Cont
 - [Confidence Management](#confidence-management)
 - [Search Optimization](#search-optimization)
 - [Team Collaboration](#team-collaboration)
+- [Configuration Templates](#configuration-templates)
 - [Maintenance Schedule](#maintenance-schedule)
 
 ## Memory Creation Rules

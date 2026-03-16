@@ -3,14 +3,16 @@
 Wrapper script for MCP Memento.
 
 This script provides a proper entry point for running the MCP Memento
-as a standalone process, compatible with Zed Editor's MCP configuration.
+as a standalone process, compatible with MCP-enabled applications including
+IDEs (Zed, Cursor, Windsurf, VSCode, Claude Desktop), CLI agents (Gemini CLI,
+Claude CLI), and custom applications.
 
 Usage:
     python run_mcp_memento.py
 
 Environment Variables:
     MEMENTO_SQLITE_PATH: Path to SQLite database file
-    MEMENTO_TOOL_PROFILE: Tool profile (core|extended)
+    MEMENTO_TOOL_PROFILE: Tool profile (core|extended|advanced)
     MEMENTO_LOG_LEVEL: Logging level (DEBUG|INFO|WARNING|ERROR)
 """
 

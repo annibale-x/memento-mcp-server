@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-memento"
-version = "0.1.18"
+version = "0.1.19"
 description = "MCP Memento for contextual memory management"
 authors = [
     {name = "Hannibal", email = "annibale.x@gmail.com"}
@@ -40,3 +40,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 norecursedirs = [".agent", ".data", ".pytest_cache", ".serena", "docs", "utils"]
 addopts = "--asyncio-mode=auto"
+filterwarnings = [
+    "ignore:coroutine 'AsyncMockMixin._execute_mock_call' was never awaited:RuntimeWarning",
+    "ignore:coroutine 'main' was never awaited:RuntimeWarning",
+]

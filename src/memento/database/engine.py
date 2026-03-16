@@ -1,8 +1,8 @@
 """
-SQLite backend implementation for Context Keeper.
+SQLite backend implementation for Memento.
 
 This module provides a zero-dependency backend using SQLite for persistence.
-This enables the context keeper to work without requiring external database
+This enables the Memento to work without requiring external database
 servers or NetworkX.
 """
 

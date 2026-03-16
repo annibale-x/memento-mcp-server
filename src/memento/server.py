@@ -1,8 +1,9 @@
 """
-MCP Memento for Zed Editor.
+MCP Memento Server - Universal Memory Management
 
 This module implements the Model Context Protocol server that provides intelligent
-memory capabilities for Zed editor using SQLite as the backend storage.
+memory capabilities for AI assistants, IDEs, CLI agents, and custom applications.
+Supports SQLite backend for zero-dependency deployment across all platforms.
 """
 
 import asyncio
@@ -40,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 class Memento:
-    """MCP Memento for Zed Editor."""
+    """MCP Memento Server - Universal memory management for AI assistants."""
 
     def __init__(self):
         """Initialize the memento."""
@@ -176,7 +177,7 @@ class Memento:
     async def cleanup(self):
         """Clean up resources."""
         if self.db_connection:
-            await self.db_connection.close()
+            await self.db_connection.disconnect()
         logger.info("Memento Server cleanup completed")
 
 
@@ -185,7 +186,7 @@ async def main():
     server = Memento()
 
     try:
-        # Initialize the context keeper
+        # Initialize the Memento
         await server.initialize()
 
         # Create notification options and capabilities BEFORE passing to InitializationOptions

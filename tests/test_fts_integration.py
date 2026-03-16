@@ -2,7 +2,7 @@
 Pytest integration tests for FTS (Full-Text Search) functionality.
 
 This module provides comprehensive testing of FTS features in the
-MCP Context Keeper database, including schema creation, search operations,
+MCP Memento database, including schema creation, search operations,
 and error handling.
 """
 

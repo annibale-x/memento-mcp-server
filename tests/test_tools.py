@@ -409,8 +409,7 @@ class TestToolRegistry:
     def test_register_and_get_handler(self):
         """Test registering and retrieving a handler."""
         # Create a mock handler
-        mock_handler = AsyncMock()
-        mock_handler.return_value = {"success": True}
+        mock_handler = AsyncMock(return_value={"success": True})
 
         # Register the handler
         register_handler("test_tool", mock_handler)
@@ -431,9 +430,9 @@ class TestToolRegistry:
 
     def test_multiple_handler_registration(self):
         """Test registering multiple handlers."""
-        handler1 = AsyncMock()
-        handler2 = AsyncMock()
-        handler3 = AsyncMock()
+        handler1 = AsyncMock(return_value=None)
+        handler2 = AsyncMock(return_value=None)
+        handler3 = AsyncMock(return_value=None)
 
         register_handler("tool1", handler1)
         register_handler("tool2", handler2)
@@ -448,8 +447,8 @@ class TestToolRegistry:
 
     def test_handler_overwrite(self):
         """Test that registering a handler with existing name overwrites it."""
-        handler1 = AsyncMock()
-        handler2 = AsyncMock()
+        handler1 = AsyncMock(return_value=None)
+        handler2 = AsyncMock(return_value=None)
 
         register_handler("overwrite_tool", handler1)
         assert get_handler("overwrite_tool") is handler1

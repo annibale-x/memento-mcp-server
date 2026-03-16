@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Shell test runner for mcp-context-keeper project
+# Shell test runner for mcp-memento project
 # Usage: ./run_tests.sh [options] [test_files...]
 #
 # Options:
@@ -19,7 +19,7 @@ set -euo pipefail
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEST_DIR="$SCRIPT_DIR"
-PROJECT_NAME="mcp-context-keeper"
+PROJECT_NAME="mcp-memento"
 
 # Function to print error messages
 print_error() {
@@ -241,7 +241,7 @@ main() {
     # Print header
     if [[ -z "$no_header" ]]; then
         printf "============================================================\n"
-        printf "MCP CONTEXT KEEPER - TEST SUITE\n"
+        printf "MCP MEMENTO - TEST SUITE\n"
         printf "============================================================\n"
         printf "Python: %s\n" "$(python --version 2>&1 | cut -d' ' -f2)"
         printf "Test directory: %s\n" "$TEST_DIR"

@@ -1,4 +1,4 @@
-# Confidence & Decay System - MCP Context Keeper
+# Confidence & Decay System - MCP Memento
 
 ## Overview
 
@@ -383,7 +383,7 @@ LIMIT 10;
 
 ## Conclusion
 
-The Confidence & Decay System transforms MCP Context Keeper from a passive memory store into an **intelligent knowledge management system** that:
+The Confidence & Decay System transforms MCP Memento from a passive memory store into an **intelligent knowledge management system** that:
 
 1. **Maintains Accuracy**: Automatically reduces confidence of unused knowledge
 2. **Protects Critical Info**: No decay for security/auth/api_key memories

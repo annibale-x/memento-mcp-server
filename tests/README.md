@@ -2,7 +2,7 @@
 
 ## Overview
 
-This test suite validates the functionality, reliability, and integration capabilities of the **mcp-memento** project. The suite ensures that the MCP Context Keeper server operates correctly with SQLite backend and integrates seamlessly with Zed editor.
+This test suite validates the functionality, reliability, and integration capabilities of the **mcp-memento** project. The suite ensures that the MCP Memento server operates correctly with SQLite backend and integrates seamlessly with Zed editor.
 
 ## Test Architecture
 

@@ -30,34 +30,50 @@ class TestServerStartup:
 
     def test_config_default_values(self):
         """Test that Config provides default values."""
+        from memento.config import YAMLConfig
+
         # Clear environment variables for this test
         with patch.dict(os.environ, {}, clear=True):
-            Config.reload_config()
+            # Clear YAML config cache to ensure fresh load
+            YAMLConfig._config_cache.clear()
+            # Patch YAMLConfig.load_config to return defaults only
+            with patch.object(
+                YAMLConfig, "load_config", return_value=YAMLConfig._get_defaults()
+            ):
+                Config.reload_config()
 
-            assert Config.TOOL_PROFILE == "core"
-            assert Config.ENABLE_ADVANCED_TOOLS is False
-            assert Config.LOG_LEVEL == "INFO"
-            assert isinstance(Config.SQLITE_PATH, str)
-            assert "context.db" in Config.SQLITE_PATH
+                assert Config.TOOL_PROFILE == "core"
+                assert Config.ENABLE_ADVANCED_TOOLS is False
+                assert Config.LOG_LEVEL == "INFO"
+                assert isinstance(Config.SQLITE_PATH, str)
+                assert "context.db" in Config.SQLITE_PATH
 
     def test_config_environment_variables(self):
         """Test that Config reads environment variables correctly."""
+        from memento.config import YAMLConfig
+
         with patch.dict(
             os.environ,
             {
-                "MEMENTO_TOOL_PROFILE": "extended",
+                "MEMENTO_TOOL_PROFILE": "advanced",
                 "MEMENTO_ENABLE_ADVANCED_TOOLS": "true",
                 "MEMENTO_LOG_LEVEL": "DEBUG",
-                "MEMENTO_SQLITE_PATH": "/tmp/test.db",
+                "MEMENTO_SQLITE_PATH": "/custom/path/test.db",
             },
             clear=True,
         ):
-            Config.reload_config()
+            # Clear YAML config cache to ensure fresh load
+            YAMLConfig._config_cache.clear()
+            # Patch YAMLConfig.load_config to return defaults only
+            with patch.object(
+                YAMLConfig, "load_config", return_value=YAMLConfig._get_defaults()
+            ):
+                Config.reload_config()
 
-            assert Config.TOOL_PROFILE == "extended"
-            assert Config.ENABLE_ADVANCED_TOOLS is True
-            assert Config.LOG_LEVEL == "DEBUG"
-            assert Config.SQLITE_PATH == "/tmp/test.db"
+                assert Config.TOOL_PROFILE == "advanced"
+                assert Config.ENABLE_ADVANCED_TOOLS is True
+                assert Config.LOG_LEVEL == "DEBUG"
+                assert Config.SQLITE_PATH == "/custom/path/test.db"
 
     def test_get_enabled_tools_core_profile(self):
         """Test that core profile returns correct tools."""
@@ -141,6 +157,8 @@ class TestServerStartup:
         with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
             # Mock the connect method
             mock_backend.connect = AsyncMock(return_value=True)
+            # Mock the disconnect method
+            mock_backend.disconnect = AsyncMock(return_value=None)
             # Add required conn attribute that SQLiteMemoryDatabase expects
             mock_backend.conn = MagicMock()
 
@@ -163,7 +181,7 @@ class TestServerStartup:
 
             # Cleanup
             await server.cleanup()
-            mock_backend.close.assert_called_once()
+            mock_backend.disconnect.assert_called_once()
 
     def test_memento_tool_collection(self):
         """Test that Memento collects all available tools."""
@@ -184,15 +202,30 @@ class TestServerStartup:
 
     @pytest.mark.asyncio
     async def test_memento_tool_listing(self):
-        """Test that context keeper lists available tools."""
-        # Mock SQLiteBackend
-        mock_backend = AsyncMock()
+        """Test that Memento lists available tools."""
+        # Mock SQLiteBackend with complete spec
+        mock_backend = AsyncMock(
+            spec=[
+                "connect",
+                "disconnect",
+                "initialize_schema",
+                "conn",
+                "backend_name",
+                "supports_fulltext_search",
+                "supports_transactions",
+                "is_cypher_capable",
+            ]
+        )
         mock_backend.conn = AsyncMock()
-        mock_backend.initialize_schema = AsyncMock()
+        mock_backend.connect = AsyncMock(return_value=True)
+        mock_backend.disconnect = AsyncMock(return_value=None)
+        mock_backend.initialize_schema = AsyncMock(return_value=None)
+        mock_backend.backend_name = MagicMock(return_value="sqlite")
+        mock_backend.supports_fulltext_search = MagicMock(return_value=False)
+        mock_backend.supports_transactions = MagicMock(return_value=True)
+        mock_backend.is_cypher_capable = MagicMock(return_value=True)
 
         with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
-            mock_backend.connect = AsyncMock(return_value=True)
-
             server = Memento()
             await server.initialize()
 
@@ -213,7 +246,7 @@ class TestServerStartup:
     async def test_server_cleanup(self):
         """Test that server cleanup closes database connection."""
         mock_backend = AsyncMock(spec=SQLiteBackend)
-        mock_backend.close = AsyncMock()
+        mock_backend.disconnect = AsyncMock(return_value=None)
 
         server = Memento()
         server.db_connection = mock_backend
@@ -222,7 +255,7 @@ class TestServerStartup:
         await server.cleanup()
 
         # Verify database connection was closed
-        mock_backend.close.assert_called_once()
+        mock_backend.disconnect.assert_called_once()
         # Note: cleanup() doesn't set db_connection to None, only closes it
         # assert server.db_connection is None  # This expectation was wrong
         # cleanup() also doesn't set memory_db to None
@@ -230,16 +263,30 @@ class TestServerStartup:
 
     def test_config_reload(self):
         """Test that configuration can be reloaded."""
+        from memento.config import YAMLConfig
+
         original_profile = Config.TOOL_PROFILE
 
         with patch.dict(os.environ, {"MEMENTO_TOOL_PROFILE": "extended"}, clear=True):
-            Config.reload_config()
-            assert Config.TOOL_PROFILE == "extended"
+            # Clear YAML config cache to ensure fresh load
+            YAMLConfig._config_cache.clear()
+            # Patch YAMLConfig.load_config to return defaults only
+            with patch.object(
+                YAMLConfig, "load_config", return_value=YAMLConfig._get_defaults()
+            ):
+                Config.reload_config()
+                assert Config.TOOL_PROFILE == "extended"
 
         # Restore original
         with patch.dict(os.environ, clear=True):
-            Config.reload_config()
-            assert Config.TOOL_PROFILE == "core"
+            # Clear YAML config cache to ensure fresh load
+            YAMLConfig._config_cache.clear()
+            # Patch YAMLConfig.load_config to return defaults only
+            with patch.object(
+                YAMLConfig, "load_config", return_value=YAMLConfig._get_defaults()
+            ):
+                Config.reload_config()
+                assert Config.TOOL_PROFILE == "core"
 
     def test_config_summary(self):
         """Test that config summary provides comprehensive information."""
@@ -276,7 +323,7 @@ class TestServerIntegration:
         mock_read_stream = AsyncMock()
         mock_write_stream = AsyncMock()
 
-        # Create a mock context keeper
+        # Create a mock Memento
         mock_server = AsyncMock(spec=Memento)
         mock_server.initialize = AsyncMock()
         mock_server.cleanup = AsyncMock()
@@ -340,19 +387,39 @@ class TestConfigurationPaths:
 
     def test_default_sqlite_path(self):
         """Test default SQLite database path resolution."""
-        path = Config.SQLITE_PATH
+        from memento.config import YAMLConfig
 
-        assert isinstance(path, str)
-        assert path.endswith("context.db")
-        assert ".mcp-memento" in path or "memento" in path
+        # Clear environment variables and YAML config cache
+        with patch.dict(os.environ, {}, clear=True):
+            # Clear YAML config cache to ensure fresh load
+            YAMLConfig._config_cache.clear()
+            # Patch YAMLConfig.load_config to return defaults only
+            with patch.object(
+                YAMLConfig, "load_config", return_value=YAMLConfig._get_defaults()
+            ):
+                Config.reload_config()
+
+                path = Config.SQLITE_PATH
+
+                assert isinstance(path, str)
+                assert path.endswith("context.db")
+                assert ".mcp-memento" in path or "memento" in path
 
     def test_custom_sqlite_path(self):
         """Test custom SQLite database path."""
+        from memento.config import YAMLConfig
+
         custom_path = f"/tmp/test_{uuid.uuid4().hex}.db"
 
         with patch.dict(os.environ, {"MEMENTO_SQLITE_PATH": custom_path}, clear=True):
-            Config.reload_config()
-            assert Config.SQLITE_PATH == custom_path
+            # Clear YAML config cache to ensure fresh load
+            YAMLConfig._config_cache.clear()
+            # Patch YAMLConfig.load_config to return defaults only
+            with patch.object(
+                YAMLConfig, "load_config", return_value=YAMLConfig._get_defaults()
+            ):
+                Config.reload_config()
+                assert Config.SQLITE_PATH == custom_path
 
 
 class TestToolProfiles:

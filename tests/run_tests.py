@@ -210,7 +210,7 @@ Examples:
     # Print header
     if not args.no_header:
         print("=" * 60)
-        print("MCP CONTEXT KEEPER - TEST SUITE")
+        print("MCP MEMENTO - TEST SUITE")
         print("=" * 60)
         print(f"Python: {sys.version.split()[0]}")
         print(f"Test directory: {test_dir}")

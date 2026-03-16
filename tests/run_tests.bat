@@ -1,5 +1,5 @@
 @echo off
-REM Windows test runner for mcp-context-keeper project
+REM Windows test runner for mcp-memento project
 REM Usage: run_tests.bat [options] [test_files...]
 REM
 REM Options:
@@ -71,7 +71,7 @@ goto :parse_args
 
 :run_tests
 echo ============================================================
-echo MCP CONTEXT KEEPER - TEST SUITE (WINDOWS)
+echo MCP MEMENTO - TEST SUITE (WINDOWS)
 echo ============================================================
 echo.
 

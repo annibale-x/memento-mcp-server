@@ -1,6 +1,6 @@
-# Contributing to MCP Context Keeper
+# Contributing to MCP Memento
 
-Thank you for your interest in contributing to MCP Context Keeper! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to MCP Memento! This document provides guidelines and instructions for contributing to the project.
 
 ## Table of Contents
 - [Code of Conduct](#code-of-conduct)
@@ -142,12 +142,15 @@ pytest tests/test_memory_operations.py::test_store_memory -v
 docs/
 ├── TOOLS.md          # MCP tools reference
 ├── DECAY_SYSTEM.md   # Confidence system documentation
-├── PYTHON_API.md     # Python library usage
 ├── RULES.md          # Usage rules and best practices
-├── INTEGRATION.md    # IDE and agent integration
+├── INTEGRATION.md    # Integration overview
+├── integrations/     # Detailed integration guides
+│   ├── IDE.md        # IDE integration (Zed, Cursor, Windsurf, etc.)
+│   ├── PYTHON.md     # Python library and API usage
+│   ├── AGENT.md      # CLI agent integration (Gemini, Claude, etc.)
+│   └── API.md        # HTTP REST API, Node.js SDK, Docker deployment
 └── dev/              # Development documentation
-    ├── DEV.md        # Development guide and CLI commands
-    └── SCHEMA.md     # Database schema
+    └── SCHEMA.md     # Database schema documentation
 ```
 
 **Note**: This file (`CONTRIBUTING.md`) is located in the project root, following GitHub conventions for contributor guidelines. For detailed technical documentation, see the `docs/` directory.
@@ -337,8 +340,8 @@ python -m cProfile -o profile.stats run_mcp_memento.py
 
 ## License
 
-By contributing to MCP Context Keeper, you agree that your contributions will be licensed under the project's MIT License.
+By contributing to MCP Memento, you agree that your contributions will be licensed under the project's MIT License.
 
 ---
 
-Thank you for contributing to MCP Context Keeper! Your help makes this project better for everyone.
+Thank you for contributing to MCP Memento! Your help makes this project better for everyone.

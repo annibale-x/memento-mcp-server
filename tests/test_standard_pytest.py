@@ -90,13 +90,17 @@ class TestConfiguration:
         with patch.dict(os.environ, {}, clear=True):
             # Clear YAML config cache to ensure fresh load
             YAMLConfig._config_cache.clear()
-            Config.reload_config()
+            # Patch YAMLConfig.load_config to return defaults only
+            with patch.object(
+                YAMLConfig, "load_config", return_value=YAMLConfig._get_defaults()
+            ):
+                Config.reload_config()
 
-            assert Config.TOOL_PROFILE == "core"
-            assert Config.ENABLE_ADVANCED_TOOLS is False
-            assert Config.LOG_LEVEL == "INFO"
-            assert isinstance(Config.SQLITE_PATH, str)
-            assert Config.SQLITE_PATH.endswith("context.db")
+                assert Config.TOOL_PROFILE == "core"
+                assert Config.ENABLE_ADVANCED_TOOLS is False
+                assert Config.LOG_LEVEL == "INFO"
+                assert isinstance(Config.SQLITE_PATH, str)
+                assert Config.SQLITE_PATH.endswith("context.db")
 
     def test_config_environment_variables(self):
         """Test that Config reads environment variables correctly."""
@@ -174,22 +178,40 @@ class TestConfiguration:
 
     def test_config_reload(self):
         """Test that configuration can be reloaded and reflects environment changes."""
-        from memento.config import Config
+        from memento.config import Config, YAMLConfig
 
         # Start with default
         with patch.dict(os.environ, {}, clear=True):
-            Config.reload_config()
-            assert Config.TOOL_PROFILE == "core"
+            # Clear YAML config cache to ensure fresh load
+            YAMLConfig._config_cache.clear()
+            # Patch YAMLConfig.load_config to return defaults only
+            with patch.object(
+                YAMLConfig, "load_config", return_value=YAMLConfig._get_defaults()
+            ):
+                Config.reload_config()
+                assert Config.TOOL_PROFILE == "core"
 
         # Change environment and reload
         with patch.dict(os.environ, {"MEMENTO_TOOL_PROFILE": "extended"}, clear=True):
-            Config.reload_config()
-            assert Config.TOOL_PROFILE == "extended"
+            # Clear YAML config cache to ensure fresh load
+            YAMLConfig._config_cache.clear()
+            # Patch YAMLConfig.load_config to return defaults only
+            with patch.object(
+                YAMLConfig, "load_config", return_value=YAMLConfig._get_defaults()
+            ):
+                Config.reload_config()
+                assert Config.TOOL_PROFILE == "extended"
 
         # Go back to default
         with patch.dict(os.environ, {}, clear=True):
-            Config.reload_config()
-            assert Config.TOOL_PROFILE == "core"
+            # Clear YAML config cache to ensure fresh load
+            YAMLConfig._config_cache.clear()
+            # Patch YAMLConfig.load_config to return defaults only
+            with patch.object(
+                YAMLConfig, "load_config", return_value=YAMLConfig._get_defaults()
+            ):
+                Config.reload_config()
+                assert Config.TOOL_PROFILE == "core"
 
 
 class TestModels:
@@ -577,8 +599,8 @@ class TestTools:
         clear_handlers()
 
         # Create mock handlers
-        mock_handler1 = AsyncMock()
-        mock_handler2 = AsyncMock()
+        mock_handler1 = AsyncMock(return_value=None)
+        mock_handler2 = AsyncMock(return_value=None)
 
         # Register handlers
         register_handler("test_tool_1", mock_handler1)
@@ -687,7 +709,7 @@ class TestTools:
         }
 
         # Execute with mock database
-        mock_db = AsyncMock()
+        mock_db = AsyncMock(return_value=None)
         result = await handler(mock_db, test_arguments)
 
         # Verify result
@@ -764,10 +786,22 @@ class TestCLI:
         """Test health check functionality via CLI."""
         from memento.cli import perform_health_check
 
-        # Mock backend for health check
-        mock_backend = AsyncMock()
-        mock_backend.connect = AsyncMock()
-        mock_backend.disconnect = AsyncMock()
+        # Mock backend for health check with complete spec
+        mock_backend = AsyncMock(
+            spec=[
+                "connect",
+                "disconnect",
+                "health_check",
+                "backend_name",
+                "initialize_schema",
+                "supports_fulltext_search",
+                "supports_transactions",
+                "is_cypher_capable",
+            ]
+        )
+        mock_backend.connect = AsyncMock(return_value=True)
+        mock_backend.disconnect = AsyncMock(return_value=None)
+        mock_backend.initialize_schema = AsyncMock(return_value=None)
         mock_backend.health_check = AsyncMock(
             return_value={
                 "status": "healthy",
@@ -834,9 +868,23 @@ class TestIntegration:
         """Test complete server initialization flow."""
         from memento.server import Memento
 
-        # Create mocks for all dependencies
-        mock_backend = AsyncMock()
+        # Create mocks for all dependencies with complete spec
+        mock_backend = AsyncMock(
+            spec=[
+                "connect",
+                "disconnect",
+                "initialize_schema",
+                "backend_name",
+                "health_check",
+                "supports_fulltext_search",
+                "supports_transactions",
+                "is_cypher_capable",
+                "conn",
+            ]
+        )
         mock_backend.connect = AsyncMock(return_value=True)
+        mock_backend.disconnect = AsyncMock(return_value=None)
+        mock_backend.initialize_schema = AsyncMock(return_value=None)
         mock_backend.backend_name = MagicMock(return_value="sqlite")
         mock_backend.health_check = AsyncMock(
             return_value={
@@ -847,8 +895,8 @@ class TestIntegration:
         )
 
         # Mock database interface
-        mock_db = AsyncMock()
-        mock_db.initialize_schema = AsyncMock()
+        mock_db = AsyncMock(return_value=None)
+        mock_db.initialize_schema = AsyncMock(return_value=None)
 
         with patch("memento.database.engine.SQLiteBackend", return_value=mock_backend):
             with patch("memento.server.SQLiteMemoryDatabase", return_value=mock_db):
@@ -871,17 +919,36 @@ class TestIntegration:
 
                 # Cleanup
                 await server.cleanup()
-                mock_backend.close.assert_called_once()
+                mock_backend.disconnect.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_tool_execution_flow(self):
         """Test complete tool execution flow through server."""
         from memento.server import Memento
 
-        # Create mocks
-        mock_backend = AsyncMock()
+        # Create mocks with complete spec
+        mock_backend = AsyncMock(
+            spec=[
+                "connect",
+                "disconnect",
+                "initialize_schema",
+                "close",
+                "backend_name",
+                "supports_fulltext_search",
+                "supports_transactions",
+                "is_cypher_capable",
+                "conn",
+            ]
+        )
         mock_backend.connect = AsyncMock(return_value=True)
-        mock_backend.close = AsyncMock()
+        mock_backend.disconnect = AsyncMock(return_value=None)
+        mock_backend.initialize_schema = AsyncMock(return_value=None)
+        mock_backend.close = AsyncMock(return_value=None)
+        mock_backend.backend_name = MagicMock(return_value="sqlite")
+        mock_backend.supports_fulltext_search = MagicMock(return_value=False)
+        mock_backend.supports_transactions = MagicMock(return_value=True)
+        mock_backend.is_cypher_capable = MagicMock(return_value=True)
+        mock_backend.conn = AsyncMock()
 
         mock_db = AsyncMock()
         mock_db.store_memory = AsyncMock(return_value="test_memory_123")

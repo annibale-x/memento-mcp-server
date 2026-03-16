@@ -1,5 +1,5 @@
 """
-Tests for the confidence system in Context Keeper.
+Tests for the confidence system in Memento.
 
 This module tests the confidence system functionality including:
 - Confidence decay based on last access time

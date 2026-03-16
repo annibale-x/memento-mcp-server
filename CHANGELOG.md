@@ -1,5 +1,15 @@
 # Changelog
 
+* 2026-03-16: v0.1.19 - Test suite fixes and warning resolution (Hannibal)
+  * Fixed 2 failing tests in server startup and initialization flow
+  * Corrected server cleanup to call `disconnect()` instead of `close()` on database backend
+  * Updated all test mocks to expect `disconnect.assert_called_once()` instead of `close.assert_called_once()`
+  * Added proper warning filters for AsyncMock coroutine warnings in test suite
+  * Fixed async mock configuration in CLI tests to avoid RuntimeWarning for unawaited coroutines
+  * Enhanced test reliability with proper mock specifications for all async methods
+  * All 157 tests now passing with 0 warnings
+  * Improved test suite stability and maintainability
+
 * 2026-03-16: v0.1.18 - Memento onboarding protocol enhancement and tool renaming (Hannibal)
   * Renamed `help_memento_tools_usage` tool to `memento_onboarding` for clearer onboarding purpose
   * Enhanced tool with comprehensive onboarding protocol including initialization, retrieval flow, and storage triggers
@@ -39,9 +49,11 @@
   * Completely reorganized README.md to focus on user needs (636 → 441 lines)
   * Created clear separation between MCP server usage and Python library usage
   * Added comprehensive documentation structure in docs/ directory:
-    - PYTHON_API.md - Complete guide to using Memento as a Python library
-    - INTEGRATION.md - Detailed integration guides for different IDEs and agents
-    - RULES.md - Usage rules, best practices, and templates
+    - integrations/PYTHON.md - Complete guide to using Memento as a Python library
+    - integrations/IDE.md - Detailed IDE integration guides
+    - integrations/AGENT.md - Agent and CLI integration guides
+    - RULES.md - Usage rules and best practices
+    - AGENT_CONFIGURATION.md - Agent configuration templates
     - CONTRIBUTING.md - Contribution guidelines for developers
   * Improved README structure to answer three key user questions:
     1. How to install? - Clear installation instructions

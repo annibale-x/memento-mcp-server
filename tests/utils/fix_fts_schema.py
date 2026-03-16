@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def get_database_path() -> Path:
     """Get the path to the SQLite database."""
-    # Default path used by Context Keeper
+    # Default path used by Memento
     default_path = Path.home() / ".mcp-memento" / "context.db"
 
     # Check if database exists in default location

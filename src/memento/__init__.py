@@ -1,10 +1,31 @@
 """
-MCP Memento for Zed Editor
+MCP Memento - Intelligent Memory Management System
 
-A context-aware MCP server that provides intelligent memory capabilities for Zed editor,
-enabling memento knowledge tracking, relationship mapping, and contextual development assistance.
+A universal MCP server providing intelligent memory capabilities for AI assistants,
+IDEs, CLI agents, and custom applications. Memento enables persistent knowledge
+storage, relationship mapping, and confidence-based memory management across
+multiple integration points.
 
-Supports SQLite backend only for simplified deployment with Zed editor.
+Key Features:
+- Cross-platform compatibility with major IDEs (Zed, Cursor, Windsurf, VSCode, Claude Desktop)
+- CLI agent integration (Gemini CLI, Claude CLI, custom agents)
+- Python API for programmatic usage
+- REST API for HTTP integration
+- SQLite backend for zero-dependency deployment
+- Intelligent confidence system with automatic decay
+- Relationship graph with 35+ relationship types
+- Full-text search with fuzzy matching
+
+Usage Examples:
+1. IDE Integration: Configure in your IDE's MCP settings
+2. CLI Agents: Use with gemini --mcp-servers memento
+3. Python API: import memento; server = memento.Memento()
+4. REST API: HTTP wrapper for external applications
+
+For detailed documentation, see:
+- README.md for quick start
+- docs/integrations/ for specific integration guides
+- docs/TOOLS.md for complete tool reference
 """
 
 __version__ = "0.1.18"
