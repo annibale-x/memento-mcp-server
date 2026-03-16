@@ -101,6 +101,12 @@ Memento is designed to automatically inject its memory management protocol throu
 
 While some AI models may automatically call this tool at session start when MCP tools are detected, it's recommended to explicitly instruct models to call `memento_onboarding()` at the beginning of every session for reliable protocol injection.
 
+For reliable operation, include the following instruction in your AI assistant protocols:
+
+```markdown
+- **Memento Module**: If Memento tools are available, you MUST execute `memento_onboarding()` at the start of every session to inject the memory management protocol.
+```
+
 This ensures proper guidance for memory operations, optimized retrieval flow (1-3 tool calls for simple info, max 5 for complex tasks), and adherence to best practices.
 
 
