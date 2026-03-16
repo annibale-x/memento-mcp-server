@@ -30,4 +30,4 @@ EXPOSE 8000
 
 # Run the memory server
 # Note: MCP uses stdio transport, so stdin_open and tty are required in docker-compose
-CMD ["python", "-m", "context-keeper"]
+CMD ["python", "-m", "memento"]

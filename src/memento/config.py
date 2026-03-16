@@ -112,10 +112,10 @@ class _EnvVar:
         return f"_EnvVar({', '.join(repr(n) for n in self.env_names)}, default={self.default!r})"
 
 
-_DEFAULT_DB_PATH = os.path.expanduser("~/.mcp-context-keeper/context.db")
+_DEFAULT_DB_PATH = os.path.expanduser("~/.mcp-memento/context.db")
 _DEFAULT_CONFIG_PATHS = [
     Path.cwd() / "context-keeper.yaml",
-    Path.home() / ".mcp-context-keeper" / "config.yaml",
+    Path.home() / ".mcp-memento" / "config.yaml",
 ]
 
 
@@ -130,7 +130,7 @@ class YAMLConfig:
 
         Hierarchy (highest priority last):
         1. Default values
-        2. Global config (~/.mcp-context-keeper/config.yaml)
+        2. Global config (~/.mcp-memento/config.yaml)
         3. Project config (./context-keeper.yaml)
         4. Environment variables
         """
@@ -138,7 +138,7 @@ class YAMLConfig:
 
         # Load from global config
         try:
-            global_config_path = Path.home() / ".mcp-context-keeper" / "config.yaml"
+            global_config_path = Path.home() / ".mcp-memento" / "config.yaml"
             if global_config_path.exists():
                 config.update(cls._load_yaml_file(global_config_path))
         except (RuntimeError, OSError):
@@ -249,7 +249,7 @@ class Config:
     for testing or programmatic configuration.
 
     Environment Variables:
-        CONTEXT_SQLITE_PATH or CONTEXT_SQLITE_PATH: Database file path [default: ~/.mcp-context-keeper/context.db]
+        CONTEXT_SQLITE_PATH or CONTEXT_SQLITE_PATH: Database file path [default: ~/.mcp-memento/context.db]
         CONTEXT_TOOL_PROFILE or CONTEXT_TOOL_PROFILE: Tool profile (core|extended|advanced) [default: core]
         CONTEXT_ENABLE_ADVANCED_TOOLS: Enable advanced tools [default: false]
         CONTEXT_LOG_LEVEL: Log level (DEBUG|INFO|WARNING|ERROR) [default: INFO]

@@ -1,5 +1,5 @@
 """
-Tools test suite for mcp-context-keeper.
+Tools test suite for mcp-memento.
 
 This module tests tool models, definitions, registry, and validation.
 """
@@ -8,7 +8,7 @@ import json
 import sys
 from pathlib import Path
 
-# Add parent directory to path to import context_keeper
+# Add parent directory to path to import memento
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -16,20 +16,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
-from context_keeper.advanced_tools import ADVANCED_RELATIONSHIP_TOOLS
-from context_keeper.config import (
+from memento.advanced_tools import ADVANCED_RELATIONSHIP_TOOLS
+from memento.config import (
     _ADVANCED_TOOLS,
     _CORE_TOOLS,
     _EXTENDED_EXTRA_TOOLS,
 )
-from context_keeper.models import (
+from memento.models import (
     Memory,
     MemoryContext,
     MemoryType,
     RelationshipType,
     ValidationError,
 )
-from context_keeper.tools.definitions import (
+from memento.tools.definitions import (
     get_all_tools,
 )
 
@@ -37,13 +37,13 @@ from context_keeper.tools.definitions import (
 CORE_TOOLS = _CORE_TOOLS
 EXTENDED_TOOLS = _CORE_TOOLS + _EXTENDED_EXTRA_TOOLS
 ADVANCED_TOOLS = _CORE_TOOLS + _EXTENDED_EXTRA_TOOLS + _ADVANCED_TOOLS
-from context_keeper.tools.error_handling import (
+from memento.tools.error_handling import (
     NotFoundError,
     ToolError,
     format_error_response,
     handle_tool_error,
 )
-from context_keeper.tools.registry import (
+from memento.tools.registry import (
     ToolHandler,
     clear_handlers,
     get_handler,

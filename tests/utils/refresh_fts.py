@@ -31,7 +31,7 @@ async def refresh_fts_support(db_path: Path) -> bool:
         True if FTS support was successfully refreshed
     """
     try:
-        from context_keeper.database.engine import SQLiteBackend
+        from memento.database.engine import SQLiteBackend
 
         logger.info(f"Refreshing FTS support for database: {db_path}")
 
@@ -112,9 +112,9 @@ async def test_search_functionality(db_path: Path) -> bool:
         True if search functionality works correctly
     """
     try:
-        from context_keeper.database.engine import SQLiteBackend
-        from context_keeper.database.interface import SQLiteMemoryDatabase
-        from context_keeper.models import SearchQuery
+        from memento.database.engine import SQLiteBackend
+        from memento.database.interface import SQLiteMemoryDatabase
+        from memento.models import SearchQuery
 
         logger.info("Testing search functionality...")
 
@@ -194,7 +194,7 @@ def get_database_path() -> Path:
         return project_path
 
     # Default path used by Context Keeper
-    default_path = Path.home() / ".mcp-context-keeper" / "context.db"
+    default_path = Path.home() / ".mcp-memento" / "context.db"
     if default_path.exists():
         return default_path
 

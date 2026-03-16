@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Wrapper script for MCP Context Keeper.
+Wrapper script for MCP Memento.
 
-This script provides a proper entry point for running the MCP Context Keeper
+This script provides a proper entry point for running the MCP Memento
 as a standalone process, compatible with Zed Editor's MCP configuration.
 
 Usage:
-    python run_mcp_context_keeper.py
+    python run_mcp_memento.py
 
 Environment Variables:
     CONTEXT_SQLITE_PATH: Path to SQLite database file
@@ -23,9 +23,9 @@ from pathlib import Path
 project_root = Path(__file__).parent
 src_path = project_root / "src"
 
-# Clear any existing context_keeper modules to avoid conflicts
+# Clear any existing memento modules to avoid conflicts
 for module_name in list(sys.modules.keys()):
-    if module_name.startswith("context_keeper"):
+    if module_name.startswith("memento"):
         del sys.modules[module_name]
 
 # Add paths in correct order
@@ -35,11 +35,11 @@ sys.path.insert(0, str(project_root))
 
 try:
     # Import using absolute path to avoid conflicts
-    from src.context_keeper.cli import main as cli_main
-    from src.context_keeper.config import Config
-    from src.context_keeper.server import main as server_main
+    from src.memento.cli import main as cli_main
+    from src.memento.config import Config
+    from src.memento.server import main as server_main
 except ImportError as e:
-    print(f"Error importing context_keeper modules: {e}")
+    print(f"Error importing memento modules: {e}")
     print(
         "Make sure you are in the project root directory and dependencies are installed."
     )
@@ -48,7 +48,7 @@ except ImportError as e:
 
 def run_server():
     """
-    Run the MCP Context Keeper.
+    Run the MCP Memento.
 
     This function starts the MCP server with configuration from environment variables.
     """
@@ -79,7 +79,7 @@ def run_server():
                 setattr(config, key, value)
                 print(f"Config: {key} = {value}")
 
-    print("Starting MCP Context Keeper...")
+    print("Starting MCP Memento...")
     print(f"Project root: {project_root}")
 
     # Run the server
@@ -88,21 +88,21 @@ def run_server():
 
 def show_help():
     """Show help information."""
-    print("MCP Context Keeper Wrapper")
+    print("MCP Memento Wrapper")
     print("=" * 40)
     print()
     print("Usage:")
-    print("  python run_mcp_context_keeper.py          - Start the MCP server")
-    print("  python run_mcp_context_keeper.py --health - Run health check")
-    print("  python run_mcp_context_keeper.py --help   - Show this help")
+    print("  python run_mcp_memento.py          - Start the MCP server")
+    print("  python run_mcp_memento.py --health - Run health check")
+    print("  python run_mcp_memento.py --help   - Show this help")
     print()
     print("Environment Variables:")
     print("  CONTEXT_SQLITE_PATH    - Path to SQLite database file")
     print("  CONTEXT_TOOL_PROFILE   - Tool profile (core|extended)")
     print("  CONTEXT_LOG_LEVEL      - Logging level (DEBUG|INFO|WARNING|ERROR)")
     print()
-    print("For more CLI options, use the context_keeper module directly:")
-    print("  python -m context_keeper.cli --help")
+    print("For more CLI options, use the memento module directly:")
+    print("  python -m memento.cli --help")
 
 
 if __name__ == "__main__":
@@ -115,7 +115,7 @@ if __name__ == "__main__":
             sys.exit(0)
         elif arg == "--health":
             # Run health check via CLI
-            sys.argv = ["context_keeper.cli", "--health"]
+            sys.argv = ["memento.cli", "--health"]
             cli_main()
         else:
             print(f"Unknown argument: {arg}")

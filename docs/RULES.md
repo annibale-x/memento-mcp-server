@@ -250,7 +250,7 @@ When using a shared database:
 ### 3. Monthly
 - **Apply confidence decay**: `apply_persistent_confidence_decay()`
 - **Export backup**: `export_persistent_memories()`
-- **Database maintenance**: `context_keeper --maintenance`
+- **Database maintenance**: `memento --maintenance`
 - **Review tags**: Clean up unused or inconsistent tags
 
 ### 4. Quarterly
@@ -407,7 +407,7 @@ Use these tags for compliance:
 ### 2. Slow Performance
 **Problem**: Searches or operations are slow
 **Solutions**:
-- Run `context_keeper --maintenance`
+- Run `memento --maintenance`
 - Archive old, low-confidence memories
 - Check database file size
 - Ensure adequate disk space

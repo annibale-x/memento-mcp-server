@@ -3,9 +3,9 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mcp-context-keeper"
+name = "mcp-memento"
 version = "0.1.16"
-description = "MCP Context Keeper per gestione contestuale della memoria"
+description = "MCP Memento per gestione contestuale della memoria"
 authors = [
     {name = "Hannibal", email = "annibale.x@gmail.com"}
 ]
@@ -20,18 +20,18 @@ dependencies = [
 ]
 
 [project.scripts]
-context-keeper = "context_keeper.cli:main"
-mcp-context-keeper = "context_keeper.cli:main"
+memento = "memento.cli:main"
+mcp-memento = "memento.cli:main"
 
 [project.gui-scripts]
-context-keeper-gui = "context_keeper.cli:main"
+memento-gui = "memento.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["context_keeper*"]
+include = ["memento*"]
 
 [tool.setuptools.package-data]
-"context_keeper" = ["*.yaml", "*.yml", "*.sql", "*.txt", "*.md"]
+"memento" = ["*.yaml", "*.yml", "*.sql", "*.txt", "*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test runner for mcp-context-keeper project using pytest.
+Test runner for mcp-memento project using pytest.
 
 This script runs the complete test suite with clean, professional output.
 All output is in English without emojis or colors.
@@ -21,7 +21,7 @@ import sys
 import time
 from pathlib import Path
 
-# Add parent directory to path to import context_keeper for any direct imports
+# Add parent directory to path to import memento for any direct imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
@@ -72,7 +72,7 @@ def print_test_summary(start_time: float, exit_code: int) -> None:
 def main() -> int:
     """Main entry point for test runner."""
     parser = argparse.ArgumentParser(
-        description="Run mcp-context-keeper test suite using pytest",
+        description="Run mcp-memento test suite using pytest",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Test Categories:
@@ -189,7 +189,7 @@ Examples:
 
     # Coverage if requested
     if args.coverage:
-        pytest_args.extend(["--cov=context_keeper", "--cov-report=term-missing"])
+        pytest_args.extend(["--cov=memento", "--cov-report=term-missing"])
 
     # Add test files or directory
     if args.test_files:

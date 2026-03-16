@@ -1,8 +1,8 @@
 """
-Entry point for running MCP Context Keeper as a module.
+Entry point for running MCP Memento as a module.
 
 Usage:
-    python -m context_keeper [options]
+    python -m memento [options]
 
 This module entry point delegates to the CLI interface for proper
 argument parsing and command handling.

@@ -11,7 +11,7 @@ import json
 import os
 import sqlite3
 
-# Add parent directory to path to import context_keeper
+# Add parent directory to path to import memento
 import sys
 import tempfile
 import uuid
@@ -23,9 +23,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from context_keeper.database.engine import SQLiteBackend
-from context_keeper.database.interface import SQLiteMemoryDatabase
-from context_keeper.models import Memory, MemoryContext, MemoryType, SearchQuery
+from memento.database.engine import SQLiteBackend
+from memento.database.interface import SQLiteMemoryDatabase
+from memento.models import Memory, MemoryContext, MemoryType, SearchQuery
 
 
 # Test fixtures

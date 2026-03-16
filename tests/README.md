@@ -1,8 +1,8 @@
-# Test Suite Documentation - mcp-context-keeper
+# Test Suite Documentation - mcp-memento
 
 ## Overview
 
-This test suite validates the functionality, reliability, and integration capabilities of the **mcp-context-keeper** project. The suite ensures that the MCP Context Keeper server operates correctly with SQLite backend and integrates seamlessly with Zed editor.
+This test suite validates the functionality, reliability, and integration capabilities of the **mcp-memento** project. The suite ensures that the MCP Context Keeper server operates correctly with SQLite backend and integrates seamlessly with Zed editor.
 
 ## Test Architecture
 
@@ -112,7 +112,7 @@ Contains comprehensive test data with:
 
 ### Test Database
 - **Location**: `tests/test_data/test_memory.db`
-- **Format**: SQLite with optimized schema for mcp-context-keeper
+- **Format**: SQLite with optimized schema for mcp-memento
 - **Management**: Automatically created/cleaned during tests
 - **Git Ignored**: Excluded from version control via `.gitignore`
 
@@ -132,8 +132,8 @@ import os
 # Add project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from context_keeper import ContextKeeper
-from context_keeper.models import Memory, MemoryType, RelationshipType
+from memento import Memento
+from memento.models import Memory, MemoryType, RelationshipType
 
 async def main() -> bool:
     """
@@ -146,7 +146,7 @@ async def main() -> bool:
     
     try:
         # Initialize server
-        server = ContextKeeper()
+        server = Memento()
         await server.initialize()
         
         # Test 1: Basic functionality
@@ -295,7 +295,7 @@ sqlite3 tests/test_data/test_memory.db ".dump" > backup.sql
 | **macOS** | ✅ Fully supported | Unix-like, UTF-8 native |
 
 ### Dependencies
-- **mcp-context-keeper**: Parent package (in development mode)
+- **mcp-memento**: Parent package (in development mode)
 - **SQLite3**: Included with Python standard library
 - **pytest**: Optional for advanced testing patterns
 - **asyncio**: Standard library for async operations
@@ -322,9 +322,9 @@ sqlite3 tests/test_data/test_memory.db ".dump" > backup.sql
 Same as main project - **MIT License**.
 
 ### Acknowledgments
-Test suite developed as part of the **mcp-context-keeper** project for Zed editor integration. Special focus on Windows compatibility and MCP protocol compliance.
+Test suite developed as part of the **mcp-memento** project for Zed editor integration. Special focus on Windows compatibility and MCP protocol compliance.
 
 ---
 
 *Last Updated: 2026-03-15*  
-*Test Suite Version: Compatible with mcp-context-keeper v0.1.14+*
+*Test Suite Version: Compatible with mcp-memento v0.1.14+*

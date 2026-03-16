@@ -18,7 +18,7 @@ This guide covers how to integrate Context Keeper with various IDEs, editors, an
 ### Prerequisites
 1. Install Context Keeper:
    ```bash
-   pipx install mcp-context-keeper
+   pipx install mcp-memento
    ```
 
 2. Choose your integration method:
@@ -39,11 +39,11 @@ Add to `~/.config/zed/settings.json`:
 ```json
 {
   "mcpServers": {
-    "context_keeper": {
-      "command": "context_keeper",
+    "memento": {
+      "command": "memento",
       "args": ["--profile", "extended"],
       "env": {
-        "CONTEXT_SQLITE_PATH": "~/.mcp-context-keeper/context.db",
+        "CONTEXT_SQLITE_PATH": "~/.mcp-memento/context.db",
         "CONTEXT_TOOL_PROFILE": "extended"
       }
     }
@@ -69,8 +69,8 @@ Add to `~/.config/zed/settings.json`:
 ```json
 {
   "mcpServers": {
-    "context_keeper": {
-      "command": "context_keeper",
+    "memento": {
+      "command": "memento",
       "args": ["--profile", "advanced", "--log-level", "INFO"],
       "env": {
         "CONTEXT_SQLITE_PATH": "~/projects/.context/team.db",
@@ -91,7 +91,7 @@ Create or edit `~/.cursor/mcp.json`:
 {
   "mcpServers": {
     "context-keeper": {
-      "command": "context_keeper",
+      "command": "memento",
       "args": ["--profile", "core"]
     }
   }
@@ -128,7 +128,7 @@ Create `.cursor/mcp.json` in your project root:
 {
   "mcpServers": {
     "context-keeper": {
-      "command": "context_keeper",
+      "command": "memento",
       "args": ["--profile", "extended"],
       "env": {
         "CONTEXT_SQLITE_PATH": "./.cursor/context.db"
@@ -147,7 +147,7 @@ Create or edit `~/.windsurf/mcp.json`:
 {
   "mcpServers": {
     "context-keeper": {
-      "command": "context_keeper",
+      "command": "memento",
       "args": ["--profile", "core"]
     }
   }
@@ -177,7 +177,7 @@ Create or edit `~/.windsurf/mcp.json`:
   "mcp": {
     "servers": {
       "context-keeper": {
-        "command": "context_keeper",
+        "command": "memento",
         "args": ["--profile", "core"],
         "env": {
           "CONTEXT_SQLITE_PATH": "${env:HOME}/.vscode/context.db"
@@ -201,7 +201,7 @@ For more control, use a dedicated configuration file:
 {
   "mcp.servers": {
     "context-keeper": {
-      "command": "context_keeper",
+      "command": "memento",
       "args": ["--profile", "extended", "--log-level", "WARNING"],
       "env": {
         "CONTEXT_SQLITE_PATH": "${workspaceFolder}/.vscode/context.db",
@@ -227,7 +227,7 @@ Add to Claude Desktop configuration:
 {
   "mcpServers": {
     "context-keeper": {
-      "command": "context_keeper",
+      "command": "memento",
       "args": ["--profile", "core"]
     }
   }
@@ -261,7 +261,7 @@ Add to Claude Desktop configuration:
 ### Installation and Setup
 1. Install Context Keeper:
    ```bash
-   pipx install mcp-context-keeper
+   pipx install mcp-memento
    ```
 
 2. Configure Gemini CLI to use MCP servers
@@ -269,10 +269,10 @@ Add to Claude Desktop configuration:
 ### Basic Usage
 ```bash
 # Start Gemini CLI with Context Keeper
-gemini --mcp-servers context_keeper
+gemini --mcp-servers memento
 
 # Or specify custom configuration
-gemini --mcp-servers 'context_keeper --profile extended'
+gemini --mcp-servers 'memento --profile extended'
 ```
 
 ### Integration Script
@@ -286,14 +286,14 @@ export CONTEXT_SQLITE_PATH="${CONTEXT_SQLITE_PATH:-~/.gemini-context/context.db}
 export CONTEXT_TOOL_PROFILE="${CONTEXT_TOOL_PROFILE:-extended}"
 
 # Start Context Keeper server in background
-context_keeper --profile "$CONTEXT_TOOL_PROFILE" &
+memento --profile "$CONTEXT_TOOL_PROFILE" &
 CONTEXT_PID=$!
 
 # Wait for server to start
 sleep 2
 
 # Start Gemini CLI
-gemini --mcp-servers context_keeper "$@"
+gemini --mcp-servers memento "$@"
 
 # Cleanup
 kill $CONTEXT_PID
@@ -316,7 +316,7 @@ gemini "What have we done with this codebase before?"
 ### Python Integration
 ```python
 import asyncio
-from context_keeper import ContextKeeper
+from memento import Memento
 
 class CustomAgent:
     def __init__(self):
@@ -324,7 +324,7 @@ class CustomAgent:
     
     async def start(self):
         """Initialize Context Keeper."""
-        self.keeper = ContextKeeper()
+        self.keeper = Memento()
         await self.keeper.initialize()
     
     async def process_query(self, query: str):
@@ -391,14 +391,14 @@ if __name__ == "__main__":
 const { spawn } = require('child_process');
 const { Readable } = require('stream');
 
-class ContextKeeperClient {
+class MementoClient {
   constructor() {
     this.server = null;
   }
 
   start() {
     return new Promise((resolve, reject) => {
-      this.server = spawn('context_keeper', ['--profile', 'core']);
+      this.server = spawn('memento', ['--profile', 'core']);
       
       this.server.stdout.on('data', (data) => {
         console.log(`Context Keeper: ${data}`);
@@ -447,7 +447,7 @@ Context Keeper can be exposed as an HTTP server for remote access:
 
 ```bash
 # Start HTTP server (requires custom setup)
-context_keeper --http --port 8080 --host 0.0.0.0
+memento --http --port 8080 --host 0.0.0.0
 ```
 
 Then connect from any HTTP client:
@@ -456,7 +456,7 @@ Then connect from any HTTP client:
 import requests
 import json
 
-class RemoteContextKeeper:
+class RemoteMemento:
     def __init__(self, base_url="http://localhost:8080"):
         self.base_url = base_url
     
@@ -482,28 +482,28 @@ class RemoteContextKeeper:
 **1. Server won't start**
 ```bash
 # Check installation
-which context_keeper
+which memento
 
 # Test basic functionality
-context_keeper --health
+memento --health
 
 # Check permissions
-ls -la ~/.mcp-context-keeper/
+ls -la ~/.mcp-memento/
 ```
 
 **2. IDE doesn't recognize the server**
 - Restart the IDE after configuration changes
 - Check IDE logs for MCP errors
 - Verify the configuration file syntax
-- Test with `context_keeper --list-tools`
+- Test with `memento --list-tools`
 
 **3. Slow performance**
 ```bash
 # Run maintenance
-context_keeper --maintenance
+memento --maintenance
 
 # Check database size
-ls -lh ~/.mcp-context-keeper/context.db
+ls -lh ~/.mcp-memento/context.db
 
 # Consider archiving old memories
 ```
@@ -517,11 +517,11 @@ ls -lh ~/.mcp-context-keeper/context.db
 ### Debug Mode
 ```bash
 # Enable verbose logging
-CONTEXT_LOG_LEVEL=DEBUG context_keeper --profile core
+CONTEXT_LOG_LEVEL=DEBUG memento --profile core
 
 # Or from IDE configuration
 {
-  "command": "context_keeper",
+  "command": "memento",
   "args": ["--profile", "core", "--log-level", "DEBUG"]
 }
 ```

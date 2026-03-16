@@ -1,5 +1,5 @@
 """
-Standard pytest test suite for mcp-context-keeper.
+Standard pytest test suite for mcp-memento.
 
 This module provides comprehensive testing using pytest conventions and fixtures.
 It includes tests for configuration, models, database, tools, CLI, and integration.
@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
-# Add parent directory to path to import context_keeper
+# Add parent directory to path to import memento
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
@@ -84,7 +84,7 @@ class TestConfiguration:
 
     def test_config_defaults(self):
         """Test that Config provides default values when no environment variables are set."""
-        from context_keeper.config import Config
+        from memento.config import Config
 
         # Clear environment variables
         with patch.dict(os.environ, {}, clear=True):
@@ -98,7 +98,7 @@ class TestConfiguration:
 
     def test_config_environment_variables(self):
         """Test that Config reads environment variables correctly."""
-        from context_keeper.config import Config
+        from memento.config import Config
 
         test_db_path = f"/tmp/test_{uuid.uuid4().hex}.db"
 
@@ -121,7 +121,7 @@ class TestConfiguration:
 
     def test_get_enabled_tools(self):
         """Test that get_enabled_tools returns correct tool lists for each profile."""
-        from context_keeper.config import Config
+        from memento.config import Config
 
         test_cases = [
             ("core", 9),  # Core profile should have 9 tools
@@ -140,7 +140,7 @@ class TestConfiguration:
 
     def test_config_summary_structure(self):
         """Test that get_config_summary returns a properly structured dictionary."""
-        from context_keeper.config import Config
+        from memento.config import Config
 
         summary = Config.get_config_summary()
 
@@ -170,7 +170,7 @@ class TestConfiguration:
 
     def test_config_reload(self):
         """Test that configuration can be reloaded and reflects environment changes."""
-        from context_keeper.config import Config
+        from memento.config import Config
 
         # Start with default
         with patch.dict(os.environ, {}, clear=True):
@@ -193,7 +193,7 @@ class TestModels:
 
     def test_memory_creation(self, sample_memory_data):
         """Test Memory model creation with valid data."""
-        from context_keeper.models import Memory, MemoryType
+        from memento.models import Memory, MemoryType
 
         memory = Memory(**sample_memory_data)
 
@@ -207,7 +207,7 @@ class TestModels:
 
     def test_memory_validation_errors(self):
         """Test Memory model validation error cases."""
-        from context_keeper.models import Memory, MemoryType
+        from memento.models import Memory, MemoryType
 
         # Empty title should raise PydanticValidationError
         with pytest.raises(PydanticValidationError):
@@ -236,7 +236,7 @@ class TestModels:
 
     def test_memory_json_serialization(self, sample_memory_data):
         """Test Memory model JSON serialization round-trip."""
-        from context_keeper.models import Memory
+        from memento.models import Memory
 
         # Create memory from data
         memory = Memory(**sample_memory_data)
@@ -261,7 +261,7 @@ class TestModels:
 
     def test_relationship_creation(self, sample_relationship_data):
         """Test Relationship model creation with valid data."""
-        from context_keeper.models import Relationship, RelationshipType
+        from memento.models import Relationship, RelationshipType
 
         relationship = Relationship(**sample_relationship_data)
 
@@ -275,7 +275,7 @@ class TestModels:
 
     def test_memory_context_creation(self, memory_context_data):
         """Test MemoryContext model creation."""
-        from context_keeper.models import MemoryContext
+        from memento.models import MemoryContext
 
         context = MemoryContext(**memory_context_data)
 
@@ -289,7 +289,7 @@ class TestModels:
 
     def test_memory_type_enumeration(self):
         """Test MemoryType enumeration completeness."""
-        from context_keeper.models import MemoryType
+        from memento.models import MemoryType
 
         # Test a subset of expected types
         expected_types = [
@@ -311,7 +311,7 @@ class TestModels:
 
     def test_relationship_type_enumeration(self):
         """Test RelationshipType enumeration completeness."""
-        from context_keeper.models import RelationshipType
+        from memento.models import RelationshipType
 
         # Test a subset of expected types
         expected_types = [
@@ -338,7 +338,7 @@ class TestDatabase:
     @pytest.mark.asyncio
     async def test_sqlite_backend_connection(self, temp_db_path):
         """Test SQLite backend connection and health check."""
-        from context_keeper.database.engine import SQLiteBackend
+        from memento.database.engine import SQLiteBackend
 
         backend = SQLiteBackend(db_path=temp_db_path)
         await backend.connect()
@@ -365,9 +365,9 @@ class TestDatabase:
     @pytest.mark.asyncio
     async def test_sqlite_memory_database_basic_operations(self, temp_db_path):
         """Test basic memory database operations."""
-        from context_keeper.database.engine import SQLiteBackend
-        from context_keeper.database.interface import SQLiteMemoryDatabase
-        from context_keeper.models import (
+        from memento.database.engine import SQLiteBackend
+        from memento.database.interface import SQLiteMemoryDatabase
+        from memento.models import (
             Memory,
             MemoryType,
             PaginatedResult,
@@ -442,9 +442,9 @@ class TestDatabase:
     @pytest.mark.asyncio
     async def test_sqlite_relationship_operations(self, temp_db_path):
         """Test relationship operations in SQLite database."""
-        from context_keeper.database.engine import SQLiteBackend
-        from context_keeper.database.interface import SQLiteMemoryDatabase
-        from context_keeper.models import (
+        from memento.database.engine import SQLiteBackend
+        from memento.database.interface import SQLiteMemoryDatabase
+        from memento.models import (
             Memory,
             MemoryType,
             PaginatedResult,
@@ -532,7 +532,7 @@ class TestTools:
 
     def test_tool_definitions_completeness(self):
         """Test that all tool definitions have required structure."""
-        from context_keeper.tools.definitions import get_all_tools
+        from memento.tools.definitions import get_all_tools
 
         all_tools = get_all_tools()
 
@@ -562,7 +562,7 @@ class TestTools:
 
     def test_tool_registry_functionality(self):
         """Test tool handler registration and retrieval."""
-        from context_keeper.tools.registry import (
+        from memento.tools.registry import (
             ToolHandler,
             clear_handlers,
             get_handler,
@@ -598,7 +598,7 @@ class TestTools:
 
     def test_error_handling_classes(self):
         """Test tool error handling class hierarchy."""
-        from context_keeper.tools.error_handling import (
+        from memento.tools.error_handling import (
             NotFoundError,
             ToolError,
             ValidationError,
@@ -635,10 +635,10 @@ class TestTools:
     @pytest.mark.asyncio
     async def test_mock_tool_handler_execution(self):
         """Test execution of a mock tool handler with database interaction."""
-        from context_keeper.models import Memory, MemoryType
+        from memento.models import Memory, MemoryType
 
         # Clear any existing handlers
-        from context_keeper.tools.registry import clear_handlers, register_handler
+        from memento.tools.registry import clear_handlers, register_handler
 
         clear_handlers()
 
@@ -670,7 +670,7 @@ class TestTools:
         register_handler("test_store", test_store_handler)
 
         # Test handler execution
-        from context_keeper.tools.registry import get_handler
+        from memento.tools.registry import get_handler
 
         handler = get_handler("test_store")
         assert handler is not None
@@ -702,9 +702,9 @@ class TestCLI:
 
     def test_cli_help_output(self, capsys):
         """Test CLI help output."""
-        from context_keeper.cli import main
+        from memento.cli import main
 
-        with patch("sys.argv", ["context_keeper.cli", "--help"]):
+        with patch("sys.argv", ["memento.cli", "--help"]):
             with pytest.raises(SystemExit) as exc_info:
                 main()
 
@@ -718,9 +718,9 @@ class TestCLI:
 
     def test_cli_version_output(self, capsys):
         """Test CLI version output."""
-        from context_keeper.cli import main
+        from memento.cli import main
 
-        with patch("sys.argv", ["context_keeper.cli", "--version"]):
+        with patch("sys.argv", ["memento.cli", "--version"]):
             with pytest.raises(SystemExit) as exc_info:
                 main()
 
@@ -732,11 +732,11 @@ class TestCLI:
 
     def test_cli_show_config(self):
         """Test --show-config option."""
-        from context_keeper.cli import main
+        from memento.cli import main
 
-        with patch("sys.argv", ["context_keeper.cli", "--show-config"]):
+        with patch("sys.argv", ["memento.cli", "--show-config"]):
             with patch("sys.exit") as mock_exit:
-                with patch("context_keeper.cli._eprint") as mock_eprint:
+                with patch("memento.cli._eprint") as mock_eprint:
                     main()
 
                     # Check that exit was called with 0 (may be called multiple times)
@@ -758,7 +758,7 @@ class TestCLI:
     @pytest.mark.asyncio
     async def test_cli_health_check_integration(self):
         """Test health check functionality via CLI."""
-        from context_keeper.cli import perform_health_check
+        from memento.cli import perform_health_check
 
         # Mock backend for health check
         mock_backend = AsyncMock()
@@ -776,7 +776,7 @@ class TestCLI:
         )
 
         with patch(
-            "context_keeper.database.engine.SQLiteBackend", return_value=mock_backend
+            "memento.database.engine.SQLiteBackend", return_value=mock_backend
         ):
             result = await perform_health_check(timeout=1.0)
 
@@ -791,7 +791,7 @@ class TestCLI:
 
     def test_cli_environment_variable_handling(self):
         """Test that CLI properly handles environment variables."""
-        from context_keeper.cli import main
+        from memento.cli import main
 
         test_db_path = f"/tmp/test_{uuid.uuid4().hex}.db"
 
@@ -804,9 +804,9 @@ class TestCLI:
             },
             clear=True,
         ):
-            with patch("sys.argv", ["context_keeper.cli", "--show-config"]):
+            with patch("sys.argv", ["memento.cli", "--show-config"]):
                 with patch("sys.exit") as mock_exit:
-                    with patch("context_keeper.cli._eprint") as mock_eprint:
+                    with patch("memento.cli._eprint") as mock_eprint:
                         main()
 
                         # Check that exit was called with 0 (may be called multiple times)
@@ -830,7 +830,7 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_server_initialization_flow(self):
         """Test complete server initialization flow."""
-        from context_keeper.server import ContextKeeper
+        from memento.server import Memento
 
         # Create mocks for all dependencies
         mock_backend = AsyncMock()
@@ -849,13 +849,13 @@ class TestIntegration:
         mock_db.initialize_schema = AsyncMock()
 
         with patch(
-            "context_keeper.database.engine.SQLiteBackend", return_value=mock_backend
+            "memento.database.engine.SQLiteBackend", return_value=mock_backend
         ):
             with patch(
-                "context_keeper.server.SQLiteMemoryDatabase", return_value=mock_db
+                "memento.server.SQLiteMemoryDatabase", return_value=mock_db
             ):
                 # Create server
-                server = ContextKeeper()
+                server = Memento()
 
                 # Initialize
                 await server.initialize()
@@ -878,7 +878,7 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_tool_execution_flow(self):
         """Test complete tool execution flow through server."""
-        from context_keeper.server import ContextKeeper
+        from memento.server import Memento
 
         # Create mocks
         mock_backend = AsyncMock()
@@ -894,22 +894,22 @@ class TestIntegration:
             return {"content": [{"type": "text", "text": "Memory stored successfully"}]}
 
         with patch(
-            "context_keeper.database.engine.SQLiteBackend", return_value=mock_backend
+            "memento.database.engine.SQLiteBackend", return_value=mock_backend
         ):
             with patch(
-                "context_keeper.server.SQLiteMemoryDatabase", return_value=mock_db
+                "memento.server.SQLiteMemoryDatabase", return_value=mock_db
             ):
                 with patch(
-                    "context_keeper.tools.registry.get_handler",
+                    "memento.tools.registry.get_handler",
                     return_value=mock_store_handler,
                 ):
                     # Create and initialize server
-                    server = ContextKeeper()
+                    server = Memento()
                     await server.initialize()
 
                     # Test tool execution through the server's tool registry
                     # instead of accessing internal handlers
-                    from context_keeper.tools.registry import get_handler
+                    from memento.tools.registry import get_handler
 
                     # Verify that tools are registered
                     assert len(server.tools) > 0
@@ -928,7 +928,7 @@ class TestIntegration:
 
     def test_configuration_profile_tool_mapping(self):
         """Test that configuration profiles correctly map to available tools."""
-        from context_keeper.config import Config
+        from memento.config import Config
 
         profile_tool_counts = {
             "core": 9,  # Core tools

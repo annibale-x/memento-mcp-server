@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from context_keeper.database.interface import SQLiteMemoryDatabase
-from context_keeper.models import (
+from memento.database.interface import SQLiteMemoryDatabase
+from memento.models import (
     Memory,
     MemoryContext,
     MemoryType,
@@ -33,7 +33,7 @@ class TestConfidenceSystem:
     async def memory_db(self):
         """Create an in-memory database for testing."""
         # Use mock backend for testing
-        with patch("context_keeper.database.engine.SQLiteBackend") as mock_backend:
+        with patch("memento.database.engine.SQLiteBackend") as mock_backend:
             mock_backend.return_value.supports_fulltext_search.return_value = False
             mock_backend.return_value.connect = AsyncMock(return_value=True)
             mock_backend.return_value.disconnect = AsyncMock()

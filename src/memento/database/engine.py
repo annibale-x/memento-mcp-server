@@ -30,7 +30,7 @@ class SQLiteBackend(GraphBackend):
         Initialize SQLite backend.
 
         Args:
-            db_path: Path to SQLite database file (defaults to ~/.mcp-context-keeper/context.db)
+            db_path: Path to SQLite database file (defaults to ~/.mcp-memento/context.db)
 
         Raises:
             DatabaseConnectionError: If SQLite connection fails

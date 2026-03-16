@@ -104,8 +104,8 @@ async def test_fts_with_backend(db_path: Path) -> None:
     print(f"\n\nTesting FTS with backend code: {db_path}")
 
     try:
-        from context_keeper.database.engine import SQLiteBackend
-        from context_keeper.database.interface import SQLiteMemoryDatabase
+        from memento.database.engine import SQLiteBackend
+        from memento.database.interface import SQLiteMemoryDatabase
 
         # Create backend
         backend = SQLiteBackend(str(db_path))
@@ -117,7 +117,7 @@ async def test_fts_with_backend(db_path: Path) -> None:
         memory_db = SQLiteMemoryDatabase(backend)
 
         # Test search with query
-        from context_keeper.models import MemoryType, SearchQuery
+        from memento.models import MemoryType, SearchQuery
 
         print("\n2. Testing search_memories with FTS:")
 

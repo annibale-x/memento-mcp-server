@@ -1,5 +1,5 @@
 """
-Relationship test suite for mcp-context-keeper.
+Relationship test suite for mcp-memento.
 
 This module tests relationship models, types, validation, and serialization.
 """
@@ -9,13 +9,13 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Add parent directory to path to import context_keeper
+# Add parent directory to path to import memento
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
-from context_keeper.models import (
+from memento.models import (
     Memory,
     MemoryContext,
     MemoryType,

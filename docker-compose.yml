@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mcp-context-keeper
+    container_name: mcp-memento
     stdin_open: true # Required for MCP stdio
     tty: true # Required for MCP stdio
     environment:

@@ -1,6 +1,6 @@
-# ContextKeeper Tools Reference
+# Memento Tools Reference
 
-Complete guide to all MCP tools in ContextKeeper, including usage patterns and configuration.
+Complete guide to all MCP tools in Memento, including usage patterns and configuration.
 
 ---
 
@@ -453,13 +453,13 @@ export CONTEXT_TOOL_PROFILE=advanced
 
 ```bash
 # Core (default)
-context_keeper
+memento
 
 # Extended
-context_keeper --profile extended
+memento --profile extended
 
 # Advanced
-context_keeper --profile advanced
+memento --profile advanced
 ```
 
 ### MCP Configuration
@@ -467,11 +467,11 @@ context_keeper --profile advanced
 ```json
 {
   "mcpServers": {
-    "context_keeper": {
-      "command": "context_keeper",
+    "memento": {
+      "command": "memento",
       "args": ["--profile", "extended"],
       "env": {
-        "CONTEXT_SQLITE_PATH": "~/.mcp-context-keeper/context.db",
+        "CONTEXT_SQLITE_PATH": "~/.mcp-memento/context.db",
         "CONTEXT_TOOL_PROFILE": "extended",
       }
     }
@@ -528,7 +528,7 @@ context_keeper --profile advanced
 
 ## IMPORTANT: Persistent vs Session Memory
 
-All tools in ContextKeeper use the `_persistent` suffix to distinguish them from session memory tools in Serena Context Server:
+All tools in Memento use the `_persistent` suffix to distinguish them from session memory tools in Serena Context Server:
 
 ### Persistent Memory Tools (`_persistent` suffix):
 - **Scope**: Global - accessible from ANY project or session

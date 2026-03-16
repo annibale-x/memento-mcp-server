@@ -64,7 +64,7 @@ def _generate_distinction_guide() -> str:
     """Generate guide focusing on the distinction between persistent and session memory."""
     return """# PERSISTENT MEMORY vs SESSION MEMORY - CRITICAL DISTINCTION
 
-## PERSISTENT MEMORY (mcp-context-keeper tools with '_persistent' suffix)
+## PERSISTENT MEMORY (mcp-memento tools with '_persistent' suffix)
 - Scope: Global - accessible from ANY project or session
 - Persistence: Long-term - survives across ALL sessions
 - Purpose: Store reusable knowledge, solutions, patterns

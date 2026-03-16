@@ -14,10 +14,10 @@ Context Keeper is an MCP server that provides persistent memory capabilities to 
 
 ```bash
 # Install with pipx (recommended for MCP servers)
-pipx install mcp-context-keeper
+pipx install mcp-memento
 
 # Or with pip
-pip install mcp-context-keeper
+pip install mcp-memento
 ```
 
 ### 2. Configure Your IDE
@@ -26,11 +26,11 @@ pip install mcp-context-keeper
 ```json
 {
   "mcpServers": {
-    "context_keeper": {
-      "command": "context_keeper",
+    "memento": {
+      "command": "memento",
       "args": ["--profile", "extended"],
       "env": {
-        "CONTEXT_SQLITE_PATH": "~/.mcp-context-keeper/context.db"
+        "CONTEXT_SQLITE_PATH": "~/.mcp-memento/context.db"
       }
     }
   }
@@ -41,8 +41,8 @@ pip install mcp-context-keeper
 ```json
 {
   "mcpServers": {
-    "context-keeper": {
-      "command": "context_keeper",
+    "memento": {
+      "command": "memento",
       "args": ["--profile", "extended"]
     }
   }
@@ -180,7 +180,7 @@ for result in results:
 ### Environment Variables
 ```bash
 # Database location
-export CONTEXT_SQLITE_PATH="~/.mcp-context-keeper/context.db"
+export CONTEXT_SQLITE_PATH="~/.mcp-memento/context.db"
 
 # Tool profile (core, extended, advanced)
 export CONTEXT_TOOL_PROFILE="extended"
@@ -195,7 +195,7 @@ export CONTEXT_LOG_LEVEL="INFO"
 ### YAML Configuration File (`context-keeper.yaml`)
 ```yaml
 backend: sqlite
-sqlite_path: ~/.mcp-context-keeper/context.db
+sqlite_path: ~/.mcp-memento/context.db
 tool_profile: extended
 enable_advanced_tools: false
 
@@ -212,34 +212,34 @@ features:
 ### As an MCP Server (Recommended)
 ```bash
 # Default profile (core)
-context_keeper
+memento
 
 # Extended profile
-context_keeper --profile extended
+memento --profile extended
 
 # Custom database location
-context_keeper --sqlite-path ~/my-context.db
+memento --sqlite-path ~/my-context.db
 
 # Debug mode
-context_keeper --log-level DEBUG
+memento --log-level DEBUG
 ```
 
 ### With Command-Line Options
 ```bash
 # Show help
-context_keeper --help
+memento --help
 
 # Health check
-context_keeper --health
+memento --health
 
 # List all tools
-context_keeper --list-tools
+memento --list-tools
 
 # Export memories to JSON
-context_keeper --export ~/backup.json
+memento --export ~/backup.json
 
 # Import from JSON
-context_keeper --import ~/backup.json
+memento --import ~/backup.json
 ```
 
 ### Available Entry Points
@@ -247,10 +247,10 @@ After installation, you have multiple ways to run Context Keeper:
 
 | Command | Description |
 |---------|-------------|
-| `context_keeper` | Main executable (created by pip) |
-| `python -m context_keeper` | Run as Python module |
-| `python -m context_keeper.server` | Direct server access |
-| `python run_mcp_context_keeper.py` | Development script |
+| `memento` | Main executable (created by pip) |
+| `python -m memento` | Run as Python module |
+| `python -m memento.server` | Direct server access |
+| `python run_mcp_memento.py` | Development script |
 
 ## 📚 Documentation
 
@@ -287,11 +287,11 @@ Add to `~/.config/zed/settings.json`:
 ```json
 {
   "context_servers": {
-    "context_keeper": {
-      "command": "context_keeper",
+    "memento": {
+      "command": "memento",
       "args": ["--profile", "extended"],
       "env": {
-        "CONTEXT_SQLITE_PATH": "~/.mcp-context-keeper/context.db",
+        "CONTEXT_SQLITE_PATH": "~/.mcp-memento/context.db",
         "CONTEXT_TOOL_PROFILE": "extended"
       }
     }
@@ -302,11 +302,11 @@ Add to `~/.config/zed/settings.json`:
 ### Custom Script with Python API
 ```python
 # See docs/PYTHON_API.md for complete examples
-from context_keeper import ContextKeeper
+from memento import Memento
 import asyncio
 
 async def analyze_knowledge():
-    server = ContextKeeper()
+    server = Memento()
     await server.initialize()
     
     stats = await server.get_statistics()
@@ -341,33 +341,33 @@ async def analyze_knowledge():
 **Server won't start:**
 ```bash
 # Check installation
-which context_keeper
+which memento
 
 # Test basic functionality
-context_keeper --health
+memento --health
 
 # Check permissions on database file
-ls -la ~/.mcp-context-keeper/
+ls -la ~/.mcp-memento/
 ```
 
 **No tools available in IDE:**
 - Verify MCP configuration is correct
 - Restart your IDE after configuration changes
 - Check IDE logs for MCP server errors
-- Test with `context_keeper --list-tools` to verify installation
+- Test with `memento --list-tools` to verify installation
 
 **Slow searches:**
-- Database might need vacuuming: `context_keeper --maintenance`
+- Database might need vacuuming: `memento --maintenance`
 - Consider archiving old, low-confidence memories
 - Check disk space on database location
 
 ### Debug Mode
 ```bash
 # Enable verbose logging
-CONTEXT_LOG_LEVEL=DEBUG context_keeper
+CONTEXT_LOG_LEVEL=DEBUG memento
 
 # Or use command line
-context_keeper --log-level DEBUG --profile core
+memento --log-level DEBUG --profile core
 ```
 
 ## 🧪 Testing
@@ -391,7 +391,7 @@ pytest --cov=src tests/
 ```bash
 # Clone repository
 git clone https://github.com/annibale-x/memento-mcp-server.git
-cd mcp-context-keeper
+cd mcp-memento
 
 # Install in development mode
 pip install -e .
@@ -405,9 +405,9 @@ pytest
 
 ### Project Structure
 ```
-mcp-context-keeper/
+mcp-memento/
 ├── src/                          # Source code
-│   └── context_keeper/          # Main package
+│   └── memento/          # Main package
 ├── docs/                        # Documentation
 ├── tests/                       # Test suite
 ├── pyproject.toml              # Package configuration
@@ -445,7 +445,7 @@ For complete development documentation, see:
 
 - **[GitHub Repository](https://github.com/annibale-x/memento-mcp-server)** - Source code and issues
 - **[MCP Protocol](https://spec.modelcontextprotocol.io/)** - Model Context Protocol specification
-- **[PyPI Package](https://pypi.org/project/mcp-context-keeper/)** - Python Package Index
+- **[PyPI Package](https://pypi.org/project/mcp-memento/)** - Python Package Index
 - **[Discussions](https://github.com/annibale-x/memento-mcp-server/discussions)** - Community forum
 
 ---

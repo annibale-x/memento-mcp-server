@@ -1,6 +1,6 @@
-# MCP Context Keeper Configuration File
-# This file configures the MCP Context Keeper for Zed editor
-# Hierarchy: Defaults → ~/.mcp-context-keeper/config.yaml → ./context-keeper.yaml → Environment Variables
+# MCP Memento Configuration File
+# This file configures the MCP Memento for Zed editor
+# Hierarchy: Defaults → ~/.mcp-memento/config.yaml → ./memento.yaml → Environment Variables
 
 # Database configuration
 # sqlite_path: ".data/db" # Path to SQLite database file (commented out to use default)

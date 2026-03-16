@@ -1,5 +1,5 @@
 """
-MCP Context Keeper for Zed Editor
+MCP Memento for Zed Editor
 
 A context-aware MCP server that provides intelligent memory capabilities for Zed editor,
 enabling persistent knowledge tracking, relationship mapping, and contextual development assistance.
@@ -28,10 +28,10 @@ from .models import (
     ToolError,
     ValidationError,
 )
-from .server import ContextKeeper
+from .server import Memento
 
 __all__ = [
-    "ContextKeeper",
+    "Memento",
     "Memory",
     "MemoryType",
     "Relationship",

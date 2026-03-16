@@ -1,5 +1,5 @@
 """
-MCP Context Keeper for Zed Editor.
+MCP Memento for Zed Editor.
 
 This module implements the Model Context Protocol server that provides intelligent
 memory capabilities for Zed editor using SQLite as the backend storage.
@@ -39,12 +39,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class ContextKeeper:
-    """MCP Context Keeper for Zed Editor."""
+class Memento:
+    """MCP Memento for Zed Editor."""
 
     def __init__(self):
-        """Initialize the context keeper."""
-        self.server = Server("context-keeper")
+        """Initialize the memento."""
+        self.server = Server("memento")
         self.db_connection = None  # GraphBackend instance
         self.memory_db: Optional[SQLiteMemoryDatabase] = None
         self.advanced_handlers: Optional[AdvancedRelationshipHandlers] = None
@@ -163,7 +163,7 @@ class ContextKeeper:
             )
             if callable(backend_name):
                 backend_name = backend_name()
-            logger.info("MCP Context Keeper initialized successfully.")
+            logger.info("MCP Memento initialized successfully.")
             logger.info(f"Backend: {backend_name}")
             logger.info(
                 f"Tool profile: {Config.TOOL_PROFILE.upper()} ({len(self.tools)} tools enabled)"
@@ -177,12 +177,12 @@ class ContextKeeper:
         """Clean up resources."""
         if self.db_connection:
             await self.db_connection.close()
-        logger.info("Context Keeper Server cleanup completed")
+        logger.info("Memento Server cleanup completed")
 
 
 async def main():
-    """Main entry point for the context keeper."""
-    server = ContextKeeper()
+    """Main entry point for the memento."""
+    server = Memento()
 
     try:
         # Initialize the context keeper
@@ -202,7 +202,7 @@ async def main():
                 read_stream,
                 write_stream,
                 InitializationOptions(
-                    server_name="context-keeper",
+                    server_name="memento",
                     server_version=__version__,
                     capabilities=capabilities,
                 ),

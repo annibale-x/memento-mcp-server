@@ -1,5 +1,5 @@
 """
-CLI test suite for mcp-context-keeper.
+CLI test suite for mcp-memento.
 
 This module tests the command-line interface functionality.
 """
@@ -16,7 +16,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from context_keeper.cli import (
+from memento.cli import (
     _eprint,
     handle_export,
     handle_import,
@@ -26,7 +26,7 @@ from context_keeper.cli import (
     validate_backend,
     validate_profile,
 )
-from context_keeper.config import Config
+from memento.config import Config
 
 
 class TestCLIBasic:
@@ -82,7 +82,7 @@ class TestCLIBasic:
         """Test config summary printing."""
         # Mock stderr output by using _eprint which we already test
         # Actually print_config_summary uses _eprint internally
-        with patch("context_keeper.cli._eprint") as mock_eprint:
+        with patch("memento.cli._eprint") as mock_eprint:
             print_config_summary()
 
             # Verify _eprint was called
@@ -113,9 +113,9 @@ class TestCLIBasic:
     def test_cli_help(self):
         """Test CLI help output."""
         # Mock sys.argv and sys.exit
-        with patch("sys.argv", ["context_keeper.cli", "--help"]):
+        with patch("sys.argv", ["memento.cli", "--help"]):
             with patch("sys.exit") as mock_exit:
-                with patch("context_keeper.cli._eprint") as mock_eprint:
+                with patch("memento.cli._eprint") as mock_eprint:
                     main()
 
                     # Should exit with 0 after printing help
@@ -130,7 +130,7 @@ class TestCLIBasic:
 
     def test_cli_version(self, capsys):
         """Test CLI version output."""
-        with patch("sys.argv", ["context_keeper.cli", "--version"]):
+        with patch("sys.argv", ["memento.cli", "--version"]):
             with pytest.raises(SystemExit) as exc_info:
                 main()
 
@@ -139,9 +139,9 @@ class TestCLIBasic:
 
     def test_cli_show_config(self):
         """Test --show-config option."""
-        with patch("sys.argv", ["context_keeper.cli", "--show-config"]):
+        with patch("sys.argv", ["memento.cli", "--show-config"]):
             with patch("sys.exit") as mock_exit:
-                with patch("context_keeper.cli._eprint") as mock_eprint:
+                with patch("memento.cli._eprint") as mock_eprint:
                     main()
 
                     # Check that exit was called with 0 (may be called multiple times)
@@ -173,7 +173,7 @@ class TestCLIHealthCheck:
         )
 
         with patch(
-            "context_keeper.database.engine.SQLiteBackend", return_value=mock_backend
+            "memento.database.engine.SQLiteBackend", return_value=mock_backend
         ):
             result = await perform_health_check(timeout=1.0)
 
@@ -196,7 +196,7 @@ class TestCLIHealthCheck:
         mock_backend.connect = AsyncMock(side_effect=asyncio.TimeoutError("Timeout"))
 
         with patch(
-            "context_keeper.database.engine.SQLiteBackend", return_value=mock_backend
+            "memento.database.engine.SQLiteBackend", return_value=mock_backend
         ):
             result = await perform_health_check(timeout=0.1)
 
@@ -213,7 +213,7 @@ class TestCLIHealthCheck:
         mock_backend.connect = AsyncMock(side_effect=Exception("Connection failed"))
 
         with patch(
-            "context_keeper.database.engine.SQLiteBackend", return_value=mock_backend
+            "memento.database.engine.SQLiteBackend", return_value=mock_backend
         ):
             result = await perform_health_check(timeout=1.0)
 
@@ -224,9 +224,9 @@ class TestCLIHealthCheck:
 
     def test_cli_health_option(self):
         """Test --health option."""
-        with patch("sys.argv", ["context_keeper.cli", "--health"]):
+        with patch("sys.argv", ["memento.cli", "--health"]):
             with patch("sys.exit") as mock_exit:
-                with patch("context_keeper.cli.perform_health_check") as mock_check:
+                with patch("memento.cli.perform_health_check") as mock_check:
                     # Mock async function
                     mock_check.return_value = {
                         "status": "healthy",
@@ -235,7 +235,7 @@ class TestCLIHealthCheck:
                         "timestamp": "2024-01-15T10:30:00Z",
                     }
 
-                    with patch("context_keeper.cli.asyncio.run") as mock_run:
+                    with patch("memento.cli.asyncio.run") as mock_run:
                         # Mock asyncio.run to return the mock result directly
                         mock_run.side_effect = lambda coro: mock_check.return_value
                         main()
@@ -246,9 +246,9 @@ class TestCLIHealthCheck:
 
     def test_cli_health_json_option(self):
         """Test --health --health-json option."""
-        with patch("sys.argv", ["context_keeper.cli", "--health", "--health-json"]):
+        with patch("sys.argv", ["memento.cli", "--health", "--health-json"]):
             with patch("sys.exit") as mock_exit:
-                with patch("context_keeper.cli.perform_health_check") as mock_check:
+                with patch("memento.cli.perform_health_check") as mock_check:
                     health_data = {
                         "status": "healthy",
                         "connected": True,
@@ -257,7 +257,7 @@ class TestCLIHealthCheck:
                     }
                     mock_check.return_value = health_data
 
-                    with patch("context_keeper.cli.asyncio.run") as mock_run:
+                    with patch("memento.cli.asyncio.run") as mock_run:
                         with patch("builtins.print") as mock_print:
                             # Mock asyncio.run to return the mock result directly
                             mock_run.side_effect = lambda coro: mock_check.return_value
@@ -306,7 +306,7 @@ class TestCLIExportImport:
 
             # Mock export_to_json function
             with patch(
-                "context_keeper.utils.export_import.export_to_json"
+                "memento.utils.export_import.export_to_json"
             ) as mock_export:
                 mock_export.return_value = {
                     "memory_count": 10,
@@ -314,11 +314,11 @@ class TestCLIExportImport:
                     "backend_type": "sqlite",
                 }
 
-                with patch("context_keeper.cli._create_backend_and_db") as mock_create:
+                with patch("memento.cli._create_backend_and_db") as mock_create:
                     mock_create.return_value = (mock_backend, "sqlite", mock_db)
 
                     # Capture printed output
-                    with patch("context_keeper.cli._eprint") as mock_eprint:
+                    with patch("memento.cli._eprint") as mock_eprint:
                         await handle_export(mock_args)
 
                         # Verify export was called
@@ -361,14 +361,14 @@ class TestCLIExportImport:
 
             # Mock export_to_markdown function
             with patch(
-                "context_keeper.utils.export_import.export_to_markdown"
+                "memento.utils.export_import.export_to_markdown"
             ) as mock_export:
                 mock_export.return_value = None  # Function doesn't return value
 
-                with patch("context_keeper.cli._create_backend_and_db") as mock_create:
+                with patch("memento.cli._create_backend_and_db") as mock_create:
                     mock_create.return_value = (mock_backend, "sqlite", mock_db)
 
-                    with patch("context_keeper.cli._eprint") as mock_eprint:
+                    with patch("memento.cli._eprint") as mock_eprint:
                         await handle_export(mock_args)
 
                         # Verify export was called
@@ -409,7 +409,7 @@ class TestCLIExportImport:
 
             # Mock import_from_json function
             with patch(
-                "context_keeper.utils.export_import.import_from_json"
+                "memento.utils.export_import.import_from_json"
             ) as mock_import:
                 mock_import.return_value = {
                     "imported_memories": 5,
@@ -418,10 +418,10 @@ class TestCLIExportImport:
                     "skipped_relationships": 1,
                 }
 
-                with patch("context_keeper.cli._create_backend_and_db") as mock_create:
+                with patch("memento.cli._create_backend_and_db") as mock_create:
                     mock_create.return_value = (mock_backend, "sqlite", mock_db)
 
-                    with patch("context_keeper.cli._eprint") as mock_eprint:
+                    with patch("memento.cli._eprint") as mock_eprint:
                         await handle_import(mock_args)
 
                         # Verify import was called
@@ -458,10 +458,10 @@ class TestCLIExportImport:
             mock_db = AsyncMock()
             mock_db.initialize_schema = AsyncMock()
 
-            with patch("context_keeper.cli._create_backend_and_db") as mock_create:
+            with patch("memento.cli._create_backend_and_db") as mock_create:
                 mock_create.side_effect = Exception("Export failed")
 
-                with patch("context_keeper.cli._eprint") as mock_eprint:
+                with patch("memento.cli._eprint") as mock_eprint:
                     with pytest.raises(SystemExit):
                         await handle_export(mock_args)
 
@@ -483,7 +483,7 @@ class TestCLIExportImport:
             with patch(
                 "sys.argv",
                 [
-                    "context_keeper.cli",
+                    "memento.cli",
                     "export",
                     "--format",
                     "json",
@@ -492,10 +492,10 @@ class TestCLIExportImport:
                 ],
             ):
                 with patch("sys.exit") as mock_exit:
-                    with patch("context_keeper.cli.handle_export") as mock_handle:
+                    with patch("memento.cli.handle_export") as mock_handle:
                         mock_handle.return_value = None
 
-                        with patch("context_keeper.cli.asyncio.run") as mock_run:
+                        with patch("memento.cli.asyncio.run") as mock_run:
                             # Mock asyncio.run to return None directly
                             mock_run.side_effect = lambda coro: None
                             main()
@@ -518,7 +518,7 @@ class TestCLIExportImport:
             with patch(
                 "sys.argv",
                 [
-                    "context_keeper.cli",
+                    "memento.cli",
                     "import",
                     "--format",
                     "json",
@@ -527,10 +527,10 @@ class TestCLIExportImport:
                 ],
             ):
                 with patch("sys.exit") as mock_exit:
-                    with patch("context_keeper.cli.handle_import") as mock_handle:
+                    with patch("memento.cli.handle_import") as mock_handle:
                         mock_handle.return_value = None
 
-                        with patch("context_keeper.cli.asyncio.run") as mock_run:
+                        with patch("memento.cli.asyncio.run") as mock_run:
                             # Mock asyncio.run to return None directly
                             mock_run.side_effect = lambda coro: None
                             main()
@@ -550,10 +550,10 @@ class TestCLIServerStart:
 
     def test_cli_server_default(self):
         """Test default server startup."""
-        with patch("sys.argv", ["context_keeper.cli"]):
+        with patch("sys.argv", ["memento.cli"]):
             with patch("sys.exit") as mock_exit:
-                with patch("context_keeper.cli.server_main") as mock_server_main:
-                    with patch("context_keeper.cli.asyncio.run") as mock_run:
+                with patch("memento.cli.server_main") as mock_server_main:
+                    with patch("memento.cli.asyncio.run") as mock_run:
                         # Mock KeyboardInterrupt to stop the server
                         mock_run.side_effect = KeyboardInterrupt()
 
@@ -566,10 +566,10 @@ class TestCLIServerStart:
 
     def test_cli_server_with_profile(self):
         """Test server startup with profile option."""
-        with patch("sys.argv", ["context_keeper.cli", "--profile", "extended"]):
+        with patch("sys.argv", ["memento.cli", "--profile", "extended"]):
             with patch("sys.exit") as mock_exit:
-                with patch("context_keeper.cli.server_main") as mock_server_main:
-                    with patch("context_keeper.cli.asyncio.run") as mock_run:
+                with patch("memento.cli.server_main") as mock_server_main:
+                    with patch("memento.cli.asyncio.run") as mock_run:
                         mock_run.side_effect = KeyboardInterrupt()
 
                         main()
@@ -580,10 +580,10 @@ class TestCLIServerStart:
 
     def test_cli_server_with_log_level(self):
         """Test server startup with log level option."""
-        with patch("sys.argv", ["context_keeper.cli", "--log-level", "DEBUG"]):
+        with patch("sys.argv", ["memento.cli", "--log-level", "DEBUG"]):
             with patch("sys.exit") as mock_exit:
-                with patch("context_keeper.cli.server_main") as mock_server_main:
-                    with patch("context_keeper.cli.asyncio.run") as mock_run:
+                with patch("memento.cli.server_main") as mock_server_main:
+                    with patch("memento.cli.asyncio.run") as mock_run:
                         mock_run.side_effect = KeyboardInterrupt()
 
                         main()
@@ -593,10 +593,10 @@ class TestCLIServerStart:
 
     def test_cli_server_error(self):
         """Test server error handling."""
-        with patch("sys.argv", ["context_keeper.cli"]):
+        with patch("sys.argv", ["memento.cli"]):
             with patch("sys.exit") as mock_exit:
-                with patch("context_keeper.cli.server_main") as mock_server_main:
-                    with patch("context_keeper.cli.asyncio.run") as mock_run:
+                with patch("memento.cli.server_main") as mock_server_main:
+                    with patch("memento.cli.asyncio.run") as mock_run:
                         mock_run.side_effect = Exception("Server error")
 
                         main()
@@ -611,9 +611,9 @@ class TestCLIEnvironmentVariables:
     def test_environment_variable_profile(self):
         """Test CONTEXT_TOOL_PROFILE environment variable."""
         with patch.dict(os.environ, {"CONTEXT_TOOL_PROFILE": "extended"}, clear=True):
-            with patch("sys.argv", ["context_keeper.cli", "--show-config"]):
+            with patch("sys.argv", ["memento.cli", "--show-config"]):
                 with patch("sys.exit") as mock_exit:
-                    with patch("context_keeper.cli._eprint") as mock_eprint:
+                    with patch("memento.cli._eprint") as mock_eprint:
                         main()
 
                         # Should show extended profile in config
@@ -631,9 +631,9 @@ class TestCLIEnvironmentVariables:
     def test_environment_variable_log_level(self):
         """Test CONTEXT_LOG_LEVEL environment variable."""
         with patch.dict(os.environ, {"CONTEXT_LOG_LEVEL": "DEBUG"}, clear=True):
-            with patch("sys.argv", ["context_keeper.cli", "--show-config"]):
+            with patch("sys.argv", ["memento.cli", "--show-config"]):
                 with patch("sys.exit") as mock_exit:
-                    with patch("context_keeper.cli._eprint") as mock_eprint:
+                    with patch("memento.cli._eprint") as mock_eprint:
                         main()
 
                         # Check that exit was called with 0 (may be called multiple times)
@@ -651,10 +651,10 @@ class TestCLIEnvironmentVariables:
         with patch.dict(os.environ, {"CONTEXT_TOOL_PROFILE": "core"}, clear=True):
             with patch(
                 "sys.argv",
-                ["context_keeper.cli", "--profile", "extended", "--show-config"],
+                ["memento.cli", "--profile", "extended", "--show-config"],
             ):
                 with patch("sys.exit") as mock_exit:
-                    with patch("context_keeper.cli._eprint") as mock_eprint:
+                    with patch("memento.cli._eprint") as mock_eprint:
                         main()
 
                         # Check that exit was called with 0 (may be called multiple times)

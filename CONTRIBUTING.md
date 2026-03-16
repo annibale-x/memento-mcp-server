@@ -28,7 +28,7 @@ Please be respectful and considerate of others when contributing to this project
 1. **Fork and clone the repository**:
    ```bash
    git clone https://github.com/annibale-x/memento-mcp-server.git
-   cd mcp-context-keeper
+   cd mcp-memento
    ```
 
 2. **Install in development mode**:
@@ -43,9 +43,9 @@ Please be respectful and considerate of others when contributing to this project
 
 ### Project Structure
 ```
-mcp-context-keeper/
+mcp-memento/
 ├── src/                          # Source code
-│   └── context_keeper/          # Main package
+│   └── memento/          # Main package
 ├── docs/                        # Documentation
 ├── tests/                       # Test suite
 ├── pyproject.toml              # Package configuration
@@ -319,13 +319,13 @@ git push origin feature/your-feature
 ### Debugging
 ```bash
 # Run with debug logging
-CONTEXT_LOG_LEVEL=DEBUG python -m context_keeper
+CONTEXT_LOG_LEVEL=DEBUG python -m memento
 
 # Use pdb for debugging
 import pdb; pdb.set_trace()
 
 # Profile performance
-python -m cProfile -o profile.stats run_mcp_context_keeper.py
+python -m cProfile -o profile.stats run_mcp_memento.py
 ```
 
 ## Getting Help

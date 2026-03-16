@@ -4,7 +4,7 @@
   * Completely reorganized README.md to focus on user needs (636 → 441 lines)
   * Created clear separation between MCP server usage and Python library usage
   * Added comprehensive documentation structure in docs/ directory:
-    - PYTHON_API.md - Complete guide to using Context Keeper as a Python library
+    - PYTHON_API.md - Complete guide to using Memento as a Python library
     - INTEGRATION.md - Detailed integration guides for different IDEs and agents
     - RULES.md - Usage rules, best practices, and templates
     - CONTRIBUTING.md - Contribution guidelines for developers
@@ -85,7 +85,7 @@
 * 2026-03-14: v0.1.9 - Path resolution and Windows compatibility fixes (Hannibal)
   * Fixed SQLite database path issues on Windows systems
   * Changed default database path from `.db` to `context.db` in configuration
-  * Fixed indentation error in `context_keeper.py` wrapper script
+  * Fixed indentation error in `memento.py` wrapper script
   * Improved environment variable handling for configuration overrides
   * Enhanced Windows compatibility for database file operations
 
@@ -125,7 +125,7 @@
   * Added persistent tool naming convention to avoid conflicts with Serena Context Server
   * Added clear distinction between persistent (cross-session) and session memory storage
   * Updated environment variable prefixes from MEMORY_ to CONTEXT_
-  * Changed default database path to ~/.mcp-context-keeper/context.db
+  * Changed default database path to ~/.mcp-memento/context.db
   * Updated configuration file names to context-keeper.yaml
   * Fixed module entry point to properly handle CLI arguments
   * Improved Zed editor MCP configuration compatibility
@@ -133,7 +133,7 @@
     - Core tools: `store_memory` → `store_persistent_memory`, `get_memory` → `get_persistent_memory`, etc.
     - Extended tools: `get_memory_statistics` → `get_persistent_memory_statistics`, etc.
     - Advanced tools: `find_memory_path` → `find_path_between_persistent_memories`, etc.
-  * Fixed module execution with `python -m context_keeper` now works correctly
+  * Fixed module execution with `python -m memento` now works correctly
   * Fixed CLI arguments like `--health` and `--show-config` are properly handled
   * Fixed environment variable support for Zed editor integration
   * Fixed configuration file path references
@@ -176,7 +176,7 @@
   * Added core MCP tools for memory management
   * Added SQLite backend with zero dependencies
   * Added basic configuration system
-  * Project renamed to mcp-context-keeper
+  * Project renamed to mcp-memento
   * Focus on context-aware memory management for MCP servers
   * Simplified architecture for Zed editor compatibility
 
@@ -219,7 +219,7 @@
 - This fork focuses on simplicity and Zed editor integration
 - Only SQLite backend is supported
 - Advanced features have been removed in favor of core functionality
-- The project is now named "mcp-context-keeper" to reflect its purpose
+- The project is now named "mcp-memento" to reflect its purpose
 
 ## Acknowledgments
 

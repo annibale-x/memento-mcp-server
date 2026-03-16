@@ -17,7 +17,7 @@ This guide covers how to use Context Keeper as a Python library for programmatic
 
 ```bash
 # Install the package
-pip install mcp-context-keeper
+pip install mcp-memento
 
 # Or install in development mode
 pip install -e .
@@ -28,12 +28,12 @@ pip install -e .
 ### Import and Initialize
 
 ```python
-from context_keeper import ContextKeeper
+from memento import Memento
 import asyncio
 
 async def main():
-    # Create a ContextKeeper instance
-    keeper = ContextKeeper()
+    # Create a Memento instance
+    keeper = Memento()
     
     # Initialize the server (creates database connection)
     await keeper.initialize()
@@ -53,8 +53,8 @@ asyncio.run(main())
 ### Configuration
 
 ```python
-from context_keeper import ContextKeeper
-from context_keeper.config import Config
+from memento import Memento
+from memento.config import Config
 
 async def main():
     # Create custom configuration
@@ -66,7 +66,7 @@ async def main():
     )
     
     # Initialize with custom config
-    keeper = ContextKeeper(config=config)
+    keeper = Memento(config=config)
     await keeper.initialize()
     
     # Use the keeper...
@@ -75,14 +75,14 @@ async def main():
 
 ## Core Classes
 
-### ContextKeeper
+### Memento
 
 The main class that provides access to all functionality.
 
 ```python
-class ContextKeeper:
+class Memento:
     def __init__(self, config: Optional[Config] = None):
-        """Initialize ContextKeeper with optional configuration."""
+        """Initialize Memento with optional configuration."""
     
     async def initialize(self) -> None:
         """Initialize database connection and setup."""
@@ -149,7 +149,7 @@ class MemoryDatabase:
 ### Creating Memories
 
 ```python
-async def create_example_memories(keeper: ContextKeeper):
+async def create_example_memories(keeper: Memento):
     db = keeper.memory_db
     
     # Store a solution
@@ -181,7 +181,7 @@ async def create_example_memories(keeper: ContextKeeper):
 ### Reading and Updating
 
 ```python
-async def manage_memory(keeper: ContextKeeper, memory_id: str):
+async def manage_memory(keeper: Memento, memory_id: str):
     db = keeper.memory_db
     
     # Get memory details
@@ -212,7 +212,7 @@ async def manage_memory(keeper: ContextKeeper, memory_id: str):
 ### Creating Relationships
 
 ```python
-async def create_relationships(keeper: ContextKeeper, solution_id: str, pattern_id: str):
+async def create_relationships(keeper: Memento, solution_id: str, pattern_id: str):
     db = keeper.memory_db
     
     # Create a relationship
@@ -254,7 +254,7 @@ Common relationship types:
 ### Basic Search
 
 ```python
-async def search_examples(keeper: ContextKeeper):
+async def search_examples(keeper: Memento):
     db = keeper.memory_db
     
     # Search by query
@@ -285,7 +285,7 @@ async def search_examples(keeper: ContextKeeper):
 ### Advanced Search
 
 ```python
-async def advanced_search(keeper: ContextKeeper):
+async def advanced_search(keeper: Memento):
     # Use the MCP tools interface for advanced features
     tools = keeper.tools
     
@@ -312,7 +312,7 @@ async def advanced_search(keeper: ContextKeeper):
 ### Managing Confidence
 
 ```python
-async def confidence_management(keeper: ContextKeeper):
+async def confidence_management(keeper: Memento):
     tools = keeper.tools
     
     # Find low-confidence memories
@@ -345,7 +345,7 @@ async def confidence_management(keeper: ContextKeeper):
 ### Confidence Configuration
 
 ```python
-async def configure_confidence(keeper: ContextKeeper):
+async def configure_confidence(keeper: Memento):
     tools = keeper.tools
     
     # Set custom decay factors (Advanced profile only)
@@ -366,7 +366,7 @@ async def configure_confidence(keeper: ContextKeeper):
 ### Graph Analysis
 
 ```python
-async def graph_analysis(keeper: ContextKeeper):
+async def graph_analysis(keeper: Memento):
     tools = keeper.tools
     
     # Find memory clusters
@@ -390,7 +390,7 @@ async def graph_analysis(keeper: ContextKeeper):
 ### Export and Import
 
 ```python
-async def backup_restore(keeper: ContextKeeper):
+async def backup_restore(keeper: Memento):
     tools = keeper.tools
     
     # Export to JSON
@@ -424,16 +424,16 @@ async def backup_restore(keeper: ContextKeeper):
 
 ```python
 import asyncio
-from context_keeper import ContextKeeper
+from memento import Memento
 from datetime import datetime
 
 class KnowledgeBaseManager:
-    def __init__(self, db_path: str = "~/.mcp-context-keeper/context.db"):
+    def __init__(self, db_path: str = "~/.mcp-memento/context.db"):
         self.config = Config(sqlite_path=db_path, tool_profile="extended")
         self.keeper = None
     
     async def __aenter__(self):
-        self.keeper = ContextKeeper(config=self.config)
+        self.keeper = Memento(config=self.config)
         await self.keeper.initialize()
         return self
     
@@ -537,11 +537,11 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from context_keeper import ContextKeeper
+from memento import Memento
 from typing import List, Dict, Any
 
 class CodebaseAnalyzer:
-    def __init__(self, keeper: ContextKeeper):
+    def __init__(self, keeper: Memento):
         self.keeper = keeper
     
     async def analyze_and_store_patterns(self, codebase_path: str):
@@ -601,7 +601,7 @@ class CodebaseAnalyzer:
         return pattern_id
 
 async def main():
-    keeper = ContextKeeper()
+    keeper = Memento()
     await keeper.initialize()
     
     analyzer = CodebaseAnalyzer(keeper)
@@ -618,7 +618,7 @@ if __name__ == "__main__":
 ### 1. Use Async Context Managers
 
 ```python
-async with ContextKeeper() as keeper:
+async with Memento() as keeper:
     # Your code here
     # Automatic cleanup on exit
 ```
@@ -626,7 +626,7 @@ async with ContextKeeper() as keeper:
 ### 2. Batch Operations
 
 ```python
-async def batch_store(keeper: ContextKeeper, memories: list):
+async def batch_store(keeper: Memento, memories: list):
     """Store multiple memories efficiently."""
     db = keeper.memory_db
     
@@ -639,7 +639,7 @@ async def batch_store(keeper: ContextKeeper, memories: list):
 ### 3. Error Handling
 
 ```python
-async def safe_operation(keeper: ContextKeeper):
+async def safe_operation(keeper: Memento):
     try:
         db = keeper.memory_db
         result = await db.get_memory("non-existent-id")
@@ -653,7 +653,7 @@ async def safe_operation(keeper: ContextKeeper):
 ### 4. Resource Management
 
 ```python
-async def process_with_timeout(keeper: ContextKeeper):
+async def process_with_timeout(keeper: Memento):
     try:
         # Set timeout for long operations
         async with as

@@ -1,5 +1,5 @@
 """
-Server startup test suite for mcp-context-keeper.
+Server startup test suite for mcp-memento.
 
 This module tests server initialization, database connection, and basic functionality.
 """
@@ -7,7 +7,7 @@ This module tests server initialization, database connection, and basic function
 import asyncio
 import os
 
-# Add parent directory to path to import context_keeper
+# Add parent directory to path to import memento
 import sys
 import tempfile
 import uuid
@@ -18,11 +18,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from context_keeper.config import Config
-from context_keeper.database.engine import SQLiteBackend
-from context_keeper.database.interface import SQLiteMemoryDatabase
-from context_keeper.server import ContextKeeper
-from context_keeper.server import main as server_main
+from memento.config import Config
+from memento.database.engine import SQLiteBackend
+from memento.database.interface import SQLiteMemoryDatabase
+from memento.server import Memento
+from memento.server import main as server_main
 
 
 class TestServerStartup:
@@ -126,8 +126,8 @@ class TestServerStartup:
                 os.unlink(db_path)
 
     @pytest.mark.asyncio
-    async def test_context_keeper_initialization(self):
-        """Test ContextKeeper initialization with mocked database."""
+    async def test_memento_initialization(self):
+        """Test Memento initialization with mocked database."""
         # Create a mock database connection
         mock_backend = AsyncMock(spec=SQLiteBackend)
         mock_backend.backend_name.return_value = "sqlite"
@@ -139,7 +139,7 @@ class TestServerStartup:
 
         # Mock the SQLiteBackend constructor to return our mock
         with patch(
-            "context_keeper.database.engine.SQLiteBackend", return_value=mock_backend
+            "memento.database.engine.SQLiteBackend", return_value=mock_backend
         ):
             # Mock the connect method
             mock_backend.connect = AsyncMock(return_value=True)
@@ -147,7 +147,7 @@ class TestServerStartup:
             mock_backend.conn = MagicMock()
 
             # Create server instance
-            server = ContextKeeper()
+            server = Memento()
 
             # Initialize server
             await server.initialize()
@@ -167,9 +167,9 @@ class TestServerStartup:
             await server.cleanup()
             mock_backend.close.assert_called_once()
 
-    def test_context_keeper_tool_collection(self):
-        """Test that ContextKeeper collects all available tools."""
-        server = ContextKeeper()
+    def test_memento_tool_collection(self):
+        """Test that Memento collects all available tools."""
+        server = Memento()
 
         # Verify tools are collected during initialization
         # (Note: This doesn't actually initialize, just checks the collection method)
@@ -185,7 +185,7 @@ class TestServerStartup:
             assert hasattr(tool, "inputSchema")
 
     @pytest.mark.asyncio
-    async def test_context_keeper_tool_listing(self):
+    async def test_memento_tool_listing(self):
         """Test that context keeper lists available tools."""
         # Mock SQLiteBackend
         mock_backend = AsyncMock()
@@ -193,11 +193,11 @@ class TestServerStartup:
         mock_backend.initialize_schema = AsyncMock()
 
         with patch(
-            "context_keeper.database.engine.SQLiteBackend", return_value=mock_backend
+            "memento.database.engine.SQLiteBackend", return_value=mock_backend
         ):
             mock_backend.connect = AsyncMock(return_value=True)
 
-            server = ContextKeeper()
+            server = Memento()
             await server.initialize()
 
             # Verify tools are collected and available
@@ -219,7 +219,7 @@ class TestServerStartup:
         mock_backend = AsyncMock(spec=SQLiteBackend)
         mock_backend.close = AsyncMock()
 
-        server = ContextKeeper()
+        server = Memento()
         server.db_connection = mock_backend
         server.memory_db = MagicMock()
 
@@ -279,7 +279,7 @@ class TestServerIntegration:
         mock_write_stream = AsyncMock()
 
         # Create a mock context keeper
-        mock_server = AsyncMock(spec=ContextKeeper)
+        mock_server = AsyncMock(spec=Memento)
         mock_server.initialize = AsyncMock()
         mock_server.cleanup = AsyncMock()
         mock_server.server = MagicMock()
@@ -288,11 +288,11 @@ class TestServerIntegration:
             return_value={"tools": [], "resources": []}
         )
 
-        with patch("context_keeper.server.stdio_server", return_value=mock_stdio):
+        with patch("memento.server.stdio_server", return_value=mock_stdio):
             mock_stdio.__aenter__.return_value = (mock_read_stream, mock_write_stream)
             mock_stdio.__aexit__.return_value = None
 
-            with patch("context_keeper.server.ContextKeeper", return_value=mock_server):
+            with patch("memento.server.Memento", return_value=mock_server):
                 # Mock server.serve() to avoid Pydantic validation error
                 # Create a proper mock that passes Pydantic validation
                 from mcp.types import ServerCapabilities
@@ -304,7 +304,7 @@ class TestServerIntegration:
 
                 # Also mock InitializationOptions to avoid validation errors
                 with patch(
-                    "context_keeper.server.InitializationOptions"
+                    "memento.server.InitializationOptions"
                 ) as mock_init_options:
                     mock_init_options.return_value = MagicMock()
 
@@ -328,11 +328,11 @@ class TestServerIntegration:
     async def test_server_initialization_error_handling(self):
         """Test server handles initialization errors gracefully."""
         # Create a server that will fail to initialize
-        server = ContextKeeper()
+        server = Memento()
 
         # Mock SQLiteBackend to raise an exception
         with patch(
-            "context_keeper.database.engine.SQLiteBackend"
+            "memento.database.engine.SQLiteBackend"
         ) as mock_backend_class:
             mock_backend_class.side_effect = Exception("Database connection failed")
 
@@ -350,7 +350,7 @@ class TestConfigurationPaths:
 
         assert isinstance(path, str)
         assert path.endswith("context.db")
-        assert ".mcp-context-keeper" in path or "context_keeper" in path
+        assert ".mcp-memento" in path or "memento" in path
 
     def test_custom_sqlite_path(self):
         """Test custom SQLite database path."""

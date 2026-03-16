@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 def get_database_path() -> Path:
     """Get the path to the SQLite database."""
     # Default path used by Context Keeper
-    default_path = Path.home() / ".mcp-context-keeper" / "context.db"
+    default_path = Path.home() / ".mcp-memento" / "context.db"
 
     # Check if database exists in default location
     if default_path.exists():
@@ -210,7 +210,7 @@ def update_database_code() -> None:
     logger.info("Suggested code changes to prevent FTS issues:")
 
     print("\n" + "=" * 80)
-    print("CHANGES NEEDED IN: context_keeper/database/engine.py")
+    print("CHANGES NEEDED IN: memento/database/engine.py")
     print("=" * 80)
     print("\nReplace the FTS table creation code (around line 210-225):")
     print("\nFROM:")
@@ -235,7 +235,7 @@ def update_database_code() -> None:
 ```""")
 
     print("\n" + "=" * 80)
-    print("CHANGES NEEDED IN: context_keeper/database/interface.py")
+    print("CHANGES NEEDED IN: memento/database/interface.py")
     print("=" * 80)
     print("\nUpdate the store_memory method to ensure FTS is populated:")
     print("\nEnsure the FTS insertion code is always executed when storing memories.")

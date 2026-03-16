@@ -250,7 +250,7 @@ Examples:
 Environment Variables:
   CONTEXT_TOOL_PROFILE    Tool profile (core|extended|advanced) [default: core]
   CONTEXT_ENABLE_ADVANCED_TOOLS  Enable advanced tools [default: false]
-  CONTEXT_SQLITE_PATH     SQLite database path [default: ~/.mcp-context-keeper/context.db]
+  CONTEXT_SQLITE_PATH     SQLite database path [default: ~/.mcp-memento/context.db]
   CONTEXT_LOG_LEVEL       Log level (DEBUG|INFO|WARNING|ERROR) [default: INFO]
 
   Feature Configuration:

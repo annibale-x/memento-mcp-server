@@ -20,7 +20,7 @@ def get_all_tools() -> List[Tool]:
 
 CRITICAL DISTINCTION: Persistent memory vs Session memory
 
-PERSISTENT MEMORY (mcp-context-keeper tools with '_persistent' suffix):
+PERSISTENT MEMORY (mcp-memento tools with '_persistent' suffix):
 - Long-term knowledge that survives across ALL sessions
 - Global scope: accessible from any project or session
 - Use for: solutions, patterns, architecture decisions, reusable code snippets

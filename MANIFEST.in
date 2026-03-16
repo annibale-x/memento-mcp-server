@@ -5,7 +5,7 @@ include context-keeper.yaml
 include docker-compose.yml
 include Dockerfile
 include pyproject.toml
-include run_mcp_context_keeper.py
+include run_mcp_memento.py
 
 # Documentation files
 recursive-include docs *.md
@@ -13,5 +13,5 @@ recursive-include docs *.md
 # Test files
 recursive-include tests *.py
 
-# Note: Package data (files inside src/context_keeper/)
+# Note: Package data (files inside src/memento/)
 # is handled by pyproject.toml [tool.setuptools.package-data]
