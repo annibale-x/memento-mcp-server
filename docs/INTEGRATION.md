@@ -180,24 +180,6 @@ export MEMENTO_TOOL_PROFILE="core"
 memento
 ```
 
-## Migration from Old Integration Guide
-
-If you were using the old `INTEGRATION.md` file, here's where to find the updated content:
-
-| Old Section | New Location |
-|-------------|--------------|
-| Zed Editor | [IDE.md](./integrations/IDE.md#zed-editor) |
-| Cursor | [IDE.md](./integrations/IDE.md#cursor) |
-| Windsurf | [IDE.md](./integrations/IDE.md#windsurf) |
-| VSCode | [IDE.md](./integrations/IDE.md#vscode) |
-| Claude Desktop | [IDE.md](./integrations/IDE.md#claude-desktop) |
-| Gemini CLI | [AGENT.md](./integrations/AGENT.md#gemini-cli) |
-| Custom Agents | [PYTHON.md](./integrations/PYTHON.md#custom-agents) |
-| HTTP API | [API.md](./integrations/API.md#http-rest-api) |
-| Node.js Integration | [API.md](./integrations/API.md#nodejs-integration) |
-| Docker Integration | [API.md](./integrations/API.md#docker-deployment) |
-| Troubleshooting | Each guide has its own troubleshooting section |
-
 ## Getting Help
 
 ### Documentation Links
