@@ -40,6 +40,14 @@ Build a personal or team knowledge base that grows smarter over time, accessible
 - **Automatic maintenance**: Confidence decay, relationship integrity
 - **Shared database**: Same database works across all integrations
 
+## 🔄 MCP Operational Protocols (Auto-Onboarding)
+
+When MCP tools are available, AI assistants should apply the following logic based on the active server:
+
+- **Memento Module**: If Memento tools are available, you MUST execute `memento_onboarding()` at the start of every session to inject the memory management protocol.
+
+This ensures proper guidance for memory operations, optimized retrieval flow (1-3 tool calls for simple info, max 5 for complex tasks), and adherence to best practices.
+
 ## 🚀 Quick Start
 
 ### 1. Installation
@@ -228,8 +236,8 @@ AI: ✅ Memento stored and relationship created: fix ADDRESSES error
 **Using the "Memento" keyword:**
 You can also start any sentence with "Memento" to store or retrieve information:
 ```
-User: Memento I love oranges
-AI: ✅ Memento stored - "You love oranges"
+User: Memento I love coffee
+AI: ✅ Memento stored - "Hannibal loves coffee"
 
 User: Memento what is the Gemini API key for the project?
 AI: Found API key: "AIzaSyD...". Would you like me to store this information securely?
@@ -241,14 +249,11 @@ User: Memento how do we handle authentication?
 AI: Found 3 authentication patterns: 1) JWT with refresh tokens... 2) OAuth2 integration... 3) API key middleware...
 ```
 
-**Multi-language support:**
-Memento understands trigger phrases in multiple languages:
-- **English**: "memento", "remember that", "store this", "take note", "keep in mind"
-- **Italian**: "ricordati che", "memorizza questo", "segna", "tieni presente"
-- **Spanish**: "recuerda que", "guarda esto", "anota", "ten en cuenta"
-- **Automatic storage**: The AI assistant automatically stores important information without explicit commands when configured with proper guidelines
+**Automatic storage**
+The AI assistant automatically stores important information without explicit commands when configured with proper guidelines
 
-This natural language interface makes Memento accessible to everyone, not just developers, while maintaining all the advanced features like confidence tracking and relationship mapping in the background.
+**Multi-language support:**
+Memento understands trigger phrases in multiple languages; this natural language interface makes Memento accessible to everyone, not just developers, while maintaining all the advanced features like confidence tracking and relationship mapping in the background.
 
 ## ⚙️ Configuration
 
