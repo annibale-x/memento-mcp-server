@@ -390,7 +390,7 @@ pytest --cov=src tests/
 ### Setup
 ```bash
 # Clone repository
-git clone https://github.com/your-username/mcp-context-keeper.git
+git clone https://github.com/annibale-x/memento-mcp-server.git
 cd mcp-context-keeper
 
 # Install in development mode
@@ -443,11 +443,11 @@ For complete development documentation, see:
 
 ## 🔗 Links
 
-- **[GitHub Repository](https://github.com/your-username/mcp-context-keeper)** - Source code and issues
+- **[GitHub Repository](https://github.com/annibale-x/memento-mcp-server)** - Source code and issues
 - **[MCP Protocol](https://spec.modelcontextprotocol.io/)** - Model Context Protocol specification
 - **[PyPI Package](https://pypi.org/project/mcp-context-keeper/)** - Python Package Index
-- **[Discussions](https://github.com/your-username/mcp-context-keeper/discussions)** - Community forum
+- **[Discussions](https://github.com/annibale-x/memento-mcp-server/discussions)** - Community forum
 
 ---
 
-**Need help?** Check the [documentation](docs/) or open an [issue](https://github.com/your-username/mcp-context-keeper/issues) on GitHub.
+**Need help?** Check the [documentation](docs/) or open an [issue](https://github.com/annibale-x/memento-mcp-server/issues) on GitHub.

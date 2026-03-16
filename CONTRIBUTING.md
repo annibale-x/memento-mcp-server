@@ -19,7 +19,7 @@ Please be respectful and considerate of others when contributing to this project
 ## Getting Started
 
 ### Finding Issues to Work On
-- Check the [GitHub Issues](https://github.com/your-username/mcp-context-keeper/issues) for bugs and feature requests
+- Check the [GitHub Issues](https://github.com/annibale-x/memento-mcp-server/issues) for bugs and feature requests
 - Look for issues tagged with `good-first-issue` or `help-wanted`
 - Discuss proposed changes in an issue before starting work
 
@@ -27,7 +27,7 @@ Please be respectful and considerate of others when contributing to this project
 
 1. **Fork and clone the repository**:
    ```bash
-   git clone https://github.com/your-username/mcp-context-keeper.git
+   git clone https://github.com/annibale-x/memento-mcp-server.git
    cd mcp-context-keeper
    ```
 
