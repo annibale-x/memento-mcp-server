@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  memorygraph:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-memento
+    stdin_open: true # Required for MCP stdio
+    tty: true # Required for MCP stdio
+    environment:
+      - MEMENTO_TOOL_PROFILE=core
+      - MEMENTO_SQLITE_PATH=/data/memory.db
+      - MEMENTO_LOG_LEVEL=INFO
+    volumes:
+      - memory_data:/data
+    restart: unless-stopped
+
+volumes:
+  memory_data:
+    driver: local

@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+"""
+Wrapper script for MCP Memento.
+
+This script provides a proper entry point for running the MCP Memento
+as a standalone process, compatible with MCP-enabled applications including
+IDEs (Zed, Cursor, Windsurf, VSCode, Claude Desktop), CLI agents (Gemini CLI,
+Claude CLI), and custom applications.
+
+Usage:
+    python run_mcp_memento.py
+
+Environment Variables:
+    MEMENTO_SQLITE_PATH: Path to SQLite database file
+    MEMENTO_TOOL_PROFILE: Tool profile (core|extended|advanced)
+    MEMENTO_LOG_LEVEL: Logging level (DEBUG|INFO|WARNING|ERROR)
+"""
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+
+# Add the project root and src directory to the Python path
+project_root = Path(__file__).parent
+src_path = project_root / "src"
+
+# Clear any existing memento modules to avoid conflicts
+for module_name in list(sys.modules.keys()):
+    if module_name.startswith("memento"):
+        del sys.modules[module_name]
+
+# Add paths in correct order
+sys.path.insert(0, str(src_path))
+sys.path.insert(0, str(project_root))
+
+
+try:
+    # Import using absolute path to avoid conflicts
+    from src.memento.cli import main as cli_main
+    from src.memento.config import Config
+    from src.memento.server import main as server_main
+except ImportError as e:
+    print(f"Error importing memento modules: {e}")
+    print(
+        "Make sure you are in the project root directory and dependencies are installed."
+    )
+    sys.exit(1)
+
+
+def run_server():
+    """
+    Run the MCP Memento.
+
+    This function starts the MCP server with configuration from environment variables.
+    """
+    # Map environment variables to config
+    env_config = {}
+
+    # SQLite database path
+    if sqlite_path := os.getenv("MEMENTO_SQLITE_PATH"):
+        env_config["sqlite_path"] = sqlite_path
+        # Also set environment variable directly to ensure Config reads it
+        os.environ["MEMENTO_SQLITE_PATH"] = sqlite_path
+
+    # Tool profile
+    if tool_profile := os.getenv("MEMENTO_TOOL_PROFILE"):
+        env_config["tool_profile"] = tool_profile
+        os.environ["MEMENTO_TOOL_PROFILE"] = tool_profile
+
+    # Log level
+    if log_level := os.getenv("MEMENTO_LOG_LEVEL"):
+        env_config["log_level"] = log_level
+        os.environ["MEMENTO_LOG_LEVEL"] = log_level
+
+    # Apply environment configuration
+    if env_config:
+        config = Config()
+        for key, value in env_config.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
+                print(f"Config: {key} = {value}")
+
+    print("Starting MCP Memento...")
+    print(f"Project root: {project_root}")
+
+    # Run the server
+    asyncio.run(server_main())
+
+
+def show_help():
+    """Show help information."""
+    print("MCP Memento Wrapper")
+    print("=" * 40)
+    print()
+    print("Usage:")
+    print("  python run_mcp_memento.py          - Start the MCP server")
+    print("  python run_mcp_memento.py --health - Run health check")
+    print("  python run_mcp_memento.py --help   - Show this help")
+    print()
+    print("Environment Variables:")
+    print("  MEMENTO_SQLITE_PATH    - Path to SQLite database file")
+    print("  MEMENTO_TOOL_PROFILE   - Tool profile (core|extended)")
+    print("  MEMENTO_LOG_LEVEL      - Logging level (DEBUG|INFO|WARNING|ERROR)")
+    print()
+    print("For more CLI options, use the memento module directly:")
+    print("  python -m memento.cli --help")
+
+
+if __name__ == "__main__":
+    # Check for command line arguments
+    if len(sys.argv) > 1:
+        arg = sys.argv[1]
+
+        if arg in ["-h", "--help"]:
+            show_help()
+            sys.exit(0)
+        elif arg == "--health":
+            # Run health check via CLI
+            sys.argv = ["memento.cli", "--health"]
+            cli_main()
+        else:
+            print(f"Unknown argument: {arg}")
+            show_help()
+            sys.exit(1)
+    else:
+        # No arguments, run the server
+        run_server()

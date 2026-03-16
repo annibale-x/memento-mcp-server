@@ -1,83 +1,46 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
-name = "mcp-context-keeper"
-version = "0.1.0"
-description = "MCP (Model Context Protocol) server for managing and persisting context across conversations"
-readme = "README.md"
-requires-python = ">=3.10"
-license = {text = "MIT"}
+name = "mcp-memento"
+version = "0.1.19"
+description = "MCP Memento for contextual memory management"
 authors = [
-    {name = "Hannibal", email = ""},
+    {name = "Hannibal", email = "annibale.x@gmail.com"}
 ]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Communications :: Chat",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-]
-keywords = ["mcp", "model-context-protocol", "context", "memory", "ai", "chat", "zed"]
+requires-python = ">=3.10"
 dependencies = [
-    "pydantic >=2.0.0",
-    "sqlite3; python_version < '3.12'",
-    "networkx >=3.0",
+    "mcp>=1.23.0",
+    "pydantic>=2.10.0",
+    "python-dotenv>=1.0.0",
+    "typing-extensions>=4.0.0",
+    "pyyaml>=6.0.0",
+    "aiosqlite>=0.20.0"
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest >=7.0.0",
-    "pytest-asyncio >=0.21.0",
-    "black >=23.0.0",
-    "ruff >=0.1.0",
-    "mypy >=1.0.0",
+[project.scripts]
+memento = "memento.cli:main"
+mcp-memento = "memento.cli:main"
+
+[project.gui-scripts]
+memento-gui = "memento.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["memento*"]
+
+[tool.setuptools.package-data]
+"memento" = ["*.yaml", "*.yml", "*.sql", "*.txt", "*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+norecursedirs = [".agent", ".data", ".pytest_cache", ".serena", "docs", "utils"]
+addopts = "--asyncio-mode=auto"
+filterwarnings = [
+    "ignore:coroutine 'AsyncMockMixin._execute_mock_call' was never awaited:RuntimeWarning",
+    "ignore:coroutine 'main' was never awaited:RuntimeWarning",
 ]
-server = [
-    "fastapi >=0.104.0",
-    "uvicorn[standard] >=0.24.0",
-]
-
-[project.urls]
-Homepage = "https://github.com/annibale-x/context-keeper-mcp-server"
-Documentation = "https://github.com/annibale-x/context-keeper-mcp-server#readme"
-Repository = "https://github.com/annibale-x/context-keeper-mcp-server"
-Issues = "https://github.com/annibale-x/context-keeper-mcp-server/issues"
-
-[tool.hatch.version]
-path = "mcp_context_keeper/__init__.py"
-
-[tool.black]
-line-length = 88
-target-version = ['py310']
-
-[tool.ruff]
-line-length = 88
-target-version = "py310"
-select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
-]
-ignore = ["E501"]
-
-[tool.ruff.isort]
-known-first-party = ["mcp_context_keeper"]
-
-[tool.mypy]
-python_version = "3.10"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
