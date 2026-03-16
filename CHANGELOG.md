@@ -1,6 +1,9 @@
 # Changelog
 
-* 2026-03-16: v0.1.20 - Documentation restructuring and README enhancement (Hannibal)
+* 2026-03-16: v0.1.20 - Codebase consistency restoration and documentation enhancement (Hannibal)
+  * **Legacy code cleanup**: Removed mcp_context_keeper module, example.py, setup.py, and test_basic.py to restore consistent codebase
+  * **Version bump**: Updated to v0.1.20 in __init__.py and pyproject.toml
+  * **Project memory updates**: Corrected test count (157 tests) and removed references to legacy code
   * **Complete README restructuring**: Linear, modular structure without redundancies
   * **Removed "Universal" terminology**: Replaced with "Cross-Platform", "Shared", "Consistent Behavior"
   * **Added natural language interaction examples**: Show chat-based memento usage with "Remember that..." patterns
