@@ -14,3 +14,26 @@ venv/
 dev/
 requirements-dev.txt
 .pytest_cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+.coverage
+.coverage.*
+
+# Python packaging
+*.whl
+*.tar.gz
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

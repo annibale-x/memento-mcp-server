@@ -1,5 +1,13 @@
 # Changelog
 
+* 2026-03-16: v0.2.1 - Build infrastructure fixes and PyPI README compatibility (Hannibal)
+  * **PyPI README compatibility**: Added dynamic link conversion for PyPI releases
+  * **Build script optimization**: Consolidated build logic into single Python script
+  * **License configuration fix**: Corrected pyproject.toml license field from deprecated dictionary to SPDX string
+  * **Automated README patching**: Build-time conversion of relative links to absolute GitHub URLs
+  * **Cross-platform consistency**: Simplified build.bat and build.sh to call central Python script
+  * **Build reliability**: Fixed configuration errors preventing successful package builds
+
 * 2026-03-16: v0.2.0 - Comprehensive audit and refactoring for public release (Hannibal)
   * **Breaking changes**: Removed deprecated Bi-temporal tracking system (replaced with confidence-based decay)
   * **Breaking changes**: Eliminated fake Cypher query support, keeping only native SQLite backend

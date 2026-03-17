@@ -4,12 +4,26 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-memento"
-version = "0.2.0"
+version = "0.2.1"
 description = "MCP Memento for contextual memory management"
+readme = "README.md"
 authors = [
     {name = "Hannibal", email = "annibale.x@gmail.com"}
 ]
 requires-python = ">=3.10"
+license-files = ["LICENSE"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+keywords = ["mcp", "memory", "ai", "context", "knowledge-base", "ide", "cli"]
 dependencies = [
     "mcp>=1.23.0",
     "pydantic>=2.10.0",

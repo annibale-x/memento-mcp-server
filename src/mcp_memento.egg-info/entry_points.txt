@@ -1,6 +1,0 @@
-[console_scripts]
-mcp-memento = memento.cli:main
-memento = memento.cli:main
-
-[gui_scripts]
-memento-gui = memento.cli:main
