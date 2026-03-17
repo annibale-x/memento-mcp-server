@@ -53,6 +53,20 @@ Code examples or configuration
 Additional context, alternatives considered, trade-offs
 ```
 
+### 4. Memory Types Guide
+Choosing the right memory type improves search filtering and organization. Here are the primary types and when to use them:
+
+| Type | Use For | Example |
+|------|---------|---------|
+| **`solution`** | Working fixes, architectural implementations | "Fixed N+1 query with eager loading" |
+| **`problem`** | Issues encountered that need tracking | "Database deadlock under high concurrency" |
+| **`code_pattern`** | Reusable templates or patterns | "Repository pattern for database access" |
+| **`decision`** | Architecture choices (often tagged `decision`) | "Chose PostgreSQL over MongoDB for transactions" |
+| **`task`** | Completed milestones or session summaries | "Implemented user authentication" |
+| **`technology`** | Framework knowledge, configs | "FastAPI dependency injection best practices" |
+| **`error`** | Specific error strings | "ImportError: module not found" |
+| **`fix`** | Direct resolutions to specific errors | "Added missing import statement for models" |
+
 ## Tagging Conventions
 
 ### 1. Tag Categories
@@ -240,6 +254,31 @@ When using a shared database:
 5. If needs work, provide feedback
 6. Archive or delete rejected memories
 ```
+
+## Example Workflows
+
+Integrating Memento into your daily development cycle is key. If you don't prompt the AI or configure rules, nothing gets stored. Here are some workflow habits to build:
+
+### 1. The Debugging Lifecycle
+When you encounter a stubborn issue:
+1. **Identify the Issue:** You hit an error. Tell the AI to store it (Type: `error`).
+2. **Find the Root Cause:** You trace the bug. Have the AI store the root cause (Type: `problem`) and link it (`error` CAUSES `problem`).
+3. **Implement the Fix:** You write the patch. Tell the AI to save the implementation (Type: `solution`) and link it (`solution` SOLVES `problem`).
+4. *Result:* You now have a complete, traceable chain of how an error maps to a root cause and its solution.
+
+### 2. Feature Development
+When building something new:
+1. **Context Gathering:** Start your session by asking the AI, *"Recall any patterns we use for user authentication."*
+2. **Implementation:** Write the code with the AI's help, leveraging the retrieved context.
+3. **Knowledge Capture:** Once the feature works, tell the AI, *"Store this new JWT authentication approach"* (Type: `code_pattern`).
+4. **Link to Context:** Instruct the AI to link the pattern to the current project (`pattern` APPLIES_TO `project`).
+
+### 3. Optimization & Architecture
+When making high-level choices:
+1. **Identify the Bottleneck:** Store the performance issue or limitation (Type: `problem`).
+2. **Explore Options:** Test a few approaches and store the viable ones (Type: `solution`).
+3. **Compare & Decide:** Link the chosen approach as an improvement (`best_solution` IMPROVES `old_solution`).
+4. **Document the Rationale:** Save the final architecture choice so future developers understand the *why* behind your choices.
 
 ## Maintenance Schedule
 

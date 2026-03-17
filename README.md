@@ -15,20 +15,25 @@ Memento is an MCP server that provides persistent memory capabilities across mul
 
 Build a personal or team knowledge base that grows smarter over time, accessible from all your development tools.
 
-## 👶 Memento for Dummies
+## 🌱 A Gentle Introduction
 
-**What is Memento?**  
+**What is Memento?**
 Imagine you're solving a complex bug, figuring out a tricky configuration, or establishing a new coding pattern. Usually, you'd forget the details in a few weeks. Memento is a "long-term memory drive" for your AI assistant. It allows your AI to save these solutions, decisions, and facts so it can recall them instantly across different projects, even months later.
 
-**How does it work in practice?**  
-Memento is **not an autonomous agent**. It sits quietly in the background, providing a set of "memory tools" to whatever AI assistant you are using (like Claude, Cursor, or Gemini). When you interact with your AI, it can use these tools to save information to a local database (a simple SQLite file on your computer) or search that database to answer your questions.
+**💡 The Agentic Mindset: A Guide for Traditional Developers**
+If you are used to deterministic software (where things happen automatically because a script says so), interacting with AI agents requires a slight mental shift. 
 
-**Does it remember everything automatically?**  
-**No.** By default, AI assistants don't know what is important enough to save for the long term. You have to train them or explicitly tell them. You can say things like:
-- *"Memento: save this database connection string."*
-- *"Remember that we solved the Redis timeout using connection pooling."*
+Memento is **not an autonomous agent** that watches your screen and magically decides what to remember. Instead, Memento is a *toolbelt* provided to your AI assistant (like Claude, Cursor, or Gemini). 
 
-Alternatively, you can add custom instructions to your AI (see our [Agent Configuration Guide](docs/AGENT_CONFIGURATION.md)) to make it automatically save bug fixes or architectural decisions without you having to ask every time.
+* **The AI is the worker:** It needs to be told when to use the toolbelt. Nothing is saved without explicit instruction or a pre-defined rule.
+* **You are the manager:** You control what gets stored. You can either tell the AI during a chat (*"Save this database connection string"*), or you can give the AI standard operating procedures (via system prompts or `.cursorrules`/`CLAUDE.md` files) so it knows to automatically save certain things, like bug fixes or architecture decisions.
+
+**How to build the habit:**
+1. **Start of session:** Ask your AI, *"What do we know about the authentication system?"* to pull context.
+2. **During work:** When you fix a tricky issue, say, *"We fixed the Redis timeout. Store this solution."*
+3. **End of session:** Tell your AI, *"Store a summary of what we accomplished today."*
+
+Alternatively, you can add custom instructions to your AI (see our [Agent Configuration Guide](docs/AGENT_CONFIGURATION.md)) to make it automatically execute these steps without you having to ask every time.
 
 ## ✨ Key Features
 
