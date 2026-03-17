@@ -12,4 +12,5 @@ venv/
 .venv/
 .env
 dev/
+requirements-dev.txt
 .pytest_cache/
