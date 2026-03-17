@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-memento"
-version = "0.2.2"
+version = "0.2.3"
 description = "MCP Memento for contextual memory management"
 readme = "README.md"
 authors = [
@@ -13,7 +13,7 @@ authors = [
 requires-python = ">=3.10"
 license-files = ["LICENSE"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "License :: OSI Approved :: MIT License",
