@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-blueviolet)](https://spec.modelcontextprotocol.io/)
-[![Latest Release](https://img.shields.io/badge/release-v0.2.0-purple.svg)](https://github.com/annibale-x/memento-mcp-server/releases/tag/v0.2.0)
+[![Latest Release](https://img.shields.io/badge/release-v0.2.2-purple.svg)](https://github.com/annibale-x/memento-mcp-server/releases/tag/v0.2.2)
 
 Intelligent memory management for MCP clients with confidence tracking, relationship mapping, and knowledge quality maintenance.
 
