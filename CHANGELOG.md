@@ -1,5 +1,15 @@
 # Changelog
 
+* 2026-03-17: v0.2.5 - Test suite stabilization and documentation enhancement (Hannibal)
+  * Test warnings resolution: Eliminated RuntimeWarning for unawaited coroutines in test suite (MagicMock → proper async mock handling)
+  * CLI test reliability: Wrapped main() calls in try/except to handle SystemExit gracefully during testing
+  * Enhanced test coverage validation: Verified 168 tests passing with 0 warnings
+  * Documentation overhaul: Added "🌱 A Gentle Introduction" section clarifying non-agentic nature and usage patterns
+  * Developer guidance enhancement: Added Memory Types Guide table defining solution, problem, code_pattern, decision types
+  * Workflow documentation: Added step-by-step examples for Debugging, Feature Development, and Optimization scenarios
+  * Agentic mindset clarification: Explained AI needs explicit instruction for tool usage, bridging traditional developer workflows
+  * User feedback integration: Addressed confusion about autonomous agent behavior and memory storage mechanisms
+
 * 2026-03-17: v0.2.2 - TestPyPI release validation and build process verification (Hannibal)
   * TestPyPI validation: Successfully published and tested v0.2.1 on TestPyPI
   * Build process verification: Confirmed automated README link conversion works correctly
