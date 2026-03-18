@@ -119,12 +119,12 @@ impl zed::Extension for MementoExtension {
                     }
                 }
 
-                if let Some(path) = map.get("MEMENTO_SQLITE_PATH").and_then(|v| v.as_str()) {
-                    env_vars.push(("MEMENTO_SQLITE_PATH".to_string(), path.to_string()));
+                if let Some(path) = map.get("MEMENTO_DB_PATH").and_then(|v| v.as_str()) {
+                    env_vars.push(("MEMENTO_DB_PATH".to_string(), path.to_string()));
                 }
 
-                if let Some(profile) = map.get("MEMENTO_TOOL_PROFILE").and_then(|v| v.as_str()) {
-                    env_vars.push(("MEMENTO_TOOL_PROFILE".to_string(), profile.to_string()));
+                if let Some(profile) = map.get("MEMENTO_PROFILE").and_then(|v| v.as_str()) {
+                    env_vars.push(("MEMENTO_PROFILE".to_string(), profile.to_string()));
                 }
             }
         }
@@ -147,12 +147,12 @@ impl zed::Extension for MementoExtension {
         let settings_schema = zed_extension_api::serde_json::json!({
             "type": "object",
             "properties": {
-                "MEMENTO_SQLITE_PATH": {
+                "MEMENTO_DB_PATH": {
                     "type": "string",
                     "description": "Path to the Memento SQLite database file.",
                     "default": "~/.mcp-memento/context.db"
                 },
-                "MEMENTO_TOOL_PROFILE": {
+                "MEMENTO_PROFILE": {
                     "type": "string",
                     "description": "Tool profile to load (core, extended, advanced).",
                     "enum": ["core", "extended", "advanced"],
@@ -173,8 +173,8 @@ impl zed::Extension for MementoExtension {
 
         let default_settings = concat!(
             "{\n",
-            "  \"MEMENTO_SQLITE_PATH\": \"~/.mcp-memento/context.db\",\n",
-            "  \"MEMENTO_TOOL_PROFILE\": \"core\",\n",
+            "  \"MEMENTO_DB_PATH\": \"~/.mcp-memento/context.db\",\n",
+            "  \"MEMENTO_PROFILE\": \"core\",\n",
             "  \"PYTHON_COMMAND\": \"auto\",\n",
             "  \"STUB_VERSION\": \"0.1.0\"\n",
             "}"
