@@ -7,8 +7,8 @@ use zed_extension_api::{
 /// Version of the bootstrap script to download from GitHub Releases.
 const BOOTSTRAP_VERSION: &str = "0.2.0";
 
-/// Name of the bootstrap script as saved in the extension working directory.
-const BOOTSTRAP_SCRIPT_NAME: &str = "mcp_memento_bootstrap.py";
+/// GitHub asset name (fixed, as published in every release).
+const BOOTSTRAP_ASSET_NAME: &str = "mcp_memento_bootstrap.py";
 
 /// GitHub Releases base URL for the bootstrap script.
 /// Tag convention: bootstrap-v{BOOTSTRAP_VERSION}
@@ -30,21 +30,21 @@ impl MementoExtension {
             return Ok(cached.clone());
         }
 
+        // Embed the version in the local filename so that upgrading BOOTSTRAP_VERSION
+        // always triggers a fresh download (zed::download_file never overwrites).
+        let local_name = format!("mcp_memento_bootstrap_v{}.py", version);
+
         let url = format!(
             "{}/bootstrap-v{}/{}",
-            BOOTSTRAP_BASE_URL, version, BOOTSTRAP_SCRIPT_NAME
+            BOOTSTRAP_BASE_URL, version, BOOTSTRAP_ASSET_NAME
         );
 
-        zed::download_file(
-            &url,
-            BOOTSTRAP_SCRIPT_NAME,
-            DownloadedFileType::Uncompressed,
-        )
-        .map_err(|e| format!("Failed to download mcp-memento bootstrap: {e}"))?;
+        zed::download_file(&url, &local_name, DownloadedFileType::Uncompressed)
+            .map_err(|e| format!("Failed to download mcp-memento bootstrap: {e}"))?;
 
-        self.cached_script = Some(BOOTSTRAP_SCRIPT_NAME.to_string());
+        self.cached_script = Some(local_name.clone());
 
-        Ok(BOOTSTRAP_SCRIPT_NAME.to_string())
+        Ok(local_name)
     }
 
     /// Returns ordered Python executable candidates for the current platform.
