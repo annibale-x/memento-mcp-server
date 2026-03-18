@@ -1,204 +1,224 @@
-# Memento Zed Extension - Development Guide
+# Memento Zed Extension — Development Guide
 
-Welcome to the development documentation for the **Memento Zed Extension**. This guide provides all the necessary context, architectural decisions, and workflows for contributing to this project.
+## 1. Overview
 
-## 1. Project Overview
+This is the [Zed](https://zed.dev/) editor extension for **Memento MCP Server**.
+It provides a zero-config runtime that discovers Python, installs `mcp-memento` if
+needed, and launches the MCP server.
 
-This project is a [Zed](https://zed.dev/) editor extension written in Rust. Its purpose is to provide a seamless, zero-config runtime environment for the **Memento MCP Server** (`mcp-memento`), which is a Python package available on PyPI.
-
-**Note:** This repository contains only the Zed extension wrapper. The actual MCP server logic lives in the [`mcp-memento`](https://pypi.org/project/mcp-memento/) Python package. The bootstrap script that bridges the two is distributed as a GitHub Release asset.
+The extension lives in `integrations/zed/` inside the main `mcp-memento` repository.
 
 ---
 
 ## 2. Architecture
 
-### The WASM Sandbox Constraint
+### WASM Sandbox Constraints
 
-Zed extensions are compiled to WebAssembly (WASM) and run inside a heavily sandboxed environment. The key constraints are:
+Zed extensions compile to WebAssembly (`wasm32-wasip1`) and run in a sandbox:
 
-- `std::env::temp_dir()` causes a **panic** (no direct filesystem access).
-- The sandbox's `PATH` is **not** the user's shell `PATH`, so `python` or `python3` may not be found.
-- There are **no** Zed APIs for Python analogous to `zed::node_binary_path()`.
+- `std::env::temp_dir()` **panics** — no arbitrary filesystem access.
+- The sandbox `PATH` is not the user shell `PATH`.
+- There is no Zed API for spawning Python directly.
+- The **WASM working directory** is `<data>/extensions/work/<ext-id>/` — a Zed-managed
+  directory that is **separate** from the extension source files. Zed does **not** copy
+  source files there automatically.
 
-### The Solution: `download_file` + Bootstrap Script
-
-The Zed Extension API exposes `zed::download_file()`, which can fetch a file from any URL and save it into the **extension's working directory** — a real directory on the host filesystem that Zed manages on behalf of the extension. Crucially, Zed also sets this directory as the **cwd** of any child process spawned via `zed::Command`, so a bare filename is sufficient to reference the downloaded file.
-
-This gives us the following architecture:
+### Two Rust Components
 
 ```
-Zed (WASM sandbox)
-  │
-  ├─ context_server_command() [Rust/WASM]
-  │    1. Reads user settings (PYTHON_COMMAND, BOOTSTRAP_VERSION, …)
-  │    2. Calls zed::download_file() → saves mcp_memento_bootstrap.py
-  │       into the extension working directory (only on first run / version change)
-  │    3. Returns Command { command: "py" | "python3" | …, args: ["-u", "mcp_memento_bootstrap.py"] }
-  │
-  └─ Zed spawns the child process (cwd = extension working directory)
-       │
-       └─ mcp_memento_bootstrap.py [Python, host OS]
-            ├─ If mcp-memento already installed → exec() into real server immediately
-            └─ If not installed:
-                 ├─ Start background thread: pip install --user mcp-memento
-                 ├─ Main thread: answer Zed's MCP handshake with stub responses
-                 │   (initialize → OK, tools/list → [], tools/call → "installing…")
-                 ├─ Installation completes (background thread sets Event)
-                 └─ Hand off stdin/stdout to real mcp-memento process (proxy loop)
+integrations/zed/
+├── src/lib.rs          # WASM extension — finds stub, returns Command to Zed
+└── stub/src/main.rs    # Native binary stub — finds Python, launches mcp-memento
 ```
 
-### Why the Stub Response Pattern?
+#### 1. WASM extension (`src/lib.rs`)
 
-Zed times out the MCP handshake after ~60 seconds. A `pip install` can easily exceed that. The bootstrap script solves this by:
+Runs inside the Zed sandbox. Its only job is to locate the stub binary and return
+a `Command` to Zed. It uses a **download-first with local cache** strategy:
 
-1. Answering `initialize` **immediately** with valid (but minimal) capabilities.
-2. Running `pip install --user mcp-memento` in a background thread.
-3. Buffering any requests that arrive during installation.
-4. Once installed, spawning the real `mcp-memento` process and replaying buffered requests through a transparent proxy.
+| Priority | Location | When present |
+|----------|----------|--------------|
+| 1 | `stub/bin/<asset>` relative to WASM CWD | Placed there by `deploy.py dev-stub` (dev) or by Zed from the extension package (marketplace) |
+| 2 | `<download-name>` in WASM CWD | Cached from a previous download |
+| 3 | GitHub Release `vX.Y.Z` | Downloaded on first run, cached for future runs |
 
-This approach means the user sees the server as "connected" within milliseconds, and tools become available once installation completes (typically 10–30 seconds).
+The WASM CWD is `%LOCALAPPDATA%\Zed\extensions\work\mcp-memento\` on Windows.
 
-### Python Discovery
+#### 2. Native stub (`stub/src/main.rs`)
 
-Since `Worktree.which()` is not available in `context_server_command` (which receives a `Project`, not a `Worktree`), we cannot call `which()` at spawn time. Instead:
+A small native binary (~160 lines). It does **not** proxy MCP traffic.
 
-- On **Windows**: the default candidate is `py` (the Python Launcher, always on PATH if Python is installed).
-- On **macOS / Linux**: the default candidate is `python3`.
-- The user can override this with an absolute path via the `PYTHON_COMMAND` setting.
+Flow:
+1. Reads `PYTHON_COMMAND` env var (or auto-discovers: `py.exe` → `python.exe` → `%LOCALAPPDATA%`)
+2. Checks if `mcp-memento` is installed (`python -m memento --version`)
+3. If not installed: runs `pip install --upgrade mcp-memento`
+4. Spawns `python -u -m memento` with **inherited stdio**
+5. Exits immediately — Python inherits Zed's file descriptors directly
+
+**Why inherited stdio instead of a proxy?**
+On Windows, Zed (ShellBuilder) closes stdin after `initialize`. With inherited stdio,
+Python gets the actual file descriptors opened by Zed — no proxy pipe, no broken pipe.
+
+Debug log: `%TEMP%\memento_stub_debug.log` (Windows)
 
 ---
 
 ## 3. Repository Structure
 
 ```
-zed-memento/
+integrations/zed/
 ├── src/
-│   └── lib.rs                  # Rust extension (WASM) — download + spawn logic
-├── bootstrap/
-│   └── mcp_memento_bootstrap.py  # Bootstrap script published to GitHub Releases
-├── extension.toml              # Extension manifest
-├── Cargo.toml                  # Rust workspace
-├── DEV.md                      # This file
-└── .agent/                     # Ephemeral agent artifacts (git-ignored)
+│   └── lib.rs                              # WASM extension
+├── stub/
+│   ├── src/
+│   │   └── main.rs                         # Native stub source
+│   ├── bin/
+│   │   ├── memento-stub-x86_64-pc-windows-msvc.exe
+│   │   ├── memento-stub-x86_64-apple-darwin
+│   │   ├── memento-stub-aarch64-apple-darwin
+│   │   ├── memento-stub-x86_64-unknown-linux-gnu
+│   │   └── memento-stub-aarch64-unknown-linux-gnu
+│   └── Cargo.toml
+├── Cargo.toml                              # Workspace root
+├── extension.toml                          # Extension manifest
+├── extension.wasm                          # Compiled WASM (git-ignored, built by Zed)
+└── DEV.md                                  # This file
 ```
+
+`stub/bin/` contains pre-built binaries committed to the repository.
+They are used by the marketplace install path (Zed copies them into the work dir).
 
 ---
 
-## 4. GitHub Releases Workflow
+## 4. Prerequisites
 
-The bootstrap script is distributed as a GitHub Release asset, **not** bundled in the WASM extension (which would require rebuilding and republishing the extension on every `mcp-memento` update).
-
-### Release Tag Convention
-
-```
-bootstrap-v<BOOTSTRAP_VERSION>
-```
-
-Example: `bootstrap-v0.1.0`
-
-### Asset Name
-
-```
-mcp_memento_bootstrap.py
-```
-
-### How to Publish a New Bootstrap Version
-
-1. Edit `bootstrap/mcp_memento_bootstrap.py` with the desired changes.
-2. Create and push a new tag:
-   ```bash
-   git tag bootstrap-v0.2.0
-   git push origin bootstrap-v0.2.0
-   ```
-3. On GitHub, create a Release for that tag and upload `mcp_memento_bootstrap.py` as a release asset.
-4. Update `BOOTSTRAP_VERSION` in `src/lib.rs` to `"0.2.0"`.
-5. Rebuild and republish the Zed extension.
-
-> **Note:** The `BOOTSTRAP_VERSION` constant in `src/lib.rs` controls which GitHub Release the extension fetches. Users can also pin a specific version via the `BOOTSTRAP_VERSION` setting in their Zed config.
+- **Rust** with the WASM target:
+  ```
+  rustup target add wasm32-wasip1
+  ```
+- **Zed Editor** installed.
+- **Python 3.8+** on the host system.
 
 ---
 
 ## 5. Local Development Workflow
 
-### Prerequisites
+### First-time setup
 
-- **Rust** with the `wasm32-wasip1` target:
-  ```bash
-  rustup target add wasm32-wasip1
-  ```
-- **Zed Editor** installed on your system.
-- **Python 3.8+** on the host system.
+After cloning, run:
 
-### Building
-
-```bash
-# Debug build (fast iteration)
-cargo build --target wasm32-wasip1
-
-# Release build (for packaging)
-cargo build --target wasm32-wasip1 --release
+```
+python scripts/deploy.py dev-stub
 ```
 
-### Testing in Zed (Dev Extension)
+This command:
+1. Builds the stub binary for the current platform (`cargo build --release`)
+2. Copies it into `integrations/zed/stub/bin/<asset>` (repo)
+3. Copies it into the Zed extension work directory:
+   - Windows: `%LOCALAPPDATA%\Zed\extensions\work\mcp-memento\stub\bin\`
+   - macOS:   `~/Library/Application Support/Zed/extensions/work/mcp-memento/stub/bin/`
+   - Linux:   `~/.local/share/zed/extensions/work/mcp-memento/stub/bin/`
+4. Commits and pushes the updated binary to `dev`
 
-You do not need to publish the extension to test it:
+Step 3 is what makes "Install Dev Extension" work without a GitHub Release —
+Zed uses that work directory as the WASM sandbox CWD, so the stub is found at
+`stub/bin/<asset>` exactly as `lib.rs` expects.
+
+### Loading the extension in Zed
 
 1. Open Zed.
-2. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`).
+2. Open the Command Palette (`Ctrl+Shift+P`).
 3. Run `zed: extensions`.
-4. Click **Install Dev Extension** and select the root directory of this project.
-5. Zed compiles the extension to WASM and loads it automatically.
+4. Click **Install Dev Extension** and select `integrations/zed/`.
 
-### Testing the Bootstrap Script Standalone
+Zed compiles the WASM and loads the extension. No rebuild needed after editing
+`lib.rs` — Zed recompiles automatically on reload.
 
-```bash
-# Simulate the Zed MCP handshake from the terminal
-python bootstrap/mcp_memento_bootstrap.py < test_zed_handshake.py
+### After modifying `stub/src/main.rs`
+
+```
+python scripts/deploy.py dev-stub
 ```
 
-Or pipe JSON-RPC requests manually:
+Rebuild, copy to both locations, commit, push.
 
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python bootstrap/mcp_memento_bootstrap.py
+### Building the WASM manually
+
+```
+cargo build --target wasm32-wasip1 --release
+cp target/wasm32-wasip1/release/memento_mcp_server.wasm extension.wasm
 ```
 
-### Debugging
-
-- Open the Zed log: `zed: open log` from the Command Palette.
-- Search for `[MEMENTO-BOOTSTRAP]` to see bootstrap script output.
-- Search for `context_server` or `mcp` to see Zed-side errors.
+`extension.wasm` is git-ignored; Zed rebuilds it from source when loading a dev
+extension.
 
 ---
 
-## 6. Settings Reference
+## 6. Version Constants in `lib.rs`
 
-| Setting              | Default                      | Description                                                          |
-|----------------------|------------------------------|----------------------------------------------------------------------|
-| `PYTHON_COMMAND`     | `auto`                       | Python executable. `auto` = OS default (`py` on Windows, `python3` on Unix). Set to an absolute path to override. |
-| `MEMENTO_SQLITE_PATH`| `~/.mcp-memento/context.db`  | Path to the Memento SQLite database.                                |
-| `MEMENTO_TOOL_PROFILE`| `core`                      | Tool profile: `core`, `extended`, or `advanced`.                    |
-| `BOOTSTRAP_VERSION`  | `0.1.0`                      | GitHub Release version of the bootstrap script to download.         |
+```rust
+const STUB_EXT_RELEASE: &str = "v0.2.9";   // GitHub Release tag for fallback download
+const REPO: &str = "annibale-x/mcp-memento";
+const BUNDLED_BIN_DIR: &str = "stub/bin";   // Relative to WASM CWD
+```
 
----
-
-## 7. Coding Standards: Airy Code Style
-
-This project enforces the **Airy Code Style** for maximum readability:
-
-- **EXACTLY 1 empty line** before `if`, `else`, `elif`, `try`, `except`, `for`, `while`.
-- **EXACTLY 2 empty lines** before every `class`, `def`, `struct`, `impl`, or `fn`.
-- **EXACTLY 1 empty line** after a method/function docstring before the code begins.
-- All source code (variables, strings, docstrings) in **English**.
-- All user-facing communication in **Italian**.
+`STUB_EXT_RELEASE` is updated automatically by `scripts/deploy.py` on every version bump.
 
 ---
 
-## 8. Git & Commit Guidelines
+## 7. Release Workflow
 
-- **Conventional Commits** format is mandatory: `type(scope): description`
-  - Examples:
-    - `feat(bootstrap): add background pip install with stub MCP responses`
-    - `fix(lib): correct Python candidate order on Windows`
-    - `docs(dev): update architecture section`
-- **Versioning** is read-only: never bump `version` in `extension.toml` or `Cargo.toml` unless explicitly instructed (`BUMP vX.Y.Z`).
-- Ephemeral files and artifacts go in `.agent/` (git-ignored).
+The full release is handled by `scripts/deploy.py`. See `scripts/README.md` for details.
+
+```
+# Official release (triggers CI cross-compile for all 5 platforms):
+python scripts/deploy.py bump X.Y.Z --yes
+
+# Dev bump (local tag only, no CI, no PyPI):
+python scripts/deploy.py bump X.Y.Z --dev --yes
+```
+
+On an official release:
+- GitHub Actions (`.github/workflows/zed-stub-release.yml`) cross-compiles stub
+  binaries for all 5 targets and uploads them as assets to the release.
+- `deploy.py` uploads the binaries from `stub/bin/` to the GitHub Release as well.
+
+---
+
+## 8. Settings Reference
+
+| Setting | Default | Description |
+|---|---|---|
+| `PYTHON_COMMAND` | `auto` | Python executable. `auto` uses `py` on Windows, `python3` on Unix. Set to an absolute path to override. |
+| `MEMENTO_DB_PATH` | *(empty)* | Path to the SQLite database. Empty = OS default (`%USERPROFILE%\.mcp-memento\context.db` on Windows, `~/.mcp-memento/context.db` on macOS/Linux). |
+| `MEMENTO_PROFILE` | `core` | Tool profile: `core`, `extended`, or `advanced`. |
+
+---
+
+## 9. Cargo Workspace Layout
+
+The workspace root is `integrations/zed/Cargo.toml` with two members:
+
+- `.` — the WASM extension crate (`memento-mcp-server`)
+- `stub` — the native stub crate (`memento-stub`)
+
+Both share the same `target/` directory at `integrations/zed/target/`.
+
+Build commands:
+
+```
+# WASM extension
+cargo build --target wasm32-wasip1 --release
+
+# Native stub (host platform)
+cargo build --release --manifest-path integrations/zed/stub/Cargo.toml
+```
+
+---
+
+## 10. Coding Standards
+
+- **Airy Code Style**: 1 empty line before `if`/`else`/`match`, 2 empty lines before `fn`/`struct`/`impl`.
+- **Conventional Commits**: `type(scope): description` — e.g. `fix(zed): correct stub path on Windows`.
+- **Versioning**: read-only. Never bump `version` in `extension.toml` or `Cargo.toml` unless explicitly instructed.
+- Ephemeral files go in `.agent/` (git-ignored).
