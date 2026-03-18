@@ -637,8 +637,8 @@ def upload_stub_binaries_to_release(python_ver: str, dry: bool) -> None:
 def upload_stub_binaries_to_dev_prerelease(dry: bool) -> None:
     """Create (or update) the rolling pre-release 'dev-latest' and upload stubs.
 
-    Only the locally built binary for the current platform is uploaded here.
-    The CI workflow (zed-stub-dev.yml) cross-compiles the remaining 4 targets
+    Only the locally built binaries in stub/bin/ are uploaded here.
+    The CI workflow (zed-stub-dev.yml) cross-compiles the remaining targets
     and uploads them to the same pre-release tag.
     """
     step("Uploading stub binaries to GitHub pre-release 'dev-latest'")
@@ -648,23 +648,34 @@ def upload_stub_binaries_to_dev_prerelease(dry: bool) -> None:
     if not files:
         die(f"No stub binaries found in {ZED_STUB_BIN}. Run 'dev-stub' first.")
 
-    # Create or recreate the dev-latest pre-release tag.
-    # --clobber on upload handles the case where it already exists.
+    # Delete existing release+tag so we can recreate cleanly.
+    # Errors are ignored — the release may not exist yet.
+    run(
+        f"gh release delete dev-latest --repo {GITHUB_REPO} --yes",
+        dry=dry,
+        check=False,
+    )
+    run(
+        "git push origin :refs/tags/dev-latest",
+        dry=dry,
+        check=False,
+    )
+
+    # Build the file list as a space-separated string of quoted paths.
+    file_args = " ".join(f'"{f}"' for f in files)
+
     run(
         f"gh release create dev-latest"
         f" --repo {GITHUB_REPO}"
-        f" --title 'Dev stub binaries (rolling)'"
-        f" --notes 'Auto-updated on every dev bump. Not for production use.'"
+        f" --title \"Dev stub binaries (rolling)\""
+        f" --notes \"Auto-updated on every dev bump. Not for production use.\""
         f" --prerelease"
-        f" --latest=false",
+        f" --latest=false"
+        f" {file_args}",
         dry=dry,
-        check=False,  # ignore error if release already exists
     )
 
-    for f in files:
-        cmd = f"gh release upload dev-latest {f} --repo {GITHUB_REPO} --clobber"
-        run(cmd, dry=dry)
-        ok(f"Uploaded: {f.name}")
+    ok("Pre-release 'dev-latest' created and stubs uploaded.")
 
 
 
