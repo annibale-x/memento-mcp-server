@@ -25,7 +25,7 @@ impl MementoExtension {
     /// Zed sets the extension working directory as the cwd for child processes,
     /// so the bare filename is enough for Python to find the script.
     fn ensure_bootstrap_script(&mut self, version: &str) -> Result<String> {
-        // If we already downloaded it during this session, skip the network call.
+        // If we already resolved it during this session, skip everything.
         if let Some(ref cached) = self.cached_script {
             return Ok(cached.clone());
         }
@@ -34,13 +34,21 @@ impl MementoExtension {
         // always triggers a fresh download (zed::download_file never overwrites).
         let local_name = format!("mcp_memento_bootstrap_v{}.py", version);
 
-        let url = format!(
-            "{}/bootstrap-v{}/{}",
-            BOOTSTRAP_BASE_URL, version, BOOTSTRAP_ASSET_NAME
-        );
+        // Check if the versioned file already exists on disk — if so, skip the
+        // network call entirely.  zed::download_file returns an error when the
+        // destination file already exists, which would cause context_server_command
+        // to fail and Zed to report "Context server stopped running".
+        let file_exists = std::fs::metadata(&local_name).is_ok();
 
-        zed::download_file(&url, &local_name, DownloadedFileType::Uncompressed)
-            .map_err(|e| format!("Failed to download mcp-memento bootstrap: {e}"))?;
+        if !file_exists {
+            let url = format!(
+                "{}/bootstrap-v{}/{}",
+                BOOTSTRAP_BASE_URL, version, BOOTSTRAP_ASSET_NAME
+            );
+
+            zed::download_file(&url, &local_name, DownloadedFileType::Uncompressed)
+                .map_err(|e| format!("Failed to download mcp-memento bootstrap: {e}"))?;
+        }
 
         self.cached_script = Some(local_name.clone());
 
