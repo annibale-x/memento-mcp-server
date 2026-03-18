@@ -21,7 +21,7 @@ const STUB_EXT_RELEASE: &str = "v0.2.11";
 /// Distribution channel: "prod" downloads from the vX.Y.Z GitHub Release;
 /// "dev" downloads from the rolling pre-release tag "dev-latest".
 /// Set automatically by scripts/deploy.py during a version bump.
-const STUB_CHANNEL: &str = "dev";
+const STUB_CHANNEL: &str = "prod";
 
 /// GitHub repository (owner/name) hosting the releases.
 const REPO: &str = "annibale-x/mcp-memento";
