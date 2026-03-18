@@ -496,57 +496,70 @@ fn main() {
         std::env::consts::OS
     );
 
-    // Write a marker file so we can verify the stub is running.
-    #[cfg(target_os = "windows")]
-    {
-        if let Ok(tmp) = env::var("TEMP").or_else(|_| env::var("TMP")) {
-            let marker = Path::new(&tmp).join("memento_stub.log");
-            let _ = std::fs::write(
-                &marker,
-                format!(
-                    "stub started pid={} python_command={:?}\n",
-                    std::process::id(),
-                    env::var("PYTHON_COMMAND").unwrap_or_default()
-                ),
-            );
-        }
-    }
-
-    // Phase 1: stub — answer Zed's handshake immediately.
-    // Returns buffered lines AND the stdin receiver thread to reuse in proxy.
-    let (buffered, stdin_rx) = stub_phase();
-    log!("Stub phase complete. Buffered {} lines.", buffered.len());
-
-    // Phase 2: find Python.
+    // Phase 1: find Python.
+    log!("Searching for Python...");
     let python = match find_python() {
         Some(p) => p,
         None => {
-            log!("Python not found! Sending error notification.");
-            send(concat!(
-                r#"{"jsonrpc":"2.0","method":"$/logMessage","params":{"#,
-                r#""type":1,"message":"mcp-memento: Python not found. "#,
-                r#"Set PYTHON_COMMAND in extension settings."}}"#
-            ));
-            return;
+            log!("Python not found!");
+            // Can't send MCP yet — Zed hasn't sent initialize.
+            // Just exit; Zed will show "server stopped running".
+            // TODO: show a notification once we have a way to do it pre-handshake.
+            std::process::exit(1);
         }
     };
+    log!("Python found: {}", python.display());
 
-    // Phase 3: ensure mcp-memento is installed; auto-install if missing.
+    // Phase 2: ensure mcp-memento is installed; auto-install if missing.
+    log!("Checking if mcp-memento is installed...");
+
     if !memento_is_installed(&python) {
-        if let Err(e) = install_memento(&python) {
-            log!("Auto-install failed: {}", e);
-            send(&format!(
-                concat!(
-                    r#"{{"jsonrpc":"2.0","method":"$/logMessage","params":{{"#,
-                    r#""type":1,"message":"mcp-memento: auto-install failed: {msg}. "#,
-                    r#"Run `pip install mcp-memento` manually."}}}}"#
-                ),
-                msg = e
-            ));
-            return;
+        log!("Running pip install mcp-memento...");
+
+        match install_memento(&python) {
+            Ok(()) => log!("pip install succeeded."),
+            Err(e) => {
+                log!("Auto-install failed: {}", e);
+                std::process::exit(1);
+            }
         }
     }
 
-    // Phase 4: proxy — reuse the stdin receiver from stub phase.
-    run_proxy(&python, buffered, stdin_rx);
+    log!("mcp-memento ready. Replacing process with Python server...");
+
+    // Phase 3: replace this process with `python -m memento`.
+    //
+    // We spawn Python with inherited stdin/stdout/stderr (no explicit
+    // Stdio redirection = inherit by default) and immediately exit the
+    // stub process.  From Zed's perspective the pipe never closes —
+    // Python takes over the exact same file descriptors.
+    //
+    // On Unix this would be exec(). On Windows there is no true exec(),
+    // but spawn-with-inherited-stdio + exit() is functionally identical:
+    // Zed holds the write end of stdin and the read end of stdout open,
+    // and Python inherits both.
+    let mut cmd = Command::new(&python);
+    cmd.args(["-u", "-m", "memento"]);
+
+    // Forward any env vars set by the WASM extension settings.
+    if let Ok(db) = env::var("MEMENTO_DB_PATH") {
+        cmd.env("MEMENTO_DB_PATH", db);
+    }
+
+    if let Ok(profile) = env::var("MEMENTO_PROFILE") {
+        cmd.env("MEMENTO_PROFILE", profile);
+    }
+
+    cmd.env("PYTHONUNBUFFERED", "1");
+
+    match cmd.status() {
+        Ok(s) => {
+            log!("Python server exited: {}", s);
+            std::process::exit(s.code().unwrap_or(1));
+        }
+        Err(e) => {
+            log!("Failed to spawn Python server: {}", e);
+            std::process::exit(1);
+        }
+    }
 }
