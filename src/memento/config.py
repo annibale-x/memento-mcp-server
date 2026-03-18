@@ -112,7 +112,20 @@ class _EnvVar:
         return f"_EnvVar({', '.join(repr(n) for n in self.env_names)}, default={self.default!r})"
 
 
-_DEFAULT_DB_PATH = os.path.expanduser("~/.mcp-memento/context.db")
+def _default_db_path() -> str:
+    """Return the OS-appropriate default path for the Memento database.
+
+    - Windows : %USERPROFILE%\\.mcp-memento\\context.db
+    - macOS/Linux: ~/.mcp-memento/context.db
+    """
+    if os.name == "nt":
+        base = os.environ.get("USERPROFILE") or os.path.expanduser("~")
+        return os.path.join(base, ".mcp-memento", "context.db")
+
+    return os.path.expanduser("~/.mcp-memento/context.db")
+
+
+_DEFAULT_DB_PATH = _default_db_path()
 _DEFAULT_CONFIG_PATHS = [
     Path.cwd() / "memento.yaml",
     Path.home() / ".mcp-memento" / "config.yaml",
@@ -238,7 +251,7 @@ class Config:
     Attributes can be overridden via direct assignment for testing or programmatic configuration.
 
     Environment Variables:
-        MEMENTO_DB_PATH: Database file path [default: ~/.mcp-memento/context.db]
+        MEMENTO_DB_PATH: Database file path [default: %USERPROFILE%\\.mcp-memento\\context.db on Windows, ~/.mcp-memento/context.db elsewhere]
         MEMENTO_PROFILE: Tool profile (core|extended|advanced) [default: core]
         MEMENTO_LOG_LEVEL: Log level (DEBUG|INFO|WARNING|ERROR) [default: INFO]
         MEMENTO_ALLOW_CYCLES: Allow cycles in relationship graph [default: false]

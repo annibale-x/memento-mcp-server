@@ -1,28 +1,26 @@
 # Builds the memento-stub native binary for all supported platforms and
-# uploads the artefacts to the existing GitHub Release for the Python package.
+# uploads the artefacts to the rolling pre-release "dev-latest".
 #
-# Trigger: push of a tag matching "v[0-9]*"  (e.g. "v0.2.8")
+# Trigger: push on branch "dev" where integrations/zed/stub/Cargo.toml
+#          was modified (i.e. only on a version bump, not on every push).
 #
-# The workflow compiles the stub for all 5 supported targets and then uploads
-# the resulting binaries as assets to the GitHub Release that was created by
-# the Python release process (same tag).
+# The workflow compiles the stub for all 5 supported targets and then
+# creates (or updates) the "dev-latest" pre-release with the new binaries.
 #
-# Assets published:
-#   memento-stub-x86_64-pc-windows-msvc.exe
-#   memento-stub-x86_64-apple-darwin
-#   memento-stub-aarch64-apple-darwin
-#   memento-stub-x86_64-unknown-linux-gnu
-#   memento-stub-aarch64-unknown-linux-gnu
+# This mirrors zed-stub-release.yml but targets the dev channel instead of
+# a versioned GitHub Release.
 
-name: Zed Stub Release
+name: Zed Stub Dev
 
 on:
   push:
-    tags:
-      - "v[0-9]*"
+    branches:
+      - dev
+    paths:
+      - "integrations/zed/stub/Cargo.toml"
 
 permissions:
-  contents: write # needed to upload assets to an existing release
+  contents: write
 
 # ---------------------------------------------------------------------------
 # Matrix build — one job per target platform
@@ -44,7 +42,6 @@ jobs:
             use_cross: false
 
           # ── macOS Intel ────────────────────────────────────────────────────
-          # macos-13 (Intel) was removed — cross-compile from Apple Silicon runner.
           - target: x86_64-apple-darwin
             os: macos-latest
             asset: memento-stub-x86_64-apple-darwin
@@ -70,10 +67,10 @@ jobs:
             os: ubuntu-latest
             asset: memento-stub-aarch64-unknown-linux-gnu
             exe_suffix: ""
-            use_cross: true # cross-compiled via the `cross` tool
+            use_cross: true
 
     steps:
-      # ── Checkout ─────────────────────────────────────────────────────────
+      # ── Checkout ──────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -101,10 +98,7 @@ jobs:
         working-directory: integrations/zed/stub
         run: cross build --release --target ${{ matrix.target }}
 
-      # ── Locate the compiled binary ────────────────────────────────────────
-      # The workspace root-level target/ is used because the Cargo workspace
-      # is defined at integrations/zed/, so the output lands one level up from
-      # the stub crate.
+      # ── Rename binary to final asset name ────────────────────────────────
       - name: Rename binary to asset name
         shell: bash
         run: |
@@ -112,7 +106,7 @@ jobs:
           cp "$SRC" "${{ matrix.asset }}"
           echo "Built: $(ls -lh ${{ matrix.asset }})"
 
-      # ── Upload artefact (shared between build and release jobs) ───────────
+      # ── Upload artefact for the upload job ───────────────────────────────
       - name: Upload artefact
         uses: actions/upload-artifact@v4
         with:
@@ -121,15 +115,15 @@ jobs:
           retention-days: 1
 
   # ---------------------------------------------------------------------------
-  # Upload job — attaches binaries to the existing Python release
+  # Upload job — creates/updates the "dev-latest" pre-release
   # ---------------------------------------------------------------------------
   upload:
-    name: Upload stub binaries to GitHub Release
+    name: Upload stub binaries to dev-latest pre-release
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      # ── Checkout (needed for gh cli context) ─────────────────────────────
+      # ── Checkout ──────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -143,21 +137,30 @@ jobs:
       - name: List artefacts
         run: ls -lh dist/
 
-      # ── Upload assets to the existing release ────────────────────────────
-      # The Python release (same tag) must already exist before this runs.
-      # deploy.py creates it via `git tag vX.Y.Z && git push origin vX.Y.Z`
-      # followed by the GitHub release created in the bump workflow.
-      - name: Upload assets to existing release
+      # ── Create or update the dev-latest pre-release ───────────────────────
+      # We delete and recreate the tag + release so the binaries are always
+      # associated with the latest dev commit. --clobber on the upload handles
+      # the asset replacement, but recreating the release moves the tag to HEAD.
+      - name: Delete existing dev-latest release (if any)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          echo "Uploading stub binaries to release ${TAG}"
-          gh release upload "${TAG}" \
+          gh release delete dev-latest --repo ${{ github.repository }} --yes 2>/dev/null || true
+          git push origin :refs/tags/dev-latest 2>/dev/null || true
+
+      - name: Create dev-latest pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create dev-latest \
+            --repo ${{ github.repository }} \
+            --title "Dev stub binaries (rolling)" \
+            --notes "Auto-updated on every dev version bump. Not for production use." \
+            --prerelease \
+            --latest=false \
             dist/memento-stub-x86_64-pc-windows-msvc.exe \
             dist/memento-stub-x86_64-apple-darwin \
             dist/memento-stub-aarch64-apple-darwin \
             dist/memento-stub-x86_64-unknown-linux-gnu \
-            dist/memento-stub-aarch64-unknown-linux-gnu \
-            --clobber
+            dist/memento-stub-aarch64-unknown-linux-gnu
           echo "Done."

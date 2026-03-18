@@ -32,20 +32,21 @@ Memento uses SQLite for local storage by default. The database is automatically 
 ### Overview
 Zed is a high-performance, multiplayer code editor with native MCP support. Memento integrates seamlessly to provide contextual memory across your coding sessions.
 
+> **Full Zed extension guide**: [docs/extensions/ZED.md](../extensions/ZED.md)
+
 ### Two Integration Modes
 
 Memento supports two distinct integration modes for Zed:
 
 | Mode | How | Best for |
 |---|---|---|
-| **Manual config** (PyPI) | Add `memento` command to `settings.json` | macOS / Linux — `memento` is in PATH |
-| **Zed Extension** | Install "Memento MCP Server" from Zed marketplace | Windows (avoids stdin buffering issue) or any platform where you prefer a managed install |
+| **Zed Extension** | Install "Memento MCP Server" from Zed marketplace | **Recommended** — works on all platforms, zero setup, handles Windows stdin issues automatically |
+| **Manual config** (PyPI) | Add `memento` command to `settings.json` | macOS / Linux — `memento` is already in PATH and you prefer explicit control |
 
 > **Windows note**: Zed on Windows launches context server processes via PowerShell's
 > `ShellBuilder`, which can cause stdin buffering issues when using the manual config
 > approach. The dedicated Zed extension (a native Rust stub + WASM component) solves
-> this transparently. If the manual configuration does not work on Windows, use the
-> Zed extension instead.
+> this transparently. **The Zed extension is the recommended approach on Windows.**
 
 ### Configuration (Manual / PyPI install)
 
@@ -61,6 +62,40 @@ Add to `~/.config/zed/settings.json`:
   }
 }
 ```
+
+#### Using a non-standard Python installation
+
+If `memento` is not on the system PATH, or you want to use a specific Python
+environment, invoke Python directly instead of the `memento` command:
+
+```json
+{
+  "context_servers": {
+    "memento": {
+      "command": "/path/to/your/python",
+      "args": ["-m", "memento"]
+    }
+  }
+}
+```
+
+Examples:
+
+```json
+{ "command": "C:/Users/you/AppData/Local/Programs/Python/Python312/python.exe", "args": ["-m", "memento"] }
+```
+
+```json
+{ "command": "/opt/homebrew/bin/python3", "args": ["-m", "memento"] }
+```
+
+```json
+{ "command": "/home/you/.venv/bin/python", "args": ["-m", "memento"] }
+```
+
+> **Note**: When using the Zed extension instead of manual config, set the
+> `PYTHON_COMMAND` field in the extension settings to the full Python path —
+> no need to touch `settings.json`.
 
 ### Configuration Methods
 Memento supports multiple configuration approaches. For clarity, we recommend choosing **one method consistently**:

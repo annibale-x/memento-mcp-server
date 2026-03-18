@@ -86,25 +86,32 @@ class TestRelationshipModels:
 
     def test_relationship_equality(self):
         """Test relationship equality comparison."""
+        # Use a fixed timestamp to avoid flakiness from default_factory=datetime.now()
+        fixed_ts = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        fixed_props = RelationshipProperties(
+            context="Test", strength=0.5,
+            created_at=fixed_ts, last_validated=fixed_ts,
+        )
+
         relationship1 = Relationship(
             from_memory_id="mem_1",
             to_memory_id="mem_2",
             type=RelationshipType.CAUSES,
-            properties=RelationshipProperties(context="Test", strength=0.5),
+            properties=fixed_props.model_copy(),
         )
 
         relationship2 = Relationship(
             from_memory_id="mem_1",
             to_memory_id="mem_2",
             type=RelationshipType.CAUSES,
-            properties=RelationshipProperties(context="Test", strength=0.5),
+            properties=fixed_props.model_copy(),
         )
 
         relationship3 = Relationship(
             from_memory_id="mem_2",
             to_memory_id="mem_1",
             type=RelationshipType.CAUSES,
-            properties=RelationshipProperties(context="Test", strength=0.5),
+            properties=fixed_props.model_copy(),
         )
 
         # Same IDs and values should be equal

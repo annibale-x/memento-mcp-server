@@ -73,11 +73,24 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import os
 import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Windows console encoding fix
+# On Windows, the default console codepage (CP1252) cannot encode Unicode
+# characters used in this script's output (e.g. U+2501 BOX DRAWINGS HEAVY).
+# Reconfigure stdout/stderr to UTF-8 so the script works without needing
+# the PYTHONIOENCODING=utf-8 environment variable.
+# ---------------------------------------------------------------------------
+
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # ---------------------------------------------------------------------------
 # Project paths
@@ -100,6 +113,16 @@ ZED_STUB_BIN = ZED_DIR / "stub" / "bin"
 
 GITHUB_REPO = "annibale-x/mcp-memento"
 GITHUB_RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_REPO}"
+
+# uv is the project's package manager. Use "uv run" for tests and builds so
+# that the correct virtual environment (memento in editable mode + all dev
+# deps) is always active — regardless of which Python or shell invoked this
+# script.  "uv run --extra dev" resolves [project.optional-dependencies] dev.
+UV = "uv"
+
+# Fallback Python for operations that don't need the project venv
+# (cargo invocations, git helpers, etc.).
+PYTHON = sys.executable
 
 
 # ---------------------------------------------------------------------------
@@ -265,15 +288,23 @@ def bump_init(new_ver: str, dry: bool) -> None:
 def bump_zed_cargo(new_ver: str, dry: bool) -> None:
     # Only bump [package] version, not workspace resolver line
     text = ZED_CARGO.read_text(encoding="utf-8")
+    pattern = r'(\[package\].*?^version\s*=\s*)"[^"]+"'
+
+    if not re.search(pattern, text, flags=re.DOTALL | re.MULTILINE):
+        warn(f"[package] version not found in {ZED_CARGO.relative_to(ROOT)}")
+        return
+
     new_text = re.sub(
-        r'(\[package\].*?^version\s*=\s*)"[^"]+"',
+        pattern,
         rf'\g<1>"{new_ver}"',
         text,
         flags=re.DOTALL | re.MULTILINE,
     )
+
     if new_text == text:
-        warn(f"[package] version not found in {ZED_CARGO.relative_to(ROOT)}")
+        info(f"Already at {new_ver} in {ZED_CARGO.relative_to(ROOT)}")
         return
+
     if not dry:
         ZED_CARGO.write_text(new_text, encoding="utf-8")
     info(f"Updated {ZED_CARGO.relative_to(ROOT)}")
@@ -288,12 +319,22 @@ def bump_extension_toml(new_ver: str, dry: bool) -> None:
     )
 
 
-def bump_lib_rs_stub_release(new_ver: str, ext_n: int, dry: bool) -> None:
-    tag = f"v{new_ver}-ext.{ext_n}"
+def bump_lib_rs_stub_release(new_ver: str, dev_only: bool, dry: bool) -> None:
+    """Update STUB_EXT_RELEASE and STUB_CHANNEL in lib.rs."""
+
+    tag = f"v{new_ver}"
     _replace_in_file(
         ZED_LIB_RS,
         r'(STUB_EXT_RELEASE:\s*&str\s*=\s*)"[^"]+"',
         rf'\g<1>"{tag}"',
+        dry,
+    )
+
+    channel = "dev" if dev_only else "prod"
+    _replace_in_file(
+        ZED_LIB_RS,
+        r'(STUB_CHANNEL:\s*&str\s*=\s*)"[^"]+"',
+        rf'\g<1>"{channel}"',
         dry,
     )
 
@@ -352,13 +393,13 @@ def build_package(dry: bool) -> None:
     # Temporarily patch README for PyPI (absolute links)
     readme_backup = _patch_readme_for_pypi(dry)
     try:
-        run("python -m build", dry=dry)
+        run(f"{UV} build --out-dir {DIST_DIR}", dry=dry)
     finally:
         if readme_backup:
             _restore_readme(readme_backup, dry)
 
     if not dry:
-        files = sorted(DIST_DIR.glob("*"))
+        files = sorted(f for f in DIST_DIR.glob("*") if f.suffix in (".whl", ".gz"))
         for f in files:
             ok(f"Built: {f.name}  ({f.stat().st_size / 1024:.0f} KB)")
 
@@ -459,8 +500,7 @@ def git_is_clean(dry: bool = False) -> bool:
     # files should block a release. On Windows, git sometimes reports a phantom
     # "NUL" untracked entry that must not abort the bump.
     tracked_changes = [
-        line for line in out.splitlines()
-        if line and not line.startswith("??")
+        line for line in out.splitlines() if line and not line.startswith("??")
     ]
     return len(tracked_changes) == 0
 
@@ -479,6 +519,38 @@ def git_push(branch: str, dry: bool) -> None:
 
 def git_tag(tag: str, dry: bool) -> None:
     run(f"git tag {tag}", dry=dry)
+
+
+def git_tag_exists_local(tag: str) -> bool:
+    """Return True if the tag already exists in the local repository."""
+    result = run(
+        f"git tag -l {tag}",
+        capture=True,
+        dry=False,
+        check=False,
+    )
+    return result.strip() == tag
+
+
+def git_tag_exists_remote(tag: str) -> bool:
+    """Return True if the tag already exists on the remote repository."""
+    result = run(
+        f"git ls-remote --tags origin refs/tags/{tag}",
+        capture=True,
+        dry=False,
+        check=False,
+    )
+    return bool(result.strip())
+
+
+def git_retag(tag: str, dry: bool) -> None:
+    """Delete the local tag and re-create it pointing to HEAD."""
+    run(f"git tag -d {tag}", dry=dry)
+    run(f"git tag {tag}", dry=dry)
+
+
+def git_force_push_tag(tag: str, dry: bool) -> None:
+    run(f"git push origin {tag} --force", dry=dry)
 
 
 def git_push_tag(tag: str, dry: bool) -> None:
@@ -500,6 +572,44 @@ def git_merge_to_main(dry: bool) -> None:
 
 
 def publish(target: str, dry: bool) -> None:
+    # If we are on dev and main is behind, merge first so the release
+    # is always on main before hitting PyPI.
+    branch = git_current_branch()
+
+    if branch == "dev":
+        # Check if main already contains the current dev HEAD.
+        behind = run(
+            "git rev-list --count main..dev",
+            capture=True,
+            dry=False,
+            check=False,
+        ).strip()
+
+        if behind and behind != "0":
+            git_merge_to_main(dry)
+        else:
+            info("main is already up-to-date with dev — skipping merge.")
+
+        # Push the release tag if it exists locally but not on origin yet.
+        # This happens when the bump was done with --dev (tag kept local).
+        ver = read_pyproject_version()
+        py_tag = f"v{ver}"
+
+        if git_tag_exists_local(py_tag):
+            remote_tag = run(
+                f"git ls-remote --tags origin refs/tags/{py_tag}",
+                capture=True,
+                dry=False,
+                check=False,
+            ).strip()
+
+            if not remote_tag:
+                step(f"Pushing release tag {py_tag} to origin (triggers CI)")
+                git_push_tag(py_tag, dry)
+                ok(f"Tag {py_tag} pushed")
+            else:
+                info(f"Tag {py_tag} already on origin.")
+
     step(f"Publishing to {target.upper()}")
 
     if not DIST_DIR.exists() or not any(DIST_DIR.glob("*.whl")):
@@ -520,47 +630,223 @@ def publish(target: str, dry: bool) -> None:
 # ---------------------------------------------------------------------------
 
 
-def zed_stub_release(python_ver: str, ext_n: int, dry: bool) -> None:
-    step(f"Pushing Zed stub release tag v{python_ver}-ext.{ext_n}")
-    tag = f"v{python_ver}-ext.{ext_n}"
+def upload_stub_binaries_to_release(python_ver: str, dry: bool) -> None:
+    """Upload the bundled stub binaries from stub/bin/ to the GitHub release vX.Y.Z."""
+    step(f"Uploading stub binaries to GitHub release v{python_ver}")
+    tag = f"v{python_ver}"
+    files = sorted(ZED_STUB_BIN.glob("memento-stub-*"))
 
-    # Check tag doesn't already exist
-    existing = run("git tag --list", capture=True, dry=False)
-    if tag in existing.split():
-        if not confirm(f"Tag {tag} already exists. Delete and recreate?", yes=False):
-            die("Aborted.")
-        run(f"git tag -d {tag}", dry=dry)
-        run(f"git push origin :refs/tags/{tag}", dry=dry)
+    if not files:
+        die(f"No stub binaries found in {ZED_STUB_BIN}. Build them first.")
 
-    git_tag(tag, dry)
-    git_push_tag(tag, dry)
-    ok(f"Tag {tag} pushed — GitHub Actions CI will build all 5 platform binaries.")
-    info("Monitor at: https://github.com/annibale-x/mcp-memento/actions")
+    for f in files:
+        cmd = f"gh release upload {tag} {f} --repo {GITHUB_REPO} --clobber"
+        run(cmd, dry=dry)
+        ok(f"Uploaded: {f.name}")
 
 
-def download_stub_binaries(python_ver: str, ext_n: int, dry: bool) -> None:
+def upload_stub_binaries_to_dev_prerelease(dry: bool) -> None:
+    """Create (or update) the rolling pre-release 'dev-latest' and upload stubs.
+
+    Only the locally built binaries in stub/bin/ are uploaded here.
+    The CI workflow (zed-stub-dev.yml) cross-compiles the remaining targets
+    and uploads them to the same pre-release tag.
+    """
+    step("Uploading stub binaries to GitHub pre-release 'dev-latest'")
+
+    files = sorted(ZED_STUB_BIN.glob("memento-stub-*"))
+
+    if not files:
+        die(f"No stub binaries found in {ZED_STUB_BIN}. Run 'dev-stub' first.")
+
+    # Delete existing release+tag so we can recreate cleanly.
+    # Errors are ignored — the release may not exist yet.
+    run(
+        f"gh release delete dev-latest --repo {GITHUB_REPO} --yes",
+        dry=dry,
+        check=False,
+    )
+    run(
+        "git push origin :refs/tags/dev-latest",
+        dry=dry,
+        check=False,
+    )
+
+    # Build the file list as a space-separated string of quoted paths.
+    file_args = " ".join(f'"{f}"' for f in files)
+
+    run(
+        f"gh release create dev-latest"
+        f" --repo {GITHUB_REPO}"
+        f" --title \"Dev stub binaries (rolling)\""
+        f" --notes \"Auto-updated on every dev bump. Not for production use.\""
+        f" --prerelease"
+        f" --latest=false"
+        f" {file_args}",
+        dry=dry,
+    )
+
+    ok("Pre-release 'dev-latest' created and stubs uploaded.")
+
+
+
+def _zed_work_dir() -> "Path | None":
+    """Return the Zed extension work directory for mcp-memento, or None if not found.
+
+    Zed stores per-extension working files at:
+      - Windows : %LOCALAPPDATA%/Zed/extensions/work/mcp-memento
+      - macOS   : ~/Library/Application Support/Zed/extensions/work/mcp-memento
+      - Linux   : ~/.local/share/zed/extensions/work/mcp-memento  (XDG)
+    """
+    import platform as _platform
+
+    system = _platform.system().lower()
+
+    if system == "windows":
+        base = os.environ.get("LOCALAPPDATA")
+
+        if base:
+            return Path(base) / "Zed" / "extensions" / "work" / "mcp-memento"
+
+    elif system == "darwin":
+        return (
+            Path.home()
+            / "Library"
+            / "Application Support"
+            / "Zed"
+            / "extensions"
+            / "work"
+            / "mcp-memento"
+        )
+
+    else:
+        xdg = os.environ.get("XDG_DATA_HOME")
+        base = Path(xdg) if xdg else Path.home() / ".local" / "share"
+        return base / "zed" / "extensions" / "work" / "mcp-memento"
+
+    return None
+
+
+def build_stub_local(dry: bool) -> None:
+    """Build the stub binary for the current platform and copy it into stub/bin/.
+
+    This is a local-only build (cargo release) for the host platform.
+    Cross-compiled binaries for other platforms are produced by CI.
+
+    Also copies the binary into the Zed extension work directory so that
+    'Install Dev Extension' picks it up without needing a GitHub Release.
+    """
+    import platform
+    import shutil as _shutil
+
+    step("Building stub binary for current platform")
+
+    stub_dir = ZED_DIR / "stub"
+    # Cargo outputs to the workspace target dir (integrations/zed/target/),
+    # NOT the sub-crate's own target/, because the workspace Cargo.toml in
+    # ZED_DIR controls the output location.
+    target_dir = ZED_DIR / "target" / "release"
+
+    run(
+        f"cargo build --release --manifest-path {stub_dir / 'Cargo.toml'}",
+        dry=dry,
+    )
+
+    # Determine the output binary name and destination asset name
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+
+    if system == "windows":
+        src_name = "memento-stub.exe"
+        dst_name = "memento-stub-x86_64-pc-windows-msvc.exe"
+    elif system == "darwin":
+        src_name = "memento-stub"
+        dst_name = (
+            "memento-stub-aarch64-apple-darwin"
+            if machine in ("arm64", "aarch64")
+            else "memento-stub-x86_64-apple-darwin"
+        )
+    else:
+        src_name = "memento-stub"
+        dst_name = (
+            "memento-stub-aarch64-unknown-linux-gnu"
+            if machine in ("arm64", "aarch64")
+            else "memento-stub-x86_64-unknown-linux-gnu"
+        )
+
+    src = target_dir / src_name
+    dst = ZED_STUB_BIN / dst_name
+
+    if not dry:
+        if not src.exists():
+            die(f"Expected stub binary not found: {src}")
+        ZED_STUB_BIN.mkdir(parents=True, exist_ok=True)
+        _shutil.copy2(src, dst)
+
+    ok(f"Stub built and copied to {dst.relative_to(ROOT)}")
+
+    # ------------------------------------------------------------------
+    # Also copy into the Zed extension work directory so that dev extensions
+    # loaded via 'Install Dev Extension' can find the stub without needing a
+    # published GitHub Release.
+    #
+    # Zed uses <data_dir>/extensions/work/<ext-id>/ as the CWD for the WASM
+    # sandbox — it does NOT copy the repo source files there.  The WASM looks
+    # for stub/bin/<asset> relative to that CWD, so we mirror the layout.
+    # ------------------------------------------------------------------
+    step("Copying stub into Zed dev-extension work dir")
+
+    zed_work_dir = _zed_work_dir()
+
+    if zed_work_dir is None:
+        warn("Could not locate Zed data directory; skipping work-dir copy.")
+        warn("Run 'python scripts/deploy.py dev-stub' again after installing Zed.")
+        return
+
+    zed_stub_dst_dir = zed_work_dir / "stub" / "bin"
+
+    if not dry:
+        zed_stub_dst_dir.mkdir(parents=True, exist_ok=True)
+        _shutil.copy2(src, zed_stub_dst_dir / dst_name)
+
+    ok(f"Stub copied to Zed work dir: {zed_stub_dst_dir / dst_name}")
+
+
+def cmd_dev_stub(dry: bool) -> None:
+    """Build the stub for the current platform and commit it to stub/bin/."""
+    build_stub_local(dry)
+
+    step("Committing stub binary on dev")
+    git_add_all(dry)
+    git_commit("chore(zed): rebuild stub binary for current platform", dry)
+    git_push("dev", dry)
+    ok("Stub binary committed and pushed to dev")
+
+
+def download_stub_binaries(python_ver: str, dry: bool) -> None:
     """Download built stub binaries from GitHub Release into stub/bin/."""
     step("Downloading stub binaries from GitHub Release")
-    tag = f"v{python_ver}-ext.{ext_n}"
+    tag = f"v{python_ver}"
     cmd = (
         f"gh release download {tag} --repo {GITHUB_REPO} --dir {ZED_STUB_BIN} --clobber"
+        " --pattern 'memento-stub-*'"
     )
     run(cmd, dry=dry)
 
     if not dry:
         files = sorted(ZED_STUB_BIN.glob("memento-stub-*"))
+
         for f in files:
             ok(f"Downloaded: {f.name}  ({f.stat().st_size / 1024:.0f} KB)")
 
 
 # ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
-
-
 def run_tests(dry: bool) -> None:
     step("Running test suite")
-    run("python -m pytest tests/ --tb=short -q", dry=dry)
+    run(
+        f"{UV} run --extra dev python -m pytest tests/ --tb=short -q",
+        dry=dry,
+    )
     ok("All tests passed")
 
 
@@ -585,10 +871,17 @@ def cmd_status() -> None:
         ("lib.rs STUB_EXT_RELEASE", stub_r),
     ]
 
+    expected_stub = f"v{py_ver}"
     col = max(len(r[0]) for r in rows) + 2
+
     for label, value in rows:
         pad = " " * (col - len(label))
-        match = py_ver == value or label.startswith("lib.rs")
+
+        if label.startswith("lib.rs"):
+            match = value == expected_stub
+        else:
+            match = value == py_ver
+
         color = Color.GREEN if match else Color.YELLOW
         print(f"  {label}{pad}{color}{value}{Color.RESET}")
 
@@ -611,15 +904,14 @@ def cmd_status() -> None:
 
 def cmd_bump(
     new_ver: str,
-    ext_n: int | None,
     skip_tests: bool,
-    skip_merge: bool,
+    dev_only: bool,
     dry: bool,
     yes: bool,
 ) -> None:
     old_ver = read_pyproject_version()
 
-    step(f"Bump {old_ver} → {new_ver}" + (f"  (Zed ext.{ext_n})" if ext_n else ""))
+    step(f"Bump {old_ver} → {new_ver}" + ("  (dev only, no merge)" if dev_only else ""))
 
     if not confirm(
         f"Proceed with full release of v{new_ver}?",
@@ -629,12 +921,14 @@ def cmd_bump(
 
     # 0. Ensure we are on dev branch
     branch = git_current_branch()
+
     if branch != "dev" and not dry:
         die(f"Must be on 'dev' branch (currently on '{branch}'). Checkout dev first.")
 
     # 0b. Ensure working tree is clean
     if not git_is_clean() and not dry:
         warn("Working tree has uncommitted changes.")
+
         if not confirm("Stash them and continue?", yes=yes):
             die("Aborted. Please commit or stash changes first.")
         run("git stash", dry=dry)
@@ -643,16 +937,14 @@ def cmd_bump(
     if not skip_tests:
         run_tests(dry)
 
-    # 2. Bump version in all manifests
+    # 2. Bump version in all manifests (including STUB_EXT_RELEASE in lib.rs)
     step("Bumping versions")
     bump_pyproject(new_ver, dry)
     bump_init(new_ver, dry)
     bump_zed_cargo(new_ver, dry)
     bump_extension_toml(new_ver, dry)
+    bump_lib_rs_stub_release(new_ver, dev_only, dry)
     bump_readme_badge(new_ver, dry)
-
-    if ext_n is not None:
-        bump_lib_rs_stub_release(new_ver, ext_n, dry)
 
     # 3. Changelog
     step("Updating CHANGELOG")
@@ -669,38 +961,75 @@ def cmd_bump(
     ok("dev branch updated and pushed")
 
     # 6. Python release tag
-    step(f"Tagging v{new_ver}")
+    # With --dev: tag locally only — do NOT push to origin.
+    # Pushing a vX.Y.Z tag triggers CI workflows (stub build + GitHub Release
+    # creation), which must only happen on a full official release.
+    step(f"Tagging v{new_ver}" + (" (local only — not pushed)" if dev_only else ""))
     py_tag = f"v{new_ver}"
-    git_tag(py_tag, dry)
-    git_push_tag(py_tag, dry)
-    ok(f"Tag {py_tag} pushed")
 
-    # 7. Merge dev → main
-    if not skip_merge:
+    if not dry and git_tag_exists_local(py_tag):
+        if dev_only:
+            warn(f"Tag {py_tag} already exists locally.")
+            if confirm(f"Move tag {py_tag} to current HEAD (retag)?", yes):
+                git_retag(py_tag, dry)
+                ok(f"Tag {py_tag} moved to HEAD (local only, not pushed)")
+            else:
+                info(f"Tag {py_tag} left unchanged.")
+        else:
+            # Tag exists locally but may not yet be on remote (e.g. after a --dev bump).
+            # If it is remote-only or on both, refuse to overwrite to avoid clobbering a
+            # published release.
+            if git_tag_exists_remote(py_tag):
+                die(
+                    f"Tag {py_tag} already exists on the remote. Cannot overwrite a published release tag.\n"
+                    "  Bump to a new version or delete the tag manually if this was a mistake."
+                )
+
+            warn(f"Tag {py_tag} exists locally but NOT on remote (likely from a --dev bump).")
+
+            if confirm(f"Move tag {py_tag} to current HEAD and push it?", yes):
+                git_retag(py_tag, dry)
+                git_push_tag(py_tag, dry)
+                ok(f"Tag {py_tag} moved to HEAD and pushed")
+            else:
+                die("Aborted. Delete the local tag manually or bump to a new version.")
+    else:
+        git_tag(py_tag, dry)
+        if dev_only:
+            ok(f"Tag {py_tag} created locally (not pushed)")
+        else:
+            git_push_tag(py_tag, dry)
+            ok(f"Tag {py_tag} pushed")
+
+    # 7. Merge dev → main (skipped with --dev)
+    if not dev_only:
         git_merge_to_main(dry)
 
-    # 8. Extension stub release tag (triggers CI)
-    if ext_n is not None:
-        zed_stub_release(new_ver, ext_n, dry)
-        info(
-            "Wait for CI to complete, then run:\n"
-            f"  python scripts/deploy.py ext-binaries --version {new_ver} --ext {ext_n}\n"
-            "to download built binaries into stub/bin/ and commit them."
-        )
+    # 8. Stub binaries
+    if not dev_only:
+        # Full release: upload pre-built binaries to the GitHub release vX.Y.Z.
+        # The CI workflow (zed-stub-release.yml) cross-compiles all 5 targets
+        # and uploads them; here we also upload the locally pre-built ones from
+        # stub/bin/ as a safety net.
+        upload_stub_binaries_to_release(new_ver, dry)
+    else:
+        # Dev-only: build stub for the current platform and upload it to the
+        # rolling pre-release "dev-latest" on GitHub.
+        # The CI workflow (zed-stub-dev.yml) cross-compiles the remaining 4
+        # targets and uploads them to the same pre-release.
+        build_stub_local(dry)
+        upload_stub_binaries_to_dev_prerelease(dry)
 
     print()
     ok(f"Release v{new_ver} complete!")
-    if ext_n is not None:
-        info(
-            f"Next: publish to PyPI with:  python scripts/deploy.py publish --target pypi"
-        )
-        info(
-            f"      then download binaries: python scripts/deploy.py ext-binaries --version {new_ver} --ext {ext_n}"
-        )
+
+    if dev_only:
+        info("Dev-only release complete. Tag is local only — CI was NOT triggered.")
+        info("When ready for the full release:")
+        info("  python scripts/deploy.py publish --target pypi")
+        info("  (publish will merge dev→main and push the tag automatically)")
     else:
-        info(
-            "Next: publish to PyPI with:  python scripts/deploy.py publish --target pypi"
-        )
+        info("Publish to PyPI with:  python scripts/deploy.py publish --target pypi")
 
 
 # ---------------------------------------------------------------------------
@@ -708,24 +1037,25 @@ def cmd_bump(
 # ---------------------------------------------------------------------------
 
 
-def cmd_zed_binaries(python_ver: str, ext_n: int, dry: bool, yes: bool) -> None:
-    tag = f"v{python_ver}-ext.{ext_n}"
+def cmd_zed_binaries(python_ver: str, dry: bool, yes: bool) -> None:
+    tag = f"v{python_ver}"
     step(f"Downloading stub binaries from release {tag} and committing to repo")
 
-    # Check release exists
+    # Check release exists and has the expected assets
     result = run(
         f"gh release view {tag} --repo {GITHUB_REPO} --json assets -q '.assets | length'",
         capture=True,
         dry=dry,
         check=False,
     )
+
     if not dry and (not result or int(result) < 5):
         die(
-            f"Release {tag} not found or has fewer than 5 assets. "
+            f"Release {tag} not found or has fewer than 5 stub assets. "
             "Wait for CI to finish and try again."
         )
 
-    download_stub_binaries(python_ver, ext_n, dry)
+    download_stub_binaries(python_ver, dry)
 
     git_add_all(dry)
     git_commit(
@@ -755,19 +1085,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_bump = sub.add_parser("bump", help="Full release cycle: bump, build, tag, push.")
     p_bump.add_argument("version", help="New version string (e.g. 0.3.0)")
     p_bump.add_argument(
-        "--ext",
-        type=int,
-        metavar="N",
-        help="Extension release counter; triggers IDE extension stub CI.",
-    )
-    p_bump.add_argument(
         "--dry-run", action="store_true", help="Preview actions without executing."
     )
     p_bump.add_argument(
         "--skip-tests", action="store_true", help="Skip pytest before release."
     )
     p_bump.add_argument(
-        "--skip-merge", action="store_true", help="Do not merge dev into main."
+        "--dev",
+        action="store_true",
+        help="Stay on dev branch only — do not merge into main.",
     )
     p_bump.add_argument(
         "--yes", "-y", action="store_true", help="Auto-confirm all prompts."
@@ -787,46 +1113,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_pub.add_argument("--dry-run", action="store_true")
 
-    # ── ext-release (alias: zed-release) ─────────────────────────────────
-    def _add_ext_release_args(p: argparse.ArgumentParser) -> None:
-        p.add_argument(
-            "--ext", type=int, required=True, metavar="N", help="Extension release counter."
-        )
-        p.add_argument(
-            "--version",
-            metavar="X.Y.Z",
-            help="Python version override (default: read from pyproject.toml).",
-        )
-        p.add_argument("--dry-run", action="store_true")
+    # ── dev-stub ──────────────────────────────────────────────────────────
+    # Builds the Rust stub for the current platform and copies the binary
+    # into stub/bin/, then commits.  Use during active Zed extension development
+    # to keep the bundled binary in sync without doing a full bump.
+    p_dev_stub = sub.add_parser(
+        "dev-stub",
+        help="Build stub binary for current platform and commit to stub/bin/.",
+    )
+    p_dev_stub.add_argument("--dry-run", action="store_true")
 
-    _add_ext_release_args(
-        sub.add_parser("ext-release", help="Push IDE extension stub tag to trigger CI.")
+    # ── ext-binaries ──────────────────────────────────────────────────────
+    # Downloads CI-built stub binaries from the GitHub release vX.Y.Z and
+    # commits them into stub/bin/.  Use after CI has finished building.
+    p_ext = sub.add_parser(
+        "ext-binaries",
+        help="Download CI-built stub binaries from GitHub release and commit to repo.",
     )
-    # backward-compat alias
-    _add_ext_release_args(
-        sub.add_parser("zed-release", help="Alias for ext-release (kept for compatibility).")
+    p_ext.add_argument(
+        "--version",
+        metavar="X.Y.Z",
+        help="Version override (default: read from pyproject.toml).",
     )
-
-    # ── ext-binaries (alias: zed-binaries) ───────────────────────────────
-    def _add_ext_binaries_args(p: argparse.ArgumentParser) -> None:
-        p.add_argument(
-            "--ext", type=int, required=True, metavar="N", help="Extension release counter."
-        )
-        p.add_argument(
-            "--version",
-            metavar="X.Y.Z",
-            help="Python version override (default: read from pyproject.toml).",
-        )
-        p.add_argument("--dry-run", action="store_true")
-        p.add_argument("--yes", "-y", action="store_true")
-
-    _add_ext_binaries_args(
-        sub.add_parser("ext-binaries", help="Download CI stub binaries and commit to repo.")
-    )
-    # backward-compat alias
-    _add_ext_binaries_args(
-        sub.add_parser("zed-binaries", help="Alias for ext-binaries (kept for compatibility).")
-    )
+    p_ext.add_argument("--dry-run", action="store_true")
+    p_ext.add_argument("--yes", "-y", action="store_true")
 
     # ── status ────────────────────────────────────────────────────────────
     sub.add_parser("status", help="Show current versions across all manifests.")
@@ -847,14 +1157,12 @@ def main() -> None:
         cmd_status()
 
     elif args.command == "bump":
-        # Validate version format
         if not re.fullmatch(r"\d+\.\d+\.\d+", args.version):
             die(f"Invalid version format: {args.version!r}. Expected X.Y.Z")
         cmd_bump(
             new_ver=args.version,
-            ext_n=args.ext,
             skip_tests=args.skip_tests,
-            skip_merge=args.skip_merge,
+            dev_only=args.dev,
             dry=args.dry_run,
             yes=args.yes,
         )
@@ -865,17 +1173,13 @@ def main() -> None:
     elif args.command == "publish":
         publish(target=args.target, dry=args.dry_run)
 
-    elif args.command in ("ext-release", "zed-release"):
-        ver = args.version or read_pyproject_version()
-        if args.ext is None:
-            die("--ext N is required for ext-release.")
-        zed_stub_release(python_ver=ver, ext_n=args.ext, dry=args.dry_run)
+    elif args.command == "dev-stub":
+        cmd_dev_stub(dry=args.dry_run)
 
-    elif args.command in ("ext-binaries", "zed-binaries"):
+    elif args.command == "ext-binaries":
         ver = args.version or read_pyproject_version()
         cmd_zed_binaries(
             python_ver=ver,
-            ext_n=args.ext,
             dry=args.dry_run,
             yes=args.yes,
         )

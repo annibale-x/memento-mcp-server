@@ -257,7 +257,7 @@ Use the following commit message format:
 
 ## Release Process
 
-> **Note**: For the complete automated release workflow (tag conventions, deploy script, CI/CD), see [docs/dev/DEV.md](docs/dev/DEV.md).
+> **Note**: For the complete automated release workflow (tag conventions, deploy script, CI/CD), see [docs/dev/README.md](docs/dev/README.md).
 
 ### Versioning
 We follow [Semantic Versioning](https://semver.org/):

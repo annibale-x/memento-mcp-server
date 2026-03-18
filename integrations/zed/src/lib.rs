@@ -5,28 +5,23 @@ use zed_extension_api::{
 };
 
 // ---------------------------------------------------------------------------
-// Release naming convention
+// The STUB_EXT_RELEASE constant is the GitHub release tag from which the
+// stub binary is downloaded as a fallback (steps 2-3 of bundle-first).
 //
-// GitHub releases for this repo follow the scheme:
+// It tracks the mcp-memento Python package version: every Python release
+// publishes the stub binaries as assets on the same release tag (vX.Y.Z).
 //
-//   v{python_version}-ext.{N}
-//
-// where:
-//   - python_version  is the mcp-memento Python package version (e.g. 0.2.6)
-//   - N               is a monotonically increasing extension release counter
-//
-// Example: "v0.2.6-ext.1"
-//
-// This keeps Python package releases and extension releases clearly separated
-// while tying each extension release to the Python version it ships with.
-//
-// The STUB_EXT_RELEASE constant below encodes the full tag.  Changing it
-// forces all clients to re-download the stub binary on the next launch.
+// Changing this value forces all clients that lack a bundled binary to
+// re-download the stub on the next launch.
 // ---------------------------------------------------------------------------
 
-/// Full GitHub release tag for the current stub binaries.
-/// Format: "v{python_version}-ext.{N}"
-const STUB_EXT_RELEASE: &str = "v0.2.6-ext.1";
+/// GitHub release tag for the current stub binaries (matches Python version tag).
+const STUB_EXT_RELEASE: &str = "v0.2.11";
+
+/// Distribution channel: "prod" downloads from the vX.Y.Z GitHub Release;
+/// "dev" downloads from the rolling pre-release tag "dev-latest".
+/// Set automatically by scripts/deploy.py during a version bump.
+const STUB_CHANNEL: &str = "prod";
 
 /// GitHub repository (owner/name) hosting the releases.
 const REPO: &str = "annibale-x/mcp-memento";
@@ -90,7 +85,11 @@ impl MementoExtension {
         let asset_name = Self::stub_asset_name(os, arch);
 
         // ------------------------------------------------------------------
-        // Step 1: bundled binary committed to the repository.
+        // Step 1: bundled binary in the Zed extension work directory.
+        //
+        // Zed uses  <data>/extensions/work/<ext-id>/  as the WASM sandbox CWD.
+        // It does NOT copy repo source files there.  The binary is placed here
+        // by running:  python scripts/deploy.py dev-stub
         // ------------------------------------------------------------------
         let bundled_path = format!("{}/{}", BUNDLED_BIN_DIR, asset_name);
 
@@ -109,10 +108,17 @@ impl MementoExtension {
         let download_name = Self::stub_download_name(os, arch);
 
         if std::fs::metadata(&download_name).is_err() {
-            // Not cached — download from the GitHub release.
+            // Not cached — download from the appropriate GitHub release.
+            // "prod"  → versioned release  vX.Y.Z  (stable, official)
+            // "dev"   → rolling pre-release dev-latest (updated on every dev bump)
+            let release_tag = match STUB_CHANNEL {
+                "prod" => STUB_EXT_RELEASE.to_string(),
+                _ => "dev-latest".to_string(),
+            };
+
             let url = format!(
                 "https://github.com/{}/releases/download/{}/{}",
-                REPO, STUB_EXT_RELEASE, asset_name,
+                REPO, release_tag, asset_name,
             );
 
             zed::download_file(&url, &download_name, DownloadedFileType::Uncompressed)
@@ -156,13 +162,15 @@ impl zed::Extension for MementoExtension {
         {
             if let Some(zed_extension_api::serde_json::Value::Object(map)) = settings.settings {
                 if let Some(cmd) = map.get("PYTHON_COMMAND").and_then(|v| v.as_str()) {
-                    if !cmd.is_empty() && cmd != "auto" {
+                    if !cmd.is_empty() && cmd != "default" {
                         env_vars.push(("PYTHON_COMMAND".to_string(), cmd.to_string()));
                     }
                 }
 
                 if let Some(path) = map.get("MEMENTO_DB_PATH").and_then(|v| v.as_str()) {
-                    env_vars.push(("MEMENTO_DB_PATH".to_string(), path.to_string()));
+                    if !path.is_empty() && path != "default" {
+                        env_vars.push(("MEMENTO_DB_PATH".to_string(), path.to_string()));
+                    }
                 }
 
                 if let Some(profile) = map.get("MEMENTO_PROFILE").and_then(|v| v.as_str()) {
@@ -186,48 +194,68 @@ impl zed::Extension for MementoExtension {
         _context_server_id: &ContextServerId,
         _project: &Project,
     ) -> Result<Option<ContextServerConfiguration>> {
+        let (os, _arch) = zed::current_platform();
+
+        let db_path_default_hint = match os {
+            Os::Windows => "%USERPROFILE%\\.mcp-memento\\context.db",
+            _ => "~/.mcp-memento/context.db",
+        };
+
         let settings_schema = zed_extension_api::serde_json::json!({
             "type": "object",
             "properties": {
                 "MEMENTO_DB_PATH": {
                     "type": "string",
-                    "description": "Path to the Memento SQLite database file.",
-                    "default": "~/.mcp-memento/context.db"
+                    "description": format!(
+                        "Path to the Memento SQLite database file. \
+                         Use 'default' to let the server choose the OS default ({}).",
+                        db_path_default_hint
+                    ),
+                    "default": "default"
                 },
                 "MEMENTO_PROFILE": {
                     "type": "string",
-                    "description": "Tool profile to load (core, extended, advanced).",
+                    "description": "Tool profile: 'core' (basic memory ops), 'extended' (+ stats and decay), 'advanced' (+ graph analytics).",
                     "enum": ["core", "extended", "advanced"],
                     "default": "core"
                 },
                 "PYTHON_COMMAND": {
                     "type": "string",
-                    "description": "Python executable override. Leave empty for automatic discovery, or set to an absolute path (e.g. C:\\Python312\\python.exe).",
-                    "default": "auto"
+                    "description": "Python executable. Use 'default' for automatic discovery, or set an absolute path (e.g. C:/Users/you/AppData/Local/Programs/Python/Python312/python.exe).",
+                    "default": "default"
                 }
             }
         });
 
         let default_settings = concat!(
             "{\n",
-            "  \"MEMENTO_DB_PATH\": \"~/.mcp-memento/context.db\",\n",
+            "  \"MEMENTO_DB_PATH\": \"default\",\n",
             "  \"MEMENTO_PROFILE\": \"core\",\n",
-            "  \"PYTHON_COMMAND\": \"auto\"\n",
+            "  \"PYTHON_COMMAND\": \"default\"\n",
             "}"
         );
 
+        let installation_instructions = format!(
+            "Memento requires Python 3.8+ on your system.\n\n\
+             A small native launcher (memento-stub) discovers Python, installs\n\
+             mcp-memento if needed, and starts the MCP server automatically.\n\n\
+             Settings\n\
+             --------\n\
+             MEMENTO_DB_PATH  Path to the SQLite database.\n\
+             \t'default' uses the OS default: {}\n\
+             \tSet a custom absolute path to override.\n\n\
+             MEMENTO_PROFILE  Tool set exposed to the AI agent.\n\
+             \tcore     — basic memory operations (default)\n\
+             \textended — + statistics and confidence decay\n\
+             \tadvanced — + graph analytics\n\n\
+             PYTHON_COMMAND   Python executable to use.\n\
+             \t'default' tries py / python3 / python and common install paths.\n\
+             \tSet an absolute path if your Python is not on the system PATH.",
+            db_path_default_hint
+        );
+
         Ok(Some(ContextServerConfiguration {
-            installation_instructions: concat!(
-                "Memento requires Python 3.8+ installed on your system.\n\n",
-                "The extension includes a small native launcher (memento-stub) that\n",
-                "discovers Python automatically and starts the mcp-memento server.\n",
-                "If the bundled launcher is not available for your platform it will\n",
-                "be downloaded automatically from the GitHub release.\n\n",
-                "If Python is not found automatically, set PYTHON_COMMAND to the full\n",
-                "path of your Python executable\n",
-                "(e.g. \"C:\\\\Users\\\\you\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\")."
-            )
-            .to_string(),
+            installation_instructions,
             settings_schema: settings_schema.to_string(),
             default_settings: default_settings.to_string(),
         }))
