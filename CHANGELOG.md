@@ -32,6 +32,10 @@
   * Version bump to 0.2.9
 
 
+* 2026-03-18: v0.2.9 - Release (Hannibal)
+  * Version bump to 0.2.9
+
+
 * 2026-03-18: v0.2.8 - Release (Hannibal)
   * Version bump to 0.2.8
 
