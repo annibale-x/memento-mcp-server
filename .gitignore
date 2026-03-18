@@ -38,3 +38,11 @@ dist/
 .DS_Store
 Thumbs.db
 uv.lock
+
+# Windows reserved device names (cannot be real files)
+NUL
+CON
+PRN
+AUX
+COM[0-9]
+LPT[0-9]
