@@ -1,0 +1,9 @@
+# Rust build artifacts
+target/
+
+# Compiled WASM extension (built by Zed on install)
+extension.wasm
+
+# Cargo.lock for libraries (not binaries)
+# The stub is a binary, but lock file is not needed in the repo
+Cargo.lock
