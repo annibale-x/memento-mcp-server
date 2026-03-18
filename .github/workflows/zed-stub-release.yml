@@ -1,0 +1,209 @@
+# Builds the memento-stub native binary for all supported platforms and
+# uploads the artefacts to a GitHub Release.
+#
+# Trigger: push of a tag matching "v*-ext.*"  (e.g. "v0.2.6-ext.1")
+#
+# Release naming convention:
+#   v{python_version}-ext.{N}
+#   - python_version  : mcp-memento Python package version  (e.g. 0.2.6)
+#   - N               : monotonically increasing extension release counter
+#
+# Example tag:  v0.2.6-ext.1
+#
+# The release title will read:
+#   "Zed Extension ext.N  (mcp-memento v0.2.6)"
+#
+# Assets published:
+#   memento-stub-x86_64-pc-windows-msvc.exe
+#   memento-stub-x86_64-apple-darwin
+#   memento-stub-aarch64-apple-darwin
+#   memento-stub-x86_64-unknown-linux-gnu
+#   memento-stub-aarch64-unknown-linux-gnu
+
+name: Zed Stub Release
+
+on:
+  push:
+    tags:
+      - "v*-ext.*"
+
+permissions:
+  contents: write   # needed to create releases and upload assets
+
+# ---------------------------------------------------------------------------
+# Matrix build — one job per target platform
+# ---------------------------------------------------------------------------
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── Windows ────────────────────────────────────────────────────────
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            asset: memento-stub-x86_64-pc-windows-msvc.exe
+            exe_suffix: .exe
+            use_cross: false
+
+          # ── macOS Intel ────────────────────────────────────────────────────
+          - target: x86_64-apple-darwin
+            os: macos-13          # last Intel runner
+            asset: memento-stub-x86_64-apple-darwin
+            exe_suffix: ""
+            use_cross: false
+
+          # ── macOS Apple Silicon ────────────────────────────────────────────
+          - target: aarch64-apple-darwin
+            os: macos-latest      # M-series runner
+            asset: memento-stub-aarch64-apple-darwin
+            exe_suffix: ""
+            use_cross: false
+
+          # ── Linux x86_64 ───────────────────────────────────────────────────
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            asset: memento-stub-x86_64-unknown-linux-gnu
+            exe_suffix: ""
+            use_cross: false
+
+          # ── Linux ARM64 ────────────────────────────────────────────────────
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            asset: memento-stub-aarch64-unknown-linux-gnu
+            exe_suffix: ""
+            use_cross: true       # cross-compiled via the `cross` tool
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Rust toolchain ────────────────────────────────────────────────────
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # ── cross (Linux ARM64 only) ──────────────────────────────────────────
+      - name: Install cross
+        if: matrix.use_cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      # ── Build ─────────────────────────────────────────────────────────────
+      - name: Build (cargo)
+        if: "!matrix.use_cross"
+        working-directory: integrations/zed/stub
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Build (cross)
+        if: matrix.use_cross
+        working-directory: integrations/zed/stub
+        run: cross build --release --target ${{ matrix.target }}
+
+      # ── Locate the compiled binary ────────────────────────────────────────
+      # The workspace root-level target/ is used because the Cargo workspace
+      # is defined at integrations/zed/, so the output lands one level up from
+      # the stub crate.
+      - name: Rename binary to asset name
+        shell: bash
+        run: |
+          SRC="integrations/zed/target/${{ matrix.target }}/release/memento-stub${{ matrix.exe_suffix }}"
+          cp "$SRC" "${{ matrix.asset }}"
+          echo "Built: $(ls -lh ${{ matrix.asset }})"
+
+      # ── Upload artefact (shared between build and release jobs) ───────────
+      - name: Upload artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------
+  # Release job — runs after all builds succeed
+  # ---------------------------------------------------------------------------
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout (needed for tag metadata) ───────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Download all artefacts ────────────────────────────────────────────
+      - name: Download all artefacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: List artefacts
+        run: ls -lh dist/
+
+      # ── Derive release title from tag ─────────────────────────────────────
+      # Tag format:  v0.2.6-ext.1
+      # Title:       Zed Extension ext.1  (mcp-memento v0.2.6)
+      - name: Derive release metadata
+        id: meta
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"          # e.g. v0.2.6-ext.1
+          # Strip leading 'v' → 0.2.6-ext.1
+          BARE="${TAG#v}"
+          # Split on '-ext.'
+          PYTHON_VER="${BARE%%-ext.*}"      # 0.2.6
+          EXT_NUM="${BARE##*-ext.}"         # 1
+          echo "tag=$TAG"             >> "$GITHUB_OUTPUT"
+          echo "python_ver=$PYTHON_VER" >> "$GITHUB_OUTPUT"
+          echo "ext_num=$EXT_NUM"     >> "$GITHUB_OUTPUT"
+          echo "title=Zed Extension ext.${EXT_NUM}  (mcp-memento v${PYTHON_VER})" >> "$GITHUB_OUTPUT"
+
+      # ── Create release and upload assets ─────────────────────────────────
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.title }}
+          draft: false
+          prerelease: false
+          body: |
+            ## Zed Extension ext.${{ steps.meta.outputs.ext_num }}
+
+            Compatible with **mcp-memento v${{ steps.meta.outputs.python_ver }}**.
+
+            ### Stub binaries included
+
+            | Platform | Asset |
+            |---|---|
+            | Windows x86-64 | `memento-stub-x86_64-pc-windows-msvc.exe` |
+            | macOS Intel    | `memento-stub-x86_64-apple-darwin` |
+            | macOS Apple Silicon | `memento-stub-aarch64-apple-darwin` |
+            | Linux x86-64   | `memento-stub-x86_64-unknown-linux-gnu` |
+            | Linux ARM64    | `memento-stub-aarch64-unknown-linux-gnu` |
+
+            ### Installation
+
+            The Zed extension downloads the correct binary automatically on first launch.
+            No manual action required.
+
+            ### Python requirement
+
+            Install [mcp-memento](https://pypi.org/project/mcp-memento/) v${{ steps.meta.outputs.python_ver }}:
+
+            ```
+            pip install mcp-memento==${{ steps.meta.outputs.python_ver }}
+            ```
+          files: |
+            dist/memento-stub-x86_64-pc-windows-msvc.exe
+            dist/memento-stub-x86_64-apple-darwin
+            dist/memento-stub-aarch64-apple-darwin
+            dist/memento-stub-x86_64-unknown-linux-gnu
+            dist/memento-stub-aarch64-unknown-linux-gnu

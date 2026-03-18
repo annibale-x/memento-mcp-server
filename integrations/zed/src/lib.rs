@@ -1,23 +1,48 @@
-use zed_extension_api::settings::ContextServerSettings;
 use zed_extension_api::ContextServerConfiguration;
+use zed_extension_api::settings::ContextServerSettings;
 use zed_extension_api::{
     self as zed, Command, ContextServerId, DownloadedFileType, Os, Project, Result,
 };
 
-/// Git ref (branch or commit SHA) from which to download the stub binaries.
-/// Changing this forces a re-download of the stub.
-const STUB_REF: &str = "dev";
+// ---------------------------------------------------------------------------
+// Release naming convention
+//
+// GitHub releases for this repo follow the scheme:
+//
+//   v{python_version}-ext.{N}
+//
+// where:
+//   - python_version  is the mcp-memento Python package version (e.g. 0.2.6)
+//   - N               is a monotonically increasing extension release counter
+//
+// Example: "v0.2.6-ext.1"
+//
+// This keeps Python package releases and extension releases clearly separated
+// while tying each extension release to the Python version it ships with.
+//
+// The STUB_EXT_RELEASE constant below encodes the full tag.  Changing it
+// forces all clients to re-download the stub binary on the next launch.
+// ---------------------------------------------------------------------------
 
-/// Base URL for raw binary downloads directly from the repository.
-/// Path: {STUB_RAW_BASE}/{STUB_REF}/integrations/zed/stub/bin/{asset}
-const STUB_RAW_BASE: &str = "https://raw.githubusercontent.com/annibale-x/mcp-memento";
+/// Full GitHub release tag for the current stub binaries.
+/// Format: "v{python_version}-ext.{N}"
+const STUB_EXT_RELEASE: &str = "v0.2.6-ext.1";
+
+/// GitHub repository (owner/name) hosting the releases.
+const REPO: &str = "annibale-x/mcp-memento";
+
+/// Subdirectory inside the extension working directory where bundled stub
+/// binaries are stored (committed to the repository under integrations/zed/).
+const BUNDLED_BIN_DIR: &str = "stub/bin";
+
+// ---------------------------------------------------------------------------
 
 struct MementoExtension {
     cached_stub: Option<String>,
 }
 
 impl MementoExtension {
-    /// Returns the platform-specific asset name for the stub binary.
+    /// Platform-specific asset filename for the stub binary.
     fn stub_asset_name(os: Os, arch: zed_extension_api::Architecture) -> &'static str {
         match (os, arch) {
             (Os::Windows, _) => "memento-stub-x86_64-pc-windows-msvc.exe",
@@ -32,57 +57,82 @@ impl MementoExtension {
         }
     }
 
-    /// Returns the local filename for the cached stub binary.
-    /// Embedding git_ref ensures a re-download whenever STUB_REF changes.
-    fn stub_local_name(os: Os, arch: zed_extension_api::Architecture, git_ref: &str) -> String {
+    /// Local filename used when caching a downloaded stub binary.
+    /// Embeds the release tag so a tag change triggers a fresh download.
+    fn stub_download_name(os: Os, arch: zed_extension_api::Architecture) -> String {
         let asset = Self::stub_asset_name(os, arch);
-        // Replace '/' in branch names (e.g. "refs/heads/dev") with '-'.
-        let safe_ref = git_ref.replace('/', "-");
+        // Sanitise the release tag for use in a filename (replace '.' and '+').
+        let safe_tag = STUB_EXT_RELEASE.replace(['.', '+'], "-");
 
         if let Some(stem) = asset.strip_suffix(".exe") {
-            format!("{}-{}.exe", stem, safe_ref)
+            format!("{}-{}.exe", stem, safe_tag)
         } else {
-            format!("{}-{}", asset, safe_ref)
+            format!("{}-{}", asset, safe_tag)
         }
     }
 
-    /// Downloads the stub binary from raw.githubusercontent.com if not already
-    /// present, marks it executable on Unix, and returns its absolute path.
+    /// Resolves the stub binary path using a "bundle-first" strategy:
+    ///
+    /// 1. Look for the binary pre-committed in `stub/bin/` (present in both
+    ///    dev extensions and marketplace installs where Zed clones the full
+    ///    submodule including static assets).
+    /// 2. Look for a previously downloaded binary in the working directory
+    ///    (cached download from a previous run).
+    /// 3. Download from the GitHub release and cache it locally.
+    ///
+    /// Returns the **absolute** path to the binary so that Zed's ShellBuilder
+    /// does not lose track of the file when it adjusts the working directory.
     fn ensure_stub(&mut self, os: Os, arch: zed_extension_api::Architecture) -> Result<String> {
         if let Some(ref cached) = self.cached_stub {
             return Ok(cached.clone());
         }
 
-        let local_name = Self::stub_local_name(os, arch, STUB_REF);
         let asset_name = Self::stub_asset_name(os, arch);
 
-        // Skip the network call if the file is already on disk.
-        let already_exists = std::fs::metadata(&local_name).is_ok();
+        // ------------------------------------------------------------------
+        // Step 1: bundled binary committed to the repository.
+        // ------------------------------------------------------------------
+        let bundled_path = format!("{}/{}", BUNDLED_BIN_DIR, asset_name);
 
-        if !already_exists {
-            let url = format!(
-                "{}/{}/integrations/zed/stub/bin/{}",
-                STUB_RAW_BASE, STUB_REF, asset_name
-            );
+        if std::fs::metadata(&bundled_path).is_ok() {
+            zed::make_file_executable(&bundled_path)
+                .map_err(|e| format!("Failed to make bundled stub executable: {e}"))?;
 
-            zed::download_file(&url, &local_name, DownloadedFileType::Uncompressed)
-                .map_err(|e| format!("Failed to download memento stub: {e}"))?;
+            let abs = self.to_abs_path(&bundled_path);
+            self.cached_stub = Some(abs.clone());
+            return Ok(abs);
         }
 
-        // On Unix the file must be executable.
-        zed::make_file_executable(&local_name)
-            .map_err(|e| format!("Failed to make stub executable: {e}"))?;
+        // ------------------------------------------------------------------
+        // Step 2 + 3: cached download or fresh download.
+        // ------------------------------------------------------------------
+        let download_name = Self::stub_download_name(os, arch);
 
-        // Build an absolute path using the WASM working directory ($PWD).
-        // Passing an absolute path avoids problems when Zed's ShellBuilder
-        // changes the CWD before spawning the process.
-        let abs_path = std::env::current_dir()
-            .map(|cwd| cwd.join(&local_name).to_string_lossy().into_owned())
-            .unwrap_or(local_name.clone());
+        if std::fs::metadata(&download_name).is_err() {
+            // Not cached — download from the GitHub release.
+            let url = format!(
+                "https://github.com/{}/releases/download/{}/{}",
+                REPO, STUB_EXT_RELEASE, asset_name,
+            );
 
-        self.cached_stub = Some(abs_path.clone());
+            zed::download_file(&url, &download_name, DownloadedFileType::Uncompressed)
+                .map_err(|e| format!("Failed to download memento stub from {url}: {e}"))?;
+        }
 
-        Ok(abs_path)
+        zed::make_file_executable(&download_name)
+            .map_err(|e| format!("Failed to make downloaded stub executable: {e}"))?;
+
+        let abs = self.to_abs_path(&download_name);
+        self.cached_stub = Some(abs.clone());
+        Ok(abs)
+    }
+
+    /// Builds an absolute path from a relative one using the WASM working
+    /// directory.  Falls back to the relative path if `current_dir` fails.
+    fn to_abs_path(&self, relative: &str) -> String {
+        std::env::current_dir()
+            .map(|cwd| cwd.join(relative).to_string_lossy().into_owned())
+            .unwrap_or_else(|_| relative.to_owned())
     }
 }
 
@@ -98,7 +148,7 @@ impl zed::Extension for MementoExtension {
     ) -> Result<Command> {
         let (os, arch) = zed::current_platform();
 
-        // --- Read settings ---
+        // --- Read user settings ---
         let mut env_vars = vec![("PYTHONUNBUFFERED".to_string(), "1".to_string())];
 
         if let Ok(settings) =
@@ -121,7 +171,7 @@ impl zed::Extension for MementoExtension {
             }
         }
 
-        // --- Ensure stub binary is present ---
+        // --- Resolve stub binary (bundle-first) ---
         let stub_path = self.ensure_stub(os, arch)?;
 
         Ok(Command {
@@ -169,9 +219,10 @@ impl zed::Extension for MementoExtension {
         Ok(Some(ContextServerConfiguration {
             installation_instructions: concat!(
                 "Memento requires Python 3.8+ installed on your system.\n\n",
-                "The extension downloads a small native launcher (memento-stub) from\n",
-                "GitHub Releases. The launcher discovers Python automatically and starts\n",
-                "the mcp-memento server.\n\n",
+                "The extension includes a small native launcher (memento-stub) that\n",
+                "discovers Python automatically and starts the mcp-memento server.\n",
+                "If the bundled launcher is not available for your platform it will\n",
+                "be downloaded automatically from the GitHub release.\n\n",
                 "If Python is not found automatically, set PYTHON_COMMAND to the full\n",
                 "path of your Python executable\n",
                 "(e.g. \"C:\\\\Users\\\\you\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\")."
