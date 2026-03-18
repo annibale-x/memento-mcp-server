@@ -410,13 +410,13 @@ fn stub_phase() -> (Vec<String>, mpsc::Receiver<String>) {
 
         match method.as_str() {
             "initialize" => {
-                if !initialized {
-                    if let Some(ref id) = id {
-                        respond_initialize(id);
-                    }
-                    initialized = true;
+                // Always respond to initialize, even if we already sent a
+                // proactive response: Zed may have missed it (ShellBuilder
+                // buffering) and will send its own initialize with a real id.
+                if let Some(ref id) = id {
+                    respond_initialize(id);
                 }
-                // else: we already sent a proactive response — discard duplicate.
+                initialized = true;
             }
 
             "initialized" => {
