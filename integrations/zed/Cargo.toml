@@ -1,0 +1,12 @@
+[package]
+name = "memento-mcp-server"
+version = "0.2.4"
+edition = "2021"
+authors = ["Hannibal <annibale.x@gmail.com>"]
+description = "Persistent memory for AI agents via MCP."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+zed_extension_api = "0.7.0"

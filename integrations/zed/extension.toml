@@ -1,0 +1,10 @@
+id = "mcp-memento"
+name = "Memento"
+version = "0.2.4"
+schema_version = 1
+authors = ["Hannibal <annibale.x@gmail.com>"]
+description = "Persistent memory for AI agents via MCP."
+repository = "https://github.com/annibale-x/memento-mcp-server"
+
+[context_servers.memento]
+command = "mcp-memento"
