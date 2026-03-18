@@ -493,6 +493,27 @@ def git_tag(tag: str, dry: bool) -> None:
     run(f"git tag {tag}", dry=dry)
 
 
+def git_tag_exists_local(tag: str) -> bool:
+    """Return True if the tag already exists in the local repository."""
+    result = run(
+        f"git tag -l {tag}",
+        capture=True,
+        dry=False,
+        check=False,
+    )
+    return result.strip() == tag
+
+
+def git_retag(tag: str, dry: bool) -> None:
+    """Delete the local tag and re-create it pointing to HEAD, then force-push."""
+    run(f"git tag -d {tag}", dry=dry)
+    run(f"git tag {tag}", dry=dry)
+
+
+def git_force_push_tag(tag: str, dry: bool) -> None:
+    run(f"git push origin {tag} --force", dry=dry)
+
+
 def git_push_tag(tag: str, dry: bool) -> None:
     run(f"git push origin {tag}", dry=dry)
 
@@ -706,9 +727,25 @@ def cmd_bump(
     # 6. Python release tag
     step(f"Tagging v{new_ver}")
     py_tag = f"v{new_ver}"
-    git_tag(py_tag, dry)
-    git_push_tag(py_tag, dry)
-    ok(f"Tag {py_tag} pushed")
+
+    if not dry and git_tag_exists_local(py_tag):
+        if dev_only:
+            warn(f"Tag {py_tag} already exists locally.")
+            if confirm(f"Move tag {py_tag} to current HEAD (retag)?", yes):
+                git_retag(py_tag, dry)
+                git_force_push_tag(py_tag, dry)
+                ok(f"Tag {py_tag} moved to HEAD and force-pushed")
+            else:
+                info(f"Tag {py_tag} left unchanged.")
+        else:
+            die(
+                f"Tag {py_tag} already exists. Cannot overwrite a non-dev release tag.\n"
+                "  Bump to a new version or delete the tag manually if this was a mistake."
+            )
+    else:
+        git_tag(py_tag, dry)
+        git_push_tag(py_tag, dry)
+        ok(f"Tag {py_tag} pushed")
 
     # 7. Merge dev → main (skipped with --dev)
     if not dev_only:
