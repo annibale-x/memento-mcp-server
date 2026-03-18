@@ -417,7 +417,7 @@ def _build_changelog_snippet(changelog_url: str, max_entries: int = 4) -> str:
     entries = re.findall(
         r"^\* (\d{4}-\d{2}-\d{2}): (v[\d.]+) - (.+?) \(\w+\)",
         raw,
-        flags=_re.MULTILINE,
+        flags=re.MULTILINE,
     )
     if not entries:
         return ""
