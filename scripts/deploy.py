@@ -113,10 +113,14 @@ ZED_STUB_BIN = ZED_DIR / "stub" / "bin"
 GITHUB_REPO = "annibale-x/mcp-memento"
 GITHUB_RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_REPO}"
 
-# Always use the same Python interpreter that is running this script.
-# This ensures tests and builds use the project virtualenv (with memento
-# installed in editable mode) rather than whatever "python" resolves to
-# in the shell PATH.
+# uv is the project's package manager. Use "uv run" for tests and builds so
+# that the correct virtual environment (memento in editable mode + all dev
+# deps) is always active — regardless of which Python or shell invoked this
+# script.  "uv run --extra dev" resolves [project.optional-dependencies] dev.
+UV = "uv"
+
+# Fallback Python for operations that don't need the project venv
+# (cargo invocations, git helpers, etc.).
 PYTHON = sys.executable
 
 
@@ -378,7 +382,7 @@ def build_package(dry: bool) -> None:
     # Temporarily patch README for PyPI (absolute links)
     readme_backup = _patch_readme_for_pypi(dry)
     try:
-        run(f'"{PYTHON}" -m build', dry=dry)
+        run(f"{UV} run python -m build", dry=dry)
     finally:
         if readme_backup:
             _restore_readme(readme_backup, dry)
@@ -682,13 +686,12 @@ def download_stub_binaries(python_ver: str, dry: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
-
-
 def run_tests(dry: bool) -> None:
     step("Running test suite")
-    run(f'"{PYTHON}" -m pytest tests/ --tb=short -q', dry=dry)
+    run(
+        f"{UV} run --extra dev python -m pytest tests/ --tb=short -q",
+        dry=dry,
+    )
     ok("All tests passed")
 
 
