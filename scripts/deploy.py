@@ -80,6 +80,18 @@ import sys
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
+# Windows console encoding fix
+# On Windows, the default console codepage (CP1252) cannot encode Unicode
+# characters used in this script's output (e.g. U+2501 BOX DRAWINGS HEAVY).
+# Reconfigure stdout/stderr to UTF-8 so the script works without needing
+# the PYTHONIOENCODING=utf-8 environment variable.
+# ---------------------------------------------------------------------------
+
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+# ---------------------------------------------------------------------------
 # Project paths
 # ---------------------------------------------------------------------------
 
