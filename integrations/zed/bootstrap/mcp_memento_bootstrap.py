@@ -198,7 +198,10 @@ def _proxy_loop(
             assert real_proc.stdout is not None
 
             for raw_line in real_proc.stdout:
-                sys.stdout.buffer.write(raw_line)
+                # Normalize CRLF → LF: on Windows the subprocess stdout may
+                # emit \r\n which confuses Zed's JSON-RPC line reader.
+                normalized = raw_line.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+                sys.stdout.buffer.write(normalized)
                 sys.stdout.buffer.flush()
 
         except Exception as exc:
