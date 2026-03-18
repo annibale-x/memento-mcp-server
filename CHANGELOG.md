@@ -1,132 +1,32 @@
 # Changelog
 
-* 2026-03-19: v0.2.11 - Release (Hannibal)
-  * Version bump to 0.2.11
+* 2026-03-19: v0.2.11 - deploy.py robustness fixes for release workflow (Hannibal)
+  * Fixed bump command crashing when prod release attempted after a --dev bump on the same version (tag exists only locally)
+  * Fixed "release not found" error: upload_stub_binaries_to_release now creates the GitHub Release before uploading assets
+  * Fixed bump resume: tag already on remote is now treated as a mid-flight resume, not a fatal error
+  * Added git_tag_exists_remote() helper using git ls-remote for reliable remote tag detection
+  * Added upload-stubs subcommand for manual recovery (create GH Release + upload local binaries)
 
+* 2026-03-18: v0.2.10 - Zed extension dual-channel stub workflow (Hannibal)
+  * Added dev-latest pre-release channel for iterative Zed extension testing without full releases
+  * Added zed-stub-dev.yml CI workflow: triggers on dev branch push with stub/Cargo.toml changes
+  * Updated deploy.py: bump --dev builds stub locally and uploads to dev-latest pre-release
+  * Updated lib.rs: STUB_CHANNEL constant switches download URL between dev and prod channels
+  * Fixed configuration defaults from "auto" to "default" placeholder for WASM sandbox compatibility
+  * Removed failed %USERPROFILE% resolution attempts in WASM; replaced with static placeholders
+  * Reorganized Zed documentation: user guide to docs/extensions/ZED.md, dev guide to integrations/zed/README.md
 
-* 2026-03-19: v0.2.11 - Release (Hannibal)
-  * Version bump to 0.2.11
+* 2026-03-18: v0.2.9 - Zed extension native stub binary (Hannibal)
+  * Added native stub binary for Zed WASM sandbox: extension downloads pre-compiled binary at runtime
+  * Added zed-stub-release.yml CI workflow: cross-compiles 5 targets and uploads to GitHub Release
+  * Added stub/main.rs: lightweight native binary bridging WASM sandbox to Python MCP server
+  * Fixed 404 error in development mode caused by WASM sandbox isolation from source tree
+  * Added ext-binaries deploy.py subcommand to download CI-built stubs into stub/bin/
 
-
-* 2026-03-19: v0.2.11 - Release (Hannibal)
-  * Version bump to 0.2.11
-
-
-* 2026-03-19: v0.2.11 - Release (Hannibal)
-  * Version bump to 0.2.11
-
-
-* 2026-03-18: v0.2.10 - Release (Hannibal)
-  * Version bump to 0.2.10
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.9 - Release (Hannibal)
-  * Version bump to 0.2.9
-
-
-* 2026-03-18: v0.2.8 - Release (Hannibal)
-  * Version bump to 0.2.8
-
-
-* 2026-03-18: v0.2.8 - Release (Hannibal)
-  * Version bump to 0.2.8
-
+* 2026-03-18: v0.2.8 - Zed MCP extension scaffold (Hannibal)
+  * Added initial Zed editor extension integrating mcp-memento as an MCP server
+  * Added extension.toml, lib.rs and Cargo.toml for the Zed WASM extension
+  * Added deploy.py support for bumping Zed extension version alongside Python package
 
 * 2026-03-18: v0.2.7 - Complete documentation rewrite and quality fixes (Hannibal)
   * Full audit and rewrite of all 14 documentation files (README, CONTRIBUTING, TOOLS, RULES, RELATIONSHIPS, DECAY_SYSTEM, INTEGRATION, AGENT_CONFIGURATION, IDE, PYTHON, AGENT, API, DEV, SCHEMA)
