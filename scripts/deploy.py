@@ -113,6 +113,12 @@ ZED_STUB_BIN = ZED_DIR / "stub" / "bin"
 GITHUB_REPO = "annibale-x/mcp-memento"
 GITHUB_RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_REPO}"
 
+# Always use the same Python interpreter that is running this script.
+# This ensures tests and builds use the project virtualenv (with memento
+# installed in editable mode) rather than whatever "python" resolves to
+# in the shell PATH.
+PYTHON = sys.executable
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -372,7 +378,7 @@ def build_package(dry: bool) -> None:
     # Temporarily patch README for PyPI (absolute links)
     readme_backup = _patch_readme_for_pypi(dry)
     try:
-        run("python -m build", dry=dry)
+        run(f'"{PYTHON}" -m build', dry=dry)
     finally:
         if readme_backup:
             _restore_readme(readme_backup, dry)
@@ -682,7 +688,7 @@ def download_stub_binaries(python_ver: str, dry: bool) -> None:
 
 def run_tests(dry: bool) -> None:
     step("Running test suite")
-    run("python -m pytest tests/ --tb=short -q", dry=dry)
+    run(f'"{PYTHON}" -m pytest tests/ --tb=short -q', dry=dry)
     ok("All tests passed")
 
 
