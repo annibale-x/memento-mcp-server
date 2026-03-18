@@ -1,5 +1,9 @@
 # Changelog
 
+* 2026-03-18: v0.2.8 - Release (Hannibal)
+  * Version bump to 0.2.8
+
+
 * 2026-03-18: v0.2.7 - Complete documentation rewrite and quality fixes (Hannibal)
   * Full audit and rewrite of all 14 documentation files (README, CONTRIBUTING, TOOLS, RULES, RELATIONSHIPS, DECAY_SYSTEM, INTEGRATION, AGENT_CONFIGURATION, IDE, PYTHON, AGENT, API, DEV, SCHEMA)
   * Fixed all broken GitHub links (memento-mcp-server → mcp-memento)
