@@ -223,7 +223,9 @@ fn find_python() -> Option<PathBuf> {
 /// Launch `python -u -m memento` and proxy stdin/stdout.
 /// `buffered` contains lines received during the stub phase that must be
 /// replayed to the real server before forwarding new stdin.
-fn run_proxy(python: &Path, buffered: Vec<String>) {
+/// `stdin_rx` is the channel receiver from the stub-phase stdin reader thread,
+/// which must be reused to avoid double-locking stdin.
+fn run_proxy(python: &Path, buffered: Vec<String>, stdin_rx: mpsc::Receiver<String>) {
     log!("Launching real server: {} -u -m memento", python.display());
 
     let mut child = match Command::new(python)
@@ -292,9 +294,10 @@ fn run_proxy(python: &Path, buffered: Vec<String>) {
     }
 
     // --- Forward new stdin lines → child stdin ---
-    let stdin = io::stdin();
-    for line in stdin.lock().lines() {
-        match line {
+    // We reuse the receiver from the stub phase thread to avoid double-locking
+    // stdin. The thread is still running and will forward all new messages.
+    loop {
+        match stdin_rx.recv() {
             Ok(l) => {
                 if writeln!(child_stdin, "{}", l).is_err() {
                     break;
@@ -314,15 +317,83 @@ fn run_proxy(python: &Path, buffered: Vec<String>) {
 // Stub phase: read stdin until initialize is handled, buffer everything else
 // ---------------------------------------------------------------------------
 
-fn stub_phase() -> Vec<String> {
-    let stdin = io::stdin();
+fn stub_phase() -> (Vec<String>, mpsc::Receiver<String>) {
+    // We read stdin on a dedicated thread so we can apply a timeout.
+    // If Zed's ShellBuilder pipes stdin but the messages are delayed (or
+    // if the pipe is set up after the process has already started), we still
+    // want to respond within the 60-second window.
+    let (tx, rx) = mpsc::channel::<String>();
+
+    thread::spawn(move || {
+        let stdin = io::stdin();
+
+        for line in stdin.lock().lines() {
+            match line {
+                Ok(l) => {
+                    if tx.send(l).is_err() {
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
     let mut buffered: Vec<String> = Vec::new();
     let mut initialized = false;
 
-    for line in stdin.lock().lines() {
-        let line = match line {
-            Ok(l) => l,
-            Err(_) => break,
+    // Wait up to 2 seconds for the first message from Zed.
+    // If nothing arrives, respond proactively with a synthetic initialize
+    // response so that Zed's 60-second timeout is never triggered.
+    let first_timeout = std::time::Duration::from_millis(2000);
+    let line_timeout = std::time::Duration::from_millis(500);
+
+    let recv_first = rx.recv_timeout(first_timeout);
+
+    let first_line = match recv_first {
+        Ok(l) => {
+            log!("First stdin line received within timeout.");
+            Some(l)
+        }
+        Err(_) => {
+            // Timeout — Zed never sent anything (ShellBuilder buffering issue).
+            // Respond proactively: Zed always sends id=1 for initialize.
+            log!("Stdin timeout — sending proactive initialize response (id=1).");
+            respond_initialize("1");
+            initialized = true;
+            None
+        }
+    };
+
+    // Process the first line if we got one, then continue reading.
+    let mut lines_to_process: Vec<String> = Vec::new();
+
+    if let Some(l) = first_line {
+        lines_to_process.push(l);
+    }
+
+    // Now drain remaining messages with a shorter per-line timeout.
+    // We keep reading until the stub phase is complete.
+    loop {
+        // Pull any already-queued lines first.
+        let line = if !lines_to_process.is_empty() {
+            lines_to_process.remove(0)
+        } else {
+            match rx.recv_timeout(line_timeout) {
+                Ok(l) => l,
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    // No more messages for now.
+                    if initialized {
+                        // Hand off to proxy — Zed will send more after initialize.
+                        log!("Stub phase complete (timeout after init).");
+                        return (buffered, rx);
+                    }
+
+                    // Still waiting for initialize.
+                    continue;
+                }
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
         };
 
         if line.trim().is_empty() {
@@ -339,10 +410,13 @@ fn stub_phase() -> Vec<String> {
 
         match method.as_str() {
             "initialize" => {
-                if let Some(ref id) = id {
-                    respond_initialize(id);
+                if !initialized {
+                    if let Some(ref id) = id {
+                        respond_initialize(id);
+                    }
+                    initialized = true;
                 }
-                initialized = true;
+                // else: we already sent a proactive response — discard duplicate.
             }
 
             "initialized" => {
@@ -353,15 +427,17 @@ fn stub_phase() -> Vec<String> {
                 if let Some(ref id) = id {
                     respond_tools_list(id);
                 }
+
                 if initialized {
-                    // Return after responding — hand off to proxy.
-                    return buffered;
+                    log!("Stub phase complete (tools/list handled).");
+                    return (buffered, rx);
                 }
             }
 
             "ping" => {
                 if let Some(ref id) = id {
-                    let resp = format!(r#"{{"jsonrpc":"2.0","id":{id},"result":{{}}}}"#, id = id);
+                    let resp =
+                        format!(r#"{{"jsonrpc":"2.0","id":{id},"result":{{}}}}"#, id = id);
                     send(&resp);
                 }
             }
@@ -372,16 +448,17 @@ fn stub_phase() -> Vec<String> {
                         respond_not_found(id, &method);
                     }
                 }
-                // After initialize is done, any unknown request is a signal
-                // that the handshake is complete — hand off to proxy.
+
+                // Any message after initialize means handshake is done.
                 if initialized {
-                    return buffered;
+                    log!("Stub phase complete (post-init message: {}).", method);
+                    return (buffered, rx);
                 }
             }
         }
     }
 
-    buffered
+    (buffered, rx)
 }
 
 // ---------------------------------------------------------------------------
@@ -412,7 +489,8 @@ fn main() {
     }
 
     // Phase 1: stub — answer Zed's handshake immediately.
-    let buffered = stub_phase();
+    // Returns buffered lines AND the stdin receiver thread to reuse in proxy.
+    let (buffered, stdin_rx) = stub_phase();
     log!("Stub phase complete. Buffered {} lines.", buffered.len());
 
     // Phase 2: find Python.
@@ -429,6 +507,6 @@ fn main() {
         }
     };
 
-    // Phase 3: proxy.
-    run_proxy(&python, buffered);
+    // Phase 3: proxy — reuse the stdin receiver from stub phase.
+    run_proxy(&python, buffered, stdin_rx);
 }
