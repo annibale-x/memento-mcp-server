@@ -26,12 +26,12 @@ python scripts/deploy.py bump 0.3.0 --dry-run
 # Full release (merges dev → main)
 python scripts/deploy.py bump 0.3.0 --yes
 
-# Dev-only release (no merge into main — publish to PyPI separately later)
+# Dev-only release (no merge into main yet)
 python scripts/deploy.py bump 0.3.0 --dev --yes
 ```
 
 ### `build`
-Build `sdist` + wheel only, no version bump or git operations.
+Build wheel only, no version bump or git operations.
 
 Temporarily patches `README.md` for PyPI compatibility before building:
 - Converts relative markdown links to absolute GitHub URLs.
@@ -46,6 +46,10 @@ python scripts/deploy.py build
 
 ### `publish`
 Upload `dist/*` to TestPyPI or PyPI using `twine`.
+
+If the current branch is `dev` and `main` is behind, **automatically merges
+`dev → main`** before uploading — so the published release is always reflected
+on the main branch.
 
 ```bash
 python scripts/deploy.py publish --target testpypi
@@ -98,7 +102,7 @@ python scripts/deploy.py bump 0.3.0 --dry-run
 # 2. Full release (bumps, builds, tags, pushes, uploads stub binaries, merges to main)
 python scripts/deploy.py bump 0.3.0 --yes
 
-# 3. Publish to PyPI
+# 3. Publish to PyPI (merge already done by bump)
 python scripts/deploy.py publish --target pypi
 
 # --- Optional: refresh stub binaries from CI ---
@@ -109,14 +113,13 @@ gh run list --repo annibale-x/mcp-memento --limit 5
 python scripts/deploy.py ext-binaries
 ```
 
-### Dev-only release (no PyPI yet)
+### Dev-only release (publish to PyPI later)
 
 ```bash
-# Release to GitHub only, stay on dev
+# 1. Release to GitHub only, stay on dev
 python scripts/deploy.py bump 0.3.0 --dev --yes
 
-# Later, when ready to publish:
-git checkout main && git merge dev --no-ff && git push origin main
+# 2. When ready to publish — publish automatically merges dev → main first
 python scripts/deploy.py publish --target pypi
 ```
 

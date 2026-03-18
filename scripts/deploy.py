@@ -500,6 +500,24 @@ def git_merge_to_main(dry: bool) -> None:
 
 
 def publish(target: str, dry: bool) -> None:
+    # If we are on dev and main is behind, merge first so the release
+    # is always on main before hitting PyPI.
+    branch = git_current_branch()
+
+    if branch == "dev":
+        # Check if main already contains the current dev HEAD.
+        behind = run(
+            "git rev-list --count main..dev",
+            capture=True,
+            dry=False,
+            check=False,
+        ).strip()
+
+        if behind and behind != "0":
+            git_merge_to_main(dry)
+        else:
+            info("main is already up-to-date with dev — skipping merge.")
+
     step(f"Publishing to {target.upper()}")
 
     if not DIST_DIR.exists() or not any(DIST_DIR.glob("*.whl")):
