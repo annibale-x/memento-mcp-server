@@ -1,5 +1,9 @@
 # Changelog
 
+* 2026-03-18: v0.2.7 - Release (Hannibal)
+  * Version bump to 0.2.7
+
+
 * 2026-03-17: v0.2.6 - Environment variable standardization and CLI option cleanup (Hannibal)
   * Renamed environment variables for consistency:
     - `MEMENTO_SQLITE_PATH` → `MEMENTO_DB_PATH`
