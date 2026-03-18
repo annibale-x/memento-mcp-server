@@ -122,27 +122,38 @@ gemini-with-memory "Search for Redis timeout solutions"
 ```
 
 ### Python Example
+
+Memento is a **MCP server** — tools are called via the MCP JSON-RPC protocol,
+not as direct Python method calls. Use the `mcp` library to connect as a client:
+
 ```python
-import asyncio
-from memento import Memento
+import asyncio, json
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 
 async def main():
-    server = Memento()
-    await server.initialize()
-    
-    # Store a memory
-    memory_id = await server.store_memento(
-        type="solution",
-        title="Database optimization",
-        content="Optimized queries and added indexes...",
-        tags=["database", "optimization"],
-        importance=0.8
+    server_params = StdioServerParameters(
+        command="memento", args=["--profile", "extended"]
     )
-    
-    await server.cleanup()
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            result = await session.call_tool(
+                "store_memento",
+                arguments={
+                    "type": "solution",
+                    "title": "Database optimization",
+                    "content": "Optimized queries and added indexes...",
+                    "tags": ["database", "optimization"],
+                    "importance": 0.8,
+                },
+            )
+            print(json.loads(result.content[0].text))
 
 asyncio.run(main())
 ```
+
+For full details see [Python Integration Guide](./integrations/PYTHON.md).
 
 ## Choosing the Right Integration
 
@@ -157,7 +168,7 @@ asyncio.run(main())
 - **Best Profile**: Extended or Advanced
 
 ### For AI Agent Developers
-- **Primary Use**: Python API for custom agents
+- **Primary Use**: MCP client (Python `mcp` library) for custom agents
 - **Secondary Use**: HTTP REST API for multi-language support
 - **Best Profile**: Advanced (25 tools)
 
@@ -168,35 +179,33 @@ asyncio.run(main())
 
 ## Configuration Hierarchy
 
-Memento supports multiple configuration sources (in order of precedence):
+Memento supports multiple configuration sources. Order of precedence (highest first):
 
-1. **Environment Variables** (highest priority)
+1. **CLI arguments** (highest priority — always win)
+   ```bash
+   memento --profile extended --db ~/my-context.db
+   ```
+
+2. **Environment variables**
    ```bash
    export MEMENTO_DB_PATH="~/custom/path/memento.db"
    export MEMENTO_PROFILE="advanced"
    ```
 
-2. **YAML Configuration Files**
+3. **YAML configuration files** (lowest explicit priority)
    ```yaml
    # memento.yaml
-   sqlite_path: ~/.mcp-memento/context.db
-   tool_profile: extended
+   db_path: ~/.mcp-memento/context.db
+   profile: extended
    log_level: INFO
    ```
-   
-   The `memento.yaml` file can be placed in:
-   - **Current working directory**: Used for project-specific configuration
-   - **User home directory** (`~/.memento/memento.yaml`): For user-wide settings
-   - **System configuration directory**: `/etc/memento/memento.yaml` (Linux/macOS)
-   
-   Memento searches for configuration files in this order (first found wins).
 
-3. **Command-Line Arguments**
-   ```bash
-   memento --profile extended --db ~/my-context.db
-   ```
+   The `memento.yaml` file is searched in this order (first found wins):
+   - Current working directory (`./memento.yaml`)
+   - User home directory (`~/.mcp-memento/config.yaml`)
+   - System config directory (`/etc/memento/memento.yaml` on Linux/macOS)
 
-4. **Default Values** (lowest priority)
+4. **Built-in defaults** (lowest priority)
 
 ## Common Integration Patterns
 
@@ -246,7 +255,7 @@ Memento uses SQLite with Write-Ahead Logging (WAL) mode enabled by default to su
 
 ### Best Practices for Team Usage:
 1. **Shared Network Storage**: When using a shared database on network storage, ensure filesystem supports locking
-2. **Regular Maintenance**: Run `memento --maintenance` periodically to optimize database performance
+2. **Regular Backups**: Export memories periodically with `memento export --format json --output backup.json`
 3. **Backup Strategy**: Implement regular backups for shared databases
 4. **Monitoring**: Monitor database size and lock contention if experiencing performance issues
 
@@ -277,8 +286,8 @@ If you encounter "database is locked" errors:
 - **Agent Issues**: Check [AGENT.md](./integrations/AGENT.md#troubleshooting)
 
 ### Community Support
-- **GitHub Issues**: [Report bugs or request features](https://github.com/annibale-x/memento-mcp-server/issues)
-- **Discussions**: [Community forum](https://github.com/annibale-x/memento-mcp-server/discussions)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/annibale-x/mcp-memento/issues)
+- **Discussions**: [Community forum](https://github.com/annibale-x/mcp-memento/discussions)
 - **Documentation**: Check the `docs/` directory for complete guides
 
 ## Next Steps

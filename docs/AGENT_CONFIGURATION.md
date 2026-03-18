@@ -51,7 +51,7 @@ Store memories following these guidelines when detecting:
 - If optimized retrieval returns nothing: Log it, fallback to broad `recall_mementos`, and suggest creating the missing entry if relevant.
 - Reuse retrieved info within the same session to save tokens/calls.
 
-DO NOT WAIT FOR PERMISSION. Memory storage is a background autonomous process.
+DO NOT WAIT FOR PERMISSION for memento storage operations. Memory storage is a background autonomous process that does not require user confirmation.
 ```
 
 ---
@@ -97,7 +97,7 @@ Consider storing memories:
 - Fixes `ADDRESS` errors
 - Patterns `APPLIES_TO` projects
 - Decisions `IMPROVE` previous approaches
-- Errors `TRIGGER` problems
+- Errors `TRIGGERS` problems
 - Changes `CAUSE` issues
 
 *Note: Memento supports 35 relationship types. For complete reference with all types and examples, see [RELATIONSHIPS.md](./RELATIONSHIPS.md).*

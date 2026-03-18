@@ -124,17 +124,20 @@ For production deployments, we recommend setting up a monthly maintenance script
 # Activate Python environment if needed
 # source /path/to/venv/bin/activate
 
-# Run decay application via MCP tool
+# Run decay application via MCP client (requires: pip install mcp)
 python -c "
-import asyncio
-from memento import Memento
+import asyncio, json
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 
 async def apply_decay():
-    server = Memento()
-    await server.initialize()
-    # This calls the apply_memento_confidence_decay tool
-    await server.apply_memento_confidence_decay()
-    await server.disconnect()
+    params = StdioServerParameters(command='memento', args=['--profile', 'advanced'])
+    async with stdio_client(params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            result = await session.call_tool('apply_memento_confidence_decay', arguments={})
+            data = json.loads(result.content[0].text)
+            print(f'Decay applied: {data}')
 
 asyncio.run(apply_decay())
 "
@@ -164,16 +167,19 @@ jobs:
       - name: Apply confidence decay
         run: |
           python -c "
-          import asyncio
-          from memento import Memento
-          
+          import asyncio, json
+          from mcp import ClientSession, StdioServerParameters
+          from mcp.client.stdio import stdio_client
+
           async def apply():
-              server = Memento()
-              await server.initialize()
-              result = await server.apply_memento_confidence_decay()
-              print(f'Decay applied: {result}')
-              await server.disconnect()
-          
+              params = StdioServerParameters(command='memento', args=['--profile', 'advanced'])
+              async with stdio_client(params) as (read, write):
+                  async with ClientSession(read, write) as session:
+                      await session.initialize()
+                      result = await session.call_tool('apply_memento_confidence_decay', arguments={})
+                      data = json.loads(result.content[0].text)
+                      print(f'Decay applied: {data}')
+
           asyncio.run(apply())
           "
 ```

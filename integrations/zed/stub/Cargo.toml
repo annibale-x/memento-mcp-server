@@ -1,0 +1,17 @@
+[package]
+name = "memento-stub"
+version = "0.1.0"
+edition = "2024"
+authors = ["Hannibal <annibale.x@gmail.com>"]
+description = "Native MCP stub launcher for mcp-memento Zed extension."
+
+[[bin]]
+name = "memento-stub"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

@@ -1,5 +1,17 @@
 # Changelog
 
+* 2026-03-18: v0.2.7 - Complete documentation rewrite and quality fixes (Hannibal)
+  * Full audit and rewrite of all 14 documentation files (README, CONTRIBUTING, TOOLS, RULES, RELATIONSHIPS, DECAY_SYSTEM, INTEGRATION, AGENT_CONFIGURATION, IDE, PYTHON, AGENT, API, DEV, SCHEMA)
+  * Fixed all broken GitHub links (memento-mcp-server → mcp-memento)
+  * Corrected Python API references: all docs now use the correct MCP client pattern (mcp library) instead of non-existent direct method calls
+  * Fixed tool profile tables: Core/Extended/Advanced tool lists now match the actual source code
+  * Fixed deprecated YAML config keys (sqlite_path → db_path, tool_profile → profile)
+  * Fixed non-existent CLI commands (memento --maintenance, memento --export without --format)
+  * Added MCP tool call disambiguation notes throughout (pseudocode vs importable library)
+  * Fixed PyPI build: relative links now correctly converted to absolute GitHub URLs; changelog section injected dynamically into PyPI long description
+  * Fixed deploy.py: git_is_clean now ignores untracked files (Windows NUL phantom entry)
+
+
 * 2026-03-17: v0.2.6 - Environment variable standardization and CLI option cleanup (Hannibal)
   * Renamed environment variables for consistency:
     - `MEMENTO_SQLITE_PATH` → `MEMENTO_DB_PATH`

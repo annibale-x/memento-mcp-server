@@ -1,4 +1,4 @@
-# Relationship Types Reference - Memento MCP Server
+# Relationship Types Reference - MCP Memento
 
 ## Introduction to Relationships in Memento
 
@@ -17,6 +17,11 @@ Relationships are the core of the Memento system. They allow connecting memories
 4. **Graph analysis**: Discover hidden patterns and connections
 
 ### How to Use Relationships
+
+> **📌 Note**: Code examples in this document are **MCP tool call pseudocode** — they
+> show the tool name and arguments to pass to your AI assistant or MCP client.
+> They are **not** importable Python functions. See [PYTHON.md](integrations/PYTHON.md)
+> for the MCP client pattern.
 
 ```python
 # Example: linking a solution to a problem

@@ -3,14 +3,14 @@
 [![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-blueviolet)](https://spec.modelcontextprotocol.io/)
-[![Latest Release](https://img.shields.io/badge/release-v0.2.6-purple.svg)](https://github.com/annibale-x/memento-mcp-server/releases/tag/v0.2.6)
+[![Latest Release](https://img.shields.io/badge/release-v0.2.7-purple.svg)](https://github.com/annibale-x/mcp-memento/releases/tag/v0.2.7)
 
 Intelligent memory management for MCP clients with confidence tracking, relationship mapping, and knowledge quality maintenance.
 
 Memento is an MCP server that provides persistent memory capabilities across multiple platforms:
 - **IDEs**: Zed, Cursor, Windsurf, VSCode, Claude Desktop
 - **CLI Agents**: Gemini CLI, Claude CLI, custom agents
-- **Programmatic Usage**: Python API, REST API, custom integrations
+- **Programmatic Usage**: MCP client (Python/Node.js), REST API, custom integrations
 - **Applications**: Any MCP-compatible application
 
 Build a personal or team knowledge base that grows smarter over time, accessible from all your development tools.
@@ -52,7 +52,7 @@ Alternatively, you can add custom instructions to your AI (see our [Agent Config
 | Profile | Tools | Best For |
 |---------|-------|----------|
 | **Core** | 13 tools | All users - Essential operations |
-| **Extended** | 17 tools | Power users - Analytics + contextual search |
+| **Extended** | 17 tools | Power users - Statistics, contextual search, decay control |
 | **Advanced** | 25 tools | Administrators - Graph analysis |
 
 ### 🗃️ Cross-Platform Storage
@@ -146,6 +146,11 @@ store_memento(
 recall_mementos(query="Redis timeout solutions")
 ```
 
+> **📌 Note**: The code above represents **MCP tool calls** — instructions you give
+> your AI assistant (Claude, Cursor, Gemini, etc.) to invoke Memento's tools.
+> This is **not** a Python library you can `import`. For programmatic Python access
+> see the [Python Integration Guide](docs/integrations/PYTHON.md).
+
 **💬 Natural Language**: You can also interact with Memento through natural conversation. Just tell your AI assistant things like "Remember that..." or "Store this..." or "Memento..."- no code required.
 
 
@@ -170,17 +175,25 @@ Memento works with all major development tools:
 | **Claude Desktop** | [IDE Integration](docs/integrations/IDE.md#claude-desktop) | Desktop application |
 | **Gemini CLI** | [Agent Integration](docs/integrations/AGENT.md#gemini-cli) | Google's CLI agent |
 | **Claude CLI** | [Agent Integration](docs/integrations/AGENT.md#claude-cli) | Anthropic's CLI agent |
-| **Python API** | [Python Integration](docs/integrations/PYTHON.md) | Programmatic access |
+| **Python / MCP Client** | [Python Integration](docs/integrations/PYTHON.md) | Embed server or call via MCP client |
 | **REST API** | [API Integration](docs/integrations/API.md) | HTTP access |
 
 **See also**: [Integration Overview](docs/INTEGRATION.md) for guidance on choosing the right integration.
 
 ## 🛠️ Basic Usage Examples
 
+The examples below show the **MCP tool calls** that an AI assistant (Zed, Cursor,
+Claude, Gemini CLI, …) executes on your behalf when you ask it to remember or
+retrieve something. They are written in a Python-like pseudocode that mirrors the
+MCP tool interface — they are **not** a Python library you import directly.
+
+> To call these tools programmatically from Python, use the `mcp` client library.
+> See [Python Integration](docs/integrations/PYTHON.md) for a working example.
+
 ### Store and Retrieve Knowledge
 
 ```python
-# Store a solution
+# Store a solution — the AI calls this tool when you say "remember this fix"
 solution_id = store_memento(
     type="solution",
     title="Fixed memory leak in WebSocket handler",
@@ -189,10 +202,10 @@ solution_id = store_memento(
     importance=0.9
 )
 
-# Natural language search
+# Natural language search — called when you ask "what do you know about X"
 results = recall_mementos(query="WebSocket memory leak", limit=5)
 
-# Tag-based search
+# Tag-based search — for precise filtering
 redis_solutions = search_mementos(tags=["redis"], memory_types=["solution"])
 ```
 
@@ -344,7 +357,7 @@ log_level: INFO
 ### Integration Guides
 - **[Integration Overview](docs/INTEGRATION.md)** - Choosing the right integration
 - **[IDE Integration](docs/integrations/IDE.md)** - Zed, Cursor, Windsurf, VSCode, Claude Desktop
-- **[Python Integration](docs/integrations/PYTHON.md)** - Programmatic usage and API reference
+- **[Python Integration](docs/integrations/PYTHON.md)** - MCP client usage, server embedding, CLI export/import
 - **[Agent Integration](docs/integrations/AGENT.md)** - CLI agents and custom applications
 - **[API & Programmatic Integration](docs/integrations/API.md)** - HTTP REST API, Node.js SDK, Docker
 
@@ -421,10 +434,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🔗 Links
 
-- **[GitHub Repository](https://github.com/annibale-x/memento-mcp-server)** - Source code and issues
+- **[GitHub Repository](https://github.com/annibale-x/mcp-memento)** - Source code and issues
 - **[MCP Protocol](https://spec.modelcontextprotocol.io/)** - Model Context Protocol specification
 - **[PyPI Package](https://pypi.org/project/mcp-memento/)** - Python Package Index
 
 ---
 
-**Need help?** Check the [documentation](docs/) or open an [issue](https://github.com/annibale-x/memento-mcp-server/issues) on GitHub.
+**Need help?** Check the [documentation](docs/) or open an [issue](https://github.com/annibale-x/mcp-memento/issues) on GitHub.

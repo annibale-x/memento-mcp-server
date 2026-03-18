@@ -329,156 +329,184 @@ This means Claude Desktop can't find the Memento command. Solutions:
 ## Custom CLI Agents
 
 ### Python-based Agent
-Create a custom Python agent with Memento integration:
+
+> **Architecture note**: Memento is an MCP server — its tools (`store_memento`,
+> `recall_mementos`, etc.) are **not** callable as direct Python methods. All
+> programmatic access happens through an MCP client session using the `mcp` library.
+> See the full explanation in the [Python Integration Guide](./PYTHON.md).
+
+Create a custom Python agent with Memento integration via the MCP client pattern:
 
 ```python
 #!/usr/bin/env python3
 """
-custom-agent.py - Custom CLI agent with Memento integration
+custom-agent.py - Custom CLI agent with Memento integration via MCP client.
+
+Requires: pip install mcp
 """
 
 import asyncio
-import sys
 import json
-from typing import List, Dict, Optional
-from memento import Memento
+import sys
+from typing import List
+
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
 
 class CustomAgent:
     def __init__(self, profile: str = "extended"):
-        self.server = None
         self.profile = profile
-    
+        self._session: ClientSession | None = None
+        self._stack = None  # contextlib.AsyncExitStack, set in start()
+
     async def start(self):
-        """Initialize the agent."""
-        self.server = Memento()
-        await self.server.initialize()
+        """Initialize the MCP client connection to a Memento server."""
+        from contextlib import AsyncExitStack
+
+        server_params = StdioServerParameters(
+            command="memento",
+            args=["--profile", self.profile],
+            env=None,
+        )
+
+        self._stack = AsyncExitStack()
+        read, write = await self._stack.enter_async_context(stdio_client(server_params))
+        self._session = await self._stack.enter_async_context(ClientSession(read, write))
+        await self._session.initialize()
         print(f"Custom agent started with Memento ({self.profile} profile)")
-    
+
     async def process_command(self, command: str, args: List[str]) -> str:
         """Process a CLI command."""
+
         if command == "store":
             return await self._store_memory(args)
+
         elif command == "search":
             return await self._search_memories(args)
-        elif command == "stats":
-            return await self._get_statistics()
+
         elif command == "help":
             return self._show_help()
+
         else:
             return f"Unknown command: {command}"
-    
+
     async def _store_memory(self, args: List[str]) -> str:
         """Store a memory from CLI arguments."""
         if len(args) < 3:
             return "Usage: store <type> <title> <content> [tags...]"
-        
+
         memory_type = args[0]
         title = args[1]
         content = " ".join(args[2:])
-        tags = ["cli", "custom-agent"]
-        
+
         try:
-            memory_id = await self.server.store_memento(
-                type=memory_type,
-                title=title,
-                content=content,
-                tags=tags,
-                importance=0.7
+            result = await self._session.call_tool(
+                "store_memento",
+                arguments={
+                    "type": memory_type,
+                    "title": title,
+                    "content": content,
+                    "tags": ["cli", "custom-agent"],
+                    "importance": 0.7,
+                },
             )
-            return f"Memory stored with ID: {memory_id}"
+            data = json.loads(result.content[0].text)
+            return f"Memory stored with ID: {data.get('memory_id', '?')}"
+
         except Exception as e:
-            return f"Error storing memory: {str(e)}"
-    
+            return f"Error storing memory: {e}"
+
     async def _search_memories(self, args: List[str]) -> str:
         """Search memories from CLI arguments."""
         if not args:
             return "Usage: search <query>"
-        
+
         query = " ".join(args)
+
         try:
-            results = await self.server.recall_mementos(
-                query=query,
-                limit=5
+            result = await self._session.call_tool(
+                "recall_mementos",
+                arguments={"query": query, "limit": 5},
             )
-            
-            if not results:
+            memories = json.loads(result.content[0].text)
+
+            if not memories:
                 return "No memories found"
-            
-            output = []
-            for i, memory in enumerate(results, 1):
-                output.append(f"{i}. {memory['title']}")
-                output.append(f"   {memory['content'][:100]}...")
-                output.append(f"   Tags: {', '.join(memory.get('tags', []))}")
-                output.append("")
-            
-            return "\n".join(output)
+
+            lines = []
+
+            for i, memory in enumerate(memories, 1):
+                lines.append(f"{i}. {memory['title']}")
+                lines.append(f"   {memory.get('content', '')[:100]}...")
+                lines.append(f"   Tags: {', '.join(memory.get('tags', []))}")
+                lines.append("")
+
+            return "\n".join(lines)
+
         except Exception as e:
-            return f"Error searching memories: {str(e)}"
-    
-    async def _get_statistics(self) -> str:
-        """Get memory statistics."""
-        try:
-            stats = await self.server.get_memento_statistics()
-            return json.dumps(stats, indent=2)
-        except Exception as e:
-            return f"Error getting statistics: {str(e)}"
-    
+            return f"Error searching memories: {e}"
+
     def _show_help(self) -> str:
         """Show help information."""
-        return """
-Available commands:
-  store <type> <title> <content> [tags...] - Store a new memory
-  search <query>                           - Search memories
-  stats                                    - Show memory statistics
-  help                                     - Show this help
-        """
-    
+        return (
+            "Available commands:\n"
+            "  store <type> <title> <content>  Store a new memory\n"
+            "  search <query>                  Search memories\n"
+            "  help                            Show this help\n"
+        )
+
     async def stop(self):
-        """Cleanup the agent."""
-        if self.server:
-            await self.server.cleanup()
+        """Clean up the MCP client connection."""
+        if self._stack is not None:
+            await self._stack.aclose()
+            self._stack = None
+            self._session = None
+
 
 async def main():
     """Main entry point."""
     agent = CustomAgent(profile="extended")
-    
+
     try:
         await agent.start()
-        
+
         if len(sys.argv) > 1:
-            # Process single command
             command = sys.argv[1]
             args = sys.argv[2:] if len(sys.argv) > 2 else []
             result = await agent.process_command(command, args)
             print(result)
+
         else:
-            # Interactive mode
             print("Custom Memento Agent (type 'exit' to quit)")
+
             while True:
                 try:
                     user_input = input("> ").strip()
+
                     if not user_input:
                         continue
-                    
-                    if user_input.lower() in ['exit', 'quit', 'q']:
+
+                    if user_input.lower() in ["exit", "quit", "q"]:
                         break
-                    
+
                     parts = user_input.split()
                     command = parts[0]
                     args = parts[1:] if len(parts) > 1 else []
-                    
                     result = await agent.process_command(command, args)
                     print(result)
-                    
+
                 except KeyboardInterrupt:
                     print("\nExiting...")
                     break
+
                 except EOFError:
                     print("\nExiting...")
                     break
-    
+
     finally:
         await agent.stop()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -508,28 +536,9 @@ store_memory() {
     
     echo "Storing memory: $title"
     
-    # Use Memento Python API or command-line interface
-    python3 -c "
-import asyncio
-from memento import Memento
-
-async def store():
-    server = Memento()
-    await server.initialize()
-    
-    memory_id = await server.store_memento(
-        type='$type',
-        title='$title',
-        content='''$content''',
-        tags=['shell-agent', '$(date +%Y-%m-%d)'],
-        importance=0.7
-    )
-    
-    print(f'Memory stored with ID: {memory_id}')
-    await server.cleanup()
-
-asyncio.run(store())
-    " || echo "Error: Make sure memento Python package is installed"
+        # Use the Memento CLI to store via JSON-RPC
+    printf '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"store_memento","arguments":{"type":"%s","title":"%s","content":"%s","tags":["shell-agent"],"importance":0.7}}}' \
+        "$type" "$title" "$content" | memento --profile extended | python3 -m json.tool || echo "Error: Make sure memento is installed"
 }
 
 # Function to search memories
@@ -538,33 +547,16 @@ search_memories() {
     
     echo "Searching for: $query"
     
-    python3 -c "
-import asyncio
-from memento import Memento
-
-async def search():
-    server = Memento()
-    await server.initialize()
-    
-    results = await server.recall_mementos(
-        query='$query',
-        limit=10
-    )
-    
-    if not results:
-        print('No memories found.')
-        return
-    
-    for i, memory in enumerate(results, 1):
-        print(f'{i}. {memory[\"title\"]}')
-        print(f'   {memory[\"content\"][:80]}...')
-        print(f'   Tags: {\", \".join(memory.get(\"tags\", []))}')
-        print()
-
-    await server.cleanup()
-
-asyncio.run(search())
-    " || echo "Error: Make sure memento Python package is installed"
+    printf '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"recall_mementos","arguments":{"query":"%s","limit":10}}}' \
+        "$query" | memento --profile extended | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+memories = json.loads(data.get('result', {}).get('content', [{}])[0].get('text', '[]'))
+for i, m in enumerate(memories, 1):
+    print(f'{i}. {m[\"title\"]}')
+    print(f'   {m.get(\"content\",\"\")[:80]}...')
+    print()
+" || echo "Error: Make sure memento is installed"
 }
 
 # Function to show statistics
@@ -712,15 +704,15 @@ Usage:
 4. **Test** configurations before relying on them
 
 ### Memory Management
-1. **Regular maintenance**:
+1. **Regular backup**:
    ```bash
-   memento --maintenance
+   # Export memories (--format is required)
+   memento export --format json --output memories-backup.json
    ```
 
-2. **Backup important memories**:
-   ```bash
-   # Export memories
-   memento export --output memories-backup.json
+2. **Review low-confidence memories** periodically via your AI assistant:
+   ```
+   memento: get_low_confidence_mementos
    ```
 
 3. **Clean up old memories** periodically
@@ -746,7 +738,7 @@ Usage:
 ## Next Steps
 
 - Explore [IDE Integration Guide](./IDE.md) for editor setups
-- Review [Python API Guide](./PYTHON.md) for programmatic access
+- Review [Python Integration Guide](./PYTHON.md) for programmatic MCP client access
 - Check [Tools Reference](../TOOLS.md) for complete tool documentation
 - See [Usage Rules](../RULES.md) for best practices and conventions
 

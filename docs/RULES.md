@@ -191,6 +191,11 @@ Memories with these tags never decay:
 ## Search Optimization
 
 ### 1. Search Strategy
+
+> **📌 Note**: Code examples below are **MCP tool call pseudocode** — they illustrate
+> which tools to invoke and with what arguments. They are not importable Python
+> functions. See [PYTHON.md](integrations/PYTHON.md) for the MCP client pattern.
+
 ```python
 # 1. Start with natural language search
 results = recall_mementos(
@@ -295,8 +300,7 @@ When making high-level choices:
 
 ### 3. Monthly
 - **Apply confidence decay**: `apply_memento_confidence_decay()`
-- **Export backup**: `memento --export`
-- **Database maintenance**: `memento --maintenance`
+- **Export backup**: `memento export --format json --output memento-backup.json`
 - **Review tags**: Clean up unused or inconsistent tags
 
 ### 4. Quarterly

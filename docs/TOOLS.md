@@ -7,7 +7,7 @@ Memento provides a comprehensive set of tools for persistent memory management i
 ## Tool Categories
 
 ### 1. Core Memory Tools (Essential Operations)
-These tools are available in all profiles and provide the fundamental memory operations:
+These tools are available in **all profiles** and provide the fundamental memory operations:
 
 | Tool | Description | Key Parameters |
 |------|-------------|----------------|
@@ -17,13 +17,19 @@ These tools are available in all profiles and provide the fundamental memory ope
 | `delete_memento` | Delete a memento and all its relationships | `memory_id` |
 | `search_mementos` | Advanced search with fine-grained filters | `query`, `tags`, `memory_types`, `min_importance` |
 | `recall_mementos` | Natural language search for conceptual queries | `query`, `memory_types`, `project_path` |
-| `contextual_memento_search` | Search only within related mementos | `memory_id`, `query`, `max_depth` |
 | `create_memento_relationship` | Link two mementos with a typed relationship | `from_memory_id`, `to_memory_id`, `relationship_type` |
 | `get_related_mementos` | Find mementos connected to a specific memento | `memory_id`, `relationship_types`, `max_depth` |
-| `get_memento_statistics` | Get statistics about the memento database | (no parameters) |
 | `get_recent_memento_activity` | Get summary of recent memento activity | `days`, `project` |
-| `search_memento_relationships_by_context` | Search relationships by structured context fields | `scope`, `conditions`, `evidence`, `components` |
 | `memento_onboarding` | Get comprehensive onboarding protocol for Memento | `topic` (optional) |
+
+### 1b. Extended-Only Memory Tools
+These tools are available from the **Extended profile** onwards:
+
+| Tool | Description | Key Parameters |
+|------|-------------|----------------|
+| `get_memento_statistics` | Get statistics about the memento database | (no parameters) |
+| `contextual_memento_search` | Search only within related mementos | `memory_id`, `query`, `max_depth` |
+| `search_memento_relationships_by_context` | Search relationships by structured context fields | `scope`, `conditions`, `evidence`, `components` |
 
 ### 2. Confidence System Tools (Knowledge Quality)
 These tools manage confidence scores and decay for relationship quality maintenance:
@@ -54,12 +60,13 @@ These tools provide advanced graph analysis and pattern detection:
 Memento offers three tool profiles with increasing capabilities:
 
 ### Core Profile (13 tools)
-- All Core Memory Tools
+- All Core Memory Tools (section 1 above)
 - Basic confidence tools: `adjust_memento_confidence`, `get_low_confidence_mementos`, `boost_memento_confidence`
 
 ### Extended Profile (17 tools)
 - All Core Profile tools
-- Additional confidence tools: `apply_memento_confidence_decay`
+- Extended-Only Memory Tools (section 1b above): `get_memento_statistics`, `contextual_memento_search`, `search_memento_relationships_by_context`
+- Additional confidence tool: `apply_memento_confidence_decay`
 
 ### Advanced Profile (25 tools)
 - All Extended Profile tools
@@ -172,6 +179,11 @@ Common error scenarios:
 - Permission/access restrictions
 
 ## Integration Patterns
+
+> **📌 Note**: The code snippets below are **MCP tool call pseudocode** — they
+> illustrate which tools an AI agent should invoke and with what arguments. They are
+> **not** importable Python functions. For programmatic Python access, use the MCP
+> client pattern described in [PYTHON.md](integrations/PYTHON.md).
 
 ### With AI Assistants
 ```python

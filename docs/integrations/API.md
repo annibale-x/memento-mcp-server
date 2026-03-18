@@ -10,10 +10,10 @@ Memento provides multiple programmatic integration options for developers who ne
 |----------|----------------|-----|
 | Web applications | HTTP REST API | Standard HTTP, language-agnostic |
 | Node.js/JavaScript apps | Node.js SDK | Native JavaScript integration |
-| Python scripts/services | Python API | Direct Python integration |
-| Containerized deployment | Docker API | Consistent environment, easy scaling |
+| Python scripts/services | MCP client (Python) | Direct MCP tool access via `mcp` library |
+| Containerized deployment | Docker | Consistent environment, easy scaling |
 | Cross-language systems | HTTP REST API | Broad compatibility |
-| CLI tools/automation | Python API or Node.js SDK | Scripting-friendly |
+| CLI tools/automation | MCP client (Python) or Node.js SDK | Scripting-friendly |
 
 ## HTTP REST API
 
@@ -23,20 +23,64 @@ The HTTP REST API provides a FastAPI-based wrapper around Memento, exposing memo
 ### Quick Start
 
 1. **Create the HTTP wrapper** (`memento-http.py`):
+
+> **Architecture note**: Memento is an MCP server — tools must be called via the
+> MCP JSON-RPC protocol. This wrapper starts a persistent MCP client session at
+> startup and proxies HTTP requests to MCP tool calls.
+
 ```python
 #!/usr/bin/env python3
 """
-memento-http.py - HTTP API wrapper for Memento
+memento-http.py - HTTP API wrapper for Memento via MCP client.
+
+Requires: pip install fastapi uvicorn mcp mcp-memento
 """
+
+import json
+from contextlib import asynccontextmanager
+from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
-import asyncio
-from memento import Memento
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 
-app = FastAPI(title="Memento HTTP API")
-server = None
+
+# ---------------------------------------------------------------------------
+# MCP session lifecycle
+# ---------------------------------------------------------------------------
+
+_session: ClientSession | None = None
+_exit_stack = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Open the MCP client connection on startup and close it on shutdown."""
+    global _session
+
+    server_params = StdioServerParameters(
+        command="memento",
+        args=["--profile", "extended"],
+        env=None,
+    )
+
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            _session = session
+            print("Memento HTTP server started (MCP client connected)")
+            yield
+
+    _session = None
+
+
+app = FastAPI(title="Memento HTTP API", lifespan=lifespan)
+
+
+# ---------------------------------------------------------------------------
+# Request / response models
+# ---------------------------------------------------------------------------
 
 class MemoryCreate(BaseModel):
     type: str
@@ -45,78 +89,89 @@ class MemoryCreate(BaseModel):
     tags: Optional[List[str]] = None
     importance: float = 0.5
 
+
 class SearchQuery(BaseModel):
     query: str
     limit: int = 20
     memory_types: Optional[List[str]] = None
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize Memento server on startup."""
-    global server
-    server = Memento()
-    await server.initialize()
-    print("Memento HTTP server started")
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown."""
-    if server:
-        await server.cleanup()
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 @app.post("/memories")
 async def create_memory(memory: MemoryCreate):
     """Create a new memory."""
     try:
-        memory_id = await server.store_memento(
-            type=memory.type,
-            title=memory.title,
-            content=memory.content,
-            tags=memory.tags or [],
-            importance=memory.importance
+        result = await _session.call_tool(
+            "store_memento",
+            arguments={
+                "type": memory.type,
+                "title": memory.title,
+                "content": memory.content,
+                "tags": memory.tags or [],
+                "importance": memory.importance,
+            },
         )
-        return {"id": memory_id, "status": "created"}
+        data = json.loads(result.content[0].text)
+        return {"id": data.get("memory_id"), "status": "created"}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/memories/{memory_id}")
-async def get_memento(memory_id: str):
+async def get_memory(memory_id: str):
     """Get a specific memory."""
     try:
-        memory = await server.get_memento(memory_id)
-        return {
-            "id": memory.id,
-            "type": memory.type,
-            "title": memory.title,
-            "content": memory.content,
-            "tags": memory.tags,
-            "importance": memory.importance,
-            "confidence": memory.confidence
-        }
+        result = await _session.call_tool(
+            "get_memento",
+            arguments={"memory_id": memory_id, "include_relationships": False},
+        )
+        if result.isError:
+            raise HTTPException(status_code=404, detail=result.content[0].text)
+        return json.loads(result.content[0].text)
+
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/search")
-async def search_mementos(query: SearchQuery):
+async def search_memories(query: SearchQuery):
     """Search memories."""
     try:
-        results = await server.recall_mementos(
-            query=query.query,
-            limit=query.limit,
-            memory_types=query.memory_types
-        )
-        return {"results": results, "count": len(results)}
+        args = {"query": query.query, "limit": query.limit}
+
+        if query.memory_types:
+            args["memory_types"] = query.memory_types
+
+        result = await _session.call_tool("recall_mementos", arguments=args)
+        memories = json.loads(result.content[0].text)
+        return {"results": memories, "count": len(memories)}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/statistics")
-async def get_stats():
+async def get_statistics():
     """Get database statistics."""
     try:
-        stats = await server.get_statistics()
-        return stats
+        result = await _session.call_tool("get_memento_statistics", arguments={})
+        return json.loads(result.content[0].text)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/health")
+async def health():
+    """Health check."""
+    return {"status": "healthy", "mcp_connected": _session is not None}
+
 
 if __name__ == "__main__":
     import uvicorn
@@ -741,49 +796,111 @@ gcloud run deploy memento \
 
 ## Python API Reference
 
-For complete Python API documentation, see the [Python Integration Guide](./PYTHON.md). Key points:
+For complete Python API documentation, see the [Python Integration Guide](./PYTHON.md).
 
-### Direct Python Usage:
-```python
-import memento
+> **Architecture note**: Memento is an **MCP server** — its tools are not directly
+> callable as Python methods. The `Memento` class is a server runtime, not a client
+> library. All programmatic tool access uses an MCP client session via JSON-RPC.
 
-# Create server instance
-server = memento.Memento()
+### MCP Client Pattern (Recommended)
 
-# Initialize (async)
-await server.initialize()
-
-# Use MCP tools directly
-memory_id = await server.store_memento(
-    type="solution",
-    title="Python API Example",
-    content="Direct Python integration",
-    tags=["python", "api"],
-    importance=0.8
-)
-
-# Search memories
-results = await server.recall_mementos(query="python api")
+Install the MCP client library:
+```bash
+pip install mcp
 ```
 
-### Integration with Existing Applications:
+Call Memento tools from Python:
 ```python
-from memento import Memento
+import asyncio
+import json
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+
+async def main():
+    server_params = StdioServerParameters(
+        command="memento",
+        args=["--profile", "extended"],
+        env=None,
+    )
+
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+
+            # Store a memory
+            result = await session.call_tool(
+                "store_memento",
+                arguments={
+                    "type": "solution",
+                    "title": "Python API Example",
+                    "content": "MCP client integration pattern",
+                    "tags": ["python", "api"],
+                    "importance": 0.8,
+                },
+            )
+            data = json.loads(result.content[0].text)
+            memory_id = data["memory_id"]
+            print(f"Stored: {memory_id}")
+
+            # Search memories
+            result = await session.call_tool(
+                "recall_mementos",
+                arguments={"query": "python api", "limit": 5},
+            )
+            memories = json.loads(result.content[0].text)
+
+            for m in memories:
+                print(f"- {m['title']}")
+
+
+asyncio.run(main())
+```
+
+### Integration with Existing Applications
+
+```python
+import asyncio
+import json
+from contextlib import asynccontextmanager
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
 
 class MyApplication:
-    def __init__(self):
-        self.memento = Memento()
-    
+    def __init__(self, profile: str = "extended"):
+        self._profile = profile
+        self._session: ClientSession | None = None
+        self._exit_stack = None
+
     async def start(self):
-        await self.memento.initialize()
-    
-    async def store_solution(self, title, content):
-        return await self.memento.store_memento(
-            type="solution",
-            title=title,
-            content=content,
-            tags=["myapp", "solution"]
+        """Open an MCP client connection to Memento."""
+        server_params = StdioServerParameters(
+            command="memento",
+            args=["--profile", self._profile],
+            env=None,
         )
+        read, write = await stdio_client(server_params).__aenter__()
+        self._session = await ClientSession(read, write).__aenter__()
+        await self._session.initialize()
+
+    async def stop(self):
+        """Close the MCP client connection."""
+        if self._session is not None:
+            await self._session.__aexit__(None, None, None)
+
+    async def store_solution(self, title: str, content: str) -> str:
+        result = await self._session.call_tool(
+            "store_memento",
+            arguments={
+                "type": "solution",
+                "title": title,
+                "content": content,
+                "tags": ["myapp", "solution"],
+            },
+        )
+        data = json.loads(result.content[0].text)
+        return data["memory_id"]
 ```
 
 ## Best Practices
@@ -938,4 +1055,4 @@ For more information, see:
 - [Agent Integration Guide](./AGENT.md) - CLI agent integration
 - [Tools Reference](../TOOLS.md) - Complete MCP tool documentation
 
-Need help? Check the [troubleshooting guide](../TROUBLESHOOTING.md) or open an issue on GitHub.
+Need help? Check the [documentation](../INTEGRATION.md) or [open an issue](https://github.com/annibale-x/mcp-memento/issues) on GitHub.

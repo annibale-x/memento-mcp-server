@@ -11,7 +11,7 @@ env/
 venv/
 .venv/
 .env
-dev/
+# dev/  # removed: was incorrectly ignoring docs/dev/
 requirements-dev.txt
 .pytest_cache/
 

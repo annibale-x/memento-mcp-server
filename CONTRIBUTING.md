@@ -19,7 +19,7 @@ Please be respectful and considerate of others when contributing to this project
 ## Getting Started
 
 ### Finding Issues to Work On
-- Check the [GitHub Issues](https://github.com/annibale-x/memento-mcp-server/issues) for bugs and feature requests
+- Check the [GitHub Issues](https://github.com/annibale-x/mcp-memento/issues) for bugs and feature requests
 - Look for issues tagged with `good-first-issue` or `help-wanted`
 - Discuss proposed changes in an issue before starting work
 
@@ -27,7 +27,7 @@ Please be respectful and considerate of others when contributing to this project
 
 1. **Fork and clone the repository**:
    ```bash
-   git clone https://github.com/annibale-x/memento-mcp-server.git
+   git clone https://github.com/annibale-x/mcp-memento.git
    cd mcp-memento
    ```
 
@@ -140,17 +140,20 @@ pytest tests/test_memory_operations.py::test_store_memory -v
 ### Documentation Structure
 ```
 docs/
-├── TOOLS.md          # MCP tools reference
-├── DECAY_SYSTEM.md   # Confidence system documentation
-├── RULES.md          # Usage rules and best practices
-├── INTEGRATION.md    # Integration overview
-├── integrations/     # Detailed integration guides
-│   ├── IDE.md        # IDE integration (Zed, Cursor, Windsurf, etc.)
-│   ├── PYTHON.md     # Python library and API usage
-│   ├── AGENT.md      # CLI agent integration (Gemini, Claude, etc.)
-│   └── API.md        # HTTP REST API, Node.js SDK, Docker deployment
-└── dev/              # Development documentation
-    └── SCHEMA.md     # Database schema documentation
+├── TOOLS.md              # MCP tools reference
+├── DECAY_SYSTEM.md       # Confidence system documentation
+├── RULES.md              # Usage rules and best practices
+├── RELATIONSHIPS.md      # Relationship types reference
+├── AGENT_CONFIGURATION.md # Agent prompt templates and configuration
+├── INTEGRATION.md        # Integration overview
+├── integrations/         # Detailed integration guides
+│   ├── IDE.md            # IDE integration (Zed, Cursor, Windsurf, etc.)
+│   ├── PYTHON.md         # Python MCP client and programmatic usage
+│   ├── AGENT.md          # CLI agent integration (Gemini, Claude, etc.)
+│   └── API.md            # HTTP REST API, Node.js SDK, Docker deployment
+└── dev/                  # Development documentation
+    ├── DEV.md            # Development workflow and release process
+    └── SCHEMA.md         # Database schema documentation
 ```
 
 **Note**: This file (`CONTRIBUTING.md`) is located in the project root, following GitHub conventions for contributor guidelines. For detailed technical documentation, see the `docs/` directory.
@@ -164,33 +167,36 @@ docs/
 
 ### Docstring Format
 ```python
-def store_memory(
+def store_memento(
     type: str,
     title: str,
     content: str,
-    tags: Optional[List[str]] = None
+    tags: Optional[List[str]] = None,
+    importance: float = 0.5,
 ) -> str:
-    """Store a new memory in the database.
+    """Store a new memento in the database.
 
     Args:
-        type: Memory type (solution, pattern, problem, etc.)
-        title: Descriptive title for the memory
-        content: Detailed content of the memory
+        type: Memory type (solution, problem, code_pattern, fix, error, etc.)
+        title: Descriptive title for the memento
+        content: Detailed content of the memento
         tags: Optional list of tags for categorization
+        importance: Importance score 0.0-1.0 (default 0.5)
 
     Returns:
-        The ID of the newly created memory
+        The ID of the newly created memento
 
     Raises:
         ValueError: If required parameters are missing
         DatabaseError: If database operation fails
 
     Examples:
-        >>> memory_id = store_memory(
+        >>> memory_id = store_memento(
         ...     type="solution",
         ...     title="Fixed Redis timeout",
         ...     content="Increased timeout to 30s...",
-        ...     tags=["redis", "timeout"]
+        ...     tags=["redis", "timeout"],
+        ...     importance=0.8,
         ... )
     """
 ```
@@ -250,6 +256,8 @@ Use the following commit message format:
 - `test(memory): add tests for relationship validation`
 
 ## Release Process
+
+> **Note**: For the complete automated release workflow (tag conventions, deploy script, CI/CD), see [docs/dev/DEV.md](docs/dev/DEV.md).
 
 ### Versioning
 We follow [Semantic Versioning](https://semver.org/):

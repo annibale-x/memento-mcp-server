@@ -1,152 +1,164 @@
 # Scripts Directory
 
-This directory contains build scripts and utilities for the MCP Memento package.
+This directory contains the unified release and deployment tooling for MCP Memento.
 
-## 📦 Build Scripts
+## 📦 deploy.py — Primary Release Script
 
-### Python Script (`build_memento.py`)
-The main build script written in Python. Provides the most comprehensive functionality.
-
-**Usage:**
-```bash
-python scripts/build_memento.py [command]
-```
-
-**Commands:**
-- `clean` - Clean build artifacts
-- `build` - Build package (sdist + wheel)
-- `test` - Run tests
-- `check` - Check package with twine
-- `all` - Run clean, build, test, check
-- `install` - Install package locally
-- `version` - Show current version
-
-### Windows Batch Script (`build.bat`)
-Windows-compatible build script.
-
-**Usage:**
-```batch
-scripts\build.bat [command]
-```
-
-### Linux/macOS Bash Script (`build.sh`)
-Unix-compatible build script.
+`deploy.py` is the single entry point for all release and deployment operations.
+It replaces the legacy `build_memento.py`, `build.sh`, and `build.bat` scripts,
+which have been removed.
 
 **Usage:**
 ```bash
-./scripts/build.sh [command]
+python scripts/deploy.py <command> [options]
 ```
 
-## 🚀 Quick Start
+---
 
-### Complete Build Process
+## Commands
+
+### `bump X.Y.Z`
+Full release cycle: run tests, bump versions across all manifests, update
+`CHANGELOG.md` and `README.md` badges, build wheel, commit, tag, push, merge
+`dev → main`, and optionally trigger IDE extension stub CI.
+
 ```bash
-# Using Python script (recommended)
-python scripts/build_memento.py all
+# Preview without side effects
+python scripts/deploy.py bump 0.3.0 --ext 2 --dry-run
 
-# Using platform-specific script
-# Windows:
-scripts\build.bat all
-
-# Linux/macOS:
-./scripts/build.sh all
+# Execute the full release
+python scripts/deploy.py bump 0.3.0 --ext 2 --yes
 ```
 
-### Build and Install Locally
+### `build`
+Build `sdist` + wheel only, with no version bump or git operations.
+
+Before invoking `python -m build`, this command temporarily patches `README.md` for
+PyPI compatibility:
+- Converts all relative markdown links to absolute GitHub URLs (so tables and
+  cross-references render correctly on the PyPI project page).
+- Injects a compact **"📋 Recent Changes"** table (last 4 releases from
+  `CHANGELOG.md`) just before the License section, giving PyPI visitors a quick
+  at-a-glance history without having to leave the page.
+
+The original `README.md` is restored immediately after the wheel is built.
+
 ```bash
-python scripts/build_memento.py build
-python scripts/build_memento.py install
+python scripts/deploy.py build
 ```
 
-## 📁 Directory Structure
+### `publish`
+Upload `dist/*` to TestPyPI or PyPI using `twine`.
+
+```bash
+python scripts/deploy.py publish --target testpypi
+python scripts/deploy.py publish --target pypi
+```
+
+### `ext-release`
+Push the IDE extension tag `vX.Y.Z-ext.N` to trigger the GitHub Actions CI
+workflow that cross-compiles the native stub binary for all 5 platforms.
+
+```bash
+python scripts/deploy.py ext-release --ext 2
+```
+
+> Alias `zed-release` is kept for backward compatibility.
+
+### `ext-binaries`
+Download the CI-built stub binaries from the GitHub Release and commit them
+into `integrations/zed/stub/bin/`.
+
+```bash
+python scripts/deploy.py ext-binaries --ext 2
+```
+
+> Alias `zed-binaries` is kept for backward compatibility.
+
+### `status`
+Print the current version string from every manifest file.
+
+```bash
+python scripts/deploy.py status
+```
+
+---
+
+## Options
+
+| Option | Applies to | Description |
+|---|---|---|
+| `--ext N` | `bump`, `ext-release`, `ext-binaries` | Extension release counter (integer) |
+| `--dry-run` | all | Preview all actions without executing |
+| `--skip-tests` | `bump` | Skip pytest before release |
+| `--skip-merge` | `bump` | Do not merge `dev → main` |
+| `--yes` / `-y` | `bump`, `ext-binaries` | Auto-confirm all prompts |
+| `--version X.Y.Z` | `ext-release`, `ext-binaries` | Override Python version |
+
+---
+
+## Typical Release Flow
+
+```bash
+# 1. Dry run — verify everything looks correct
+python scripts/deploy.py bump 0.3.0 --ext 2 --dry-run
+
+# 2. Full release
+python scripts/deploy.py bump 0.3.0 --ext 2 --yes
+
+# 3. Monitor CI
+gh run list --repo annibale-x/mcp-memento --limit 5
+gh run watch <run-id> --repo annibale-x/mcp-memento
+
+# 4. Download binaries built by CI and commit to repo
+python scripts/deploy.py ext-binaries --ext 2
+
+# 5. Publish to PyPI
+python scripts/deploy.py publish --target testpypi   # optional
+python scripts/deploy.py publish --target pypi
+```
+
+---
+
+## Files Modified by `bump`
+
+| File | What changes |
+|---|---|
+| `pyproject.toml` | `version` field |
+| `src/memento/__init__.py` | `__version__` |
+| `integrations/zed/Cargo.toml` | `[package] version` |
+| `integrations/zed/extension.toml` | `version` |
+| `integrations/zed/src/lib.rs` | `STUB_EXT_RELEASE` constant |
+| `README.md` | Version badge |
+| `CHANGELOG.md` | New entry prepended |
+
+---
+
+## Directory Structure
 
 ```
 scripts/
-├── README.md          # This file
-├── build_memento.py   # Main Python build script
-├── build.bat          # Windows batch script
-└── build.sh           # Linux/macOS bash script
+├── README.md    ← This file
+└── deploy.py    ← Unified release & deploy script
 ```
 
-## 🔧 Build Artifacts
+---
 
-When you run the build process, the following artifacts are generated:
+## Prerequisites
 
-- `dist/` - Distribution files (`.whl` and `.tar.gz`)
-- `build/` - Temporary build directory (excluded from git)
-- `src/*.egg-info/` - Package metadata (excluded from git)
-
-## 🧹 Cleaning
-
-To remove all build artifacts:
 ```bash
-python scripts/build_memento.py clean
-```
-
-## 🧪 Testing
-
-Run the test suite:
-```bash
-python scripts/build_memento.py test
-```
-
-## 🔍 Package Validation
-
-Check the built package with twine:
-```bash
-python scripts/build_memento.py check
-```
-
-## 📋 Version Information
-
-Show current package version:
-```bash
-python scripts/build_memento.py version
-```
-
-## ⚙️ Configuration
-
-The build scripts read configuration from:
-- `pyproject.toml` - Package metadata and dependencies
-- `MANIFEST.in` - Files to include in distribution
-- `README.md` - Package description (used as long_description)
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **"No distribution files found"**
-   - Run `build` command first: `python scripts/build_memento.py build`
-
-2. **"Command not found"** (Windows)
-   - Use `build.bat` instead of `build.sh`
-
-3. **Permission denied** (Linux/macOS)
-   - Make scripts executable: `chmod +x build/build.sh`
-
-4. **Twine warnings about long_description**
-   - Ensure `pyproject.toml` has proper `readme` configuration
-
-### Dependencies
-
-Make sure you have the required build tools installed:
-```bash
+# Python build tools
 pip install build twine
+
+# GitHub CLI (for ext-release / ext-binaries)
+# https://cli.github.com
+gh auth login
 ```
 
-## 📚 Related Documentation
+---
 
-- [PyPI Packaging Guide](https://packaging.python.org/en/latest/tutorials/packaging-projects/)
-- [setuptools Documentation](https://setuptools.pypa.io/en/latest/)
-- [MCP Memento Main README](../README.md)
+## Related Documentation
 
-## 🤝 Contributing
-
-When adding new build features:
-1. Update all three scripts (Python, Batch, Bash)
-2. Test on your target platform
-3. Update this README if necessary
-
-## 📄 License
-
-Same as the main project - MIT License.
+- **[docs/dev/DEV.md](../docs/dev/DEV.md)** — Full developer guide with release workflow details
+- **[CHANGELOG.md](../CHANGELOG.md)** — Release history
+- **[Main README](../README.md)** — Project overview and quick start
