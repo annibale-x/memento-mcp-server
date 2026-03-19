@@ -141,6 +141,7 @@ fn memento_is_installed(python: &Path) -> bool {
 
 fn install_memento(python: &Path) -> Result<(), String> {
     // Strategy 1: standard pip install
+    // Works on: Windows, macOS, Linux systems without PEP 668
     log!("Trying: pip install --upgrade mcp-memento");
     let status = Command::new(python)
         .args(["-m", "pip", "install", "--upgrade", "mcp-memento"])
@@ -153,23 +154,13 @@ fn install_memento(python: &Path) -> Result<(), String> {
         log!("mcp-memento installed successfully (standard pip).");
         return Ok(());
     }
-    log!("Standard pip failed (status: {status}), trying --user...");
+    log!("Standard pip failed (status: {status}), trying --break-system-packages...");
 
-    // Strategy 2: pip install --user (no venv required, works on most systems)
-    let status = Command::new(python)
-        .args(["-m", "pip", "install", "--upgrade", "--user", "mcp-memento"])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map_err(|e| format!("Failed to launch pip --user: {e}"))?;
-
-    if status.success() {
-        log!("mcp-memento installed successfully (pip --user).");
-        return Ok(());
-    }
-    log!("pip --user failed (status: {status}), trying --break-system-packages...");
-
-    // Strategy 3: --break-system-packages (Debian/Ubuntu PEP 668 workaround)
+    // Strategy 2: --break-system-packages (PEP 668 override for Debian/Ubuntu/Fedora)
+    // IMPORTANT: This installs globally (not --user), so updates work correctly.
+    // PEP 668 blocks this on distros that apply it, but it's the right choice
+    // when it succeeds — it makes mcp-memento available system-wide and future
+    // updates (via PyPI, other tools, etc.) will find and update it.
     let status = Command::new(python)
         .args([
             "-m", "pip", "install", "--upgrade",
@@ -187,9 +178,11 @@ fn install_memento(python: &Path) -> Result<(), String> {
     }
     log!("--break-system-packages failed (status: {status}), trying pipx...");
 
-    // Strategy 4: pipx (common on modern Linux desktops)
+    // Strategy 3: pipx (virtual environment manager for CLI tools)
+    // Installs into an isolated venv but makes binary available on PATH.
+    // Ensures updates work and doesn't pollute system Python.
     let pipx_status = Command::new("pipx")
-        .args(["install", "mcp-memento"])
+        .args(["install", "--upgrade", "mcp-memento"])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status();
@@ -203,7 +196,7 @@ fn install_memento(python: &Path) -> Result<(), String> {
         Err(e) => log!("pipx not available: {e}"),
     }
 
-    Err("All install strategies failed. Please install mcp-memento manually: pip install --user mcp-memento".to_string())
+    Err("All install strategies failed. Please install mcp-memento manually:\n  pip install mcp-memento          (try first)\n  pip install --break-system-packages mcp-memento (if PEP 668 blocks)\n  pipx install mcp-memento         (isolated venv)".to_string())
 }
 
 // ---------------------------------------------------------------------------
