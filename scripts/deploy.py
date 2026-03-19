@@ -522,7 +522,32 @@ def git_add_all(dry: bool) -> None:
 
 
 def git_commit(message: str, dry: bool) -> None:
-    run(f'git commit -m "{message}"', dry=dry)
+    """Commit staged changes. A no-op (not an error) if nothing is staged."""
+    if dry:
+        run(f'git commit -m "{message}"', dry=True)
+        return
+
+    result = subprocess.run(
+        f'git commit -m "{message}"',
+        shell=True,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode == 0:
+        print(result.stdout.strip())
+        return
+
+    combined = (result.stdout + result.stderr).lower()
+
+    if "nothing to commit" in combined or "nothing added to commit" in combined:
+        info("Nothing new to commit — already up to date.")
+        return
+
+    # Real failure
+    err(result.stderr.strip())
+    die(f"Command failed (exit {result.returncode}): git commit -m \"{message}\"")
 
 
 def git_push(branch: str, dry: bool) -> None:
