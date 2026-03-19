@@ -1,5 +1,9 @@
 # Changelog
 
+* 2026-03-19: v0.2.12 - Release (Hannibal)
+  * Version bump to 0.2.12
+
+
 * 2026-03-19: v0.2.11 - deploy.py robustness fixes for release workflow (Hannibal)
   * Fixed bump command crashing when prod release attempted after a --dev bump on the same version (tag exists only locally)
   * Fixed "release not found" error: upload_stub_binaries_to_release now creates the GitHub Release before uploading assets
