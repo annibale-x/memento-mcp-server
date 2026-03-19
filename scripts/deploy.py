@@ -360,32 +360,66 @@ def bump_readme_badge(new_ver: str, dry: bool) -> None:
 # ---------------------------------------------------------------------------
 
 
-def prepend_changelog(new_ver: str, dry: bool) -> None:
-    """Prepend a new release entry to CHANGELOG.md.
+def scaffold_changelog(new_ver: str, dry: bool) -> None:
+    """Prepend a placeholder entry to CHANGELOG.md for the upcoming release.
 
-    Skipped silently if an entry for this version already exists, to prevent
-    duplicates when a bump is re-run (e.g. after a mid-flight crash).
+    Called only on the FIRST --dev bump of a new version.  Skipped silently
+    if an entry for this version already exists (re-run of --dev).
+    The developer is expected to fill in the release notes before the prod bump.
     """
     today = datetime.date.today().strftime("%Y-%m-%d")
     entry = (
-        f"* {today}: v{new_ver} - Release (Hannibal)\n  * Version bump to {new_ver}\n\n"
+        f"* {today}: v{new_ver} - <TITLE> (Hannibal)\n"
+        f"  * <release notes here>\n\n"
     )
 
     if dry:
-        info(f"Would prepend to CHANGELOG.md:\n  {entry.strip()}")
+        info(f"Would scaffold CHANGELOG.md entry for v{new_ver}")
         return
 
     text = CHANGELOG.read_text(encoding="utf-8")
 
     if f": v{new_ver} -" in text:
-        info(f"CHANGELOG.md already contains an entry for v{new_ver} — skipping.")
+        info(f"CHANGELOG.md already has an entry for v{new_ver} — skipping scaffold.")
         return
 
-    # Insert after the first line (# Changelog header)
     lines = text.split("\n", 1)
     new_text = lines[0] + "\n\n" + entry + (lines[1] if len(lines) > 1 else "")
     CHANGELOG.write_text(new_text, encoding="utf-8")
-    info("Prepended entry to CHANGELOG.md — edit it to add release notes!")
+    ok(f"Scaffolded CHANGELOG.md entry for v{new_ver} — fill in the release notes before the prod bump!")
+
+
+def check_changelog(new_ver: str, dry: bool) -> None:
+    """Verify that a proper release entry for new_ver exists in CHANGELOG.md.
+
+    Blocks the prod bump if:
+    - no entry for this version exists (developer forgot to write release notes)
+    - the entry still contains the placeholder text from scaffold_changelog
+    """
+    if dry:
+        info(f"Would verify CHANGELOG.md entry for v{new_ver}")
+        return
+
+    text = CHANGELOG.read_text(encoding="utf-8")
+    marker = f": v{new_ver} -"
+
+    if marker not in text:
+        die(
+            f"No CHANGELOG.md entry found for v{new_ver}.\n"
+            "  Add release notes before running the prod bump."
+        )
+
+    # Find the entry and check for placeholder text
+    for line in text.splitlines():
+        if marker in line:
+            if "<TITLE>" in line or "<release notes here>" in line:
+                die(
+                    f"CHANGELOG.md entry for v{new_ver} still contains placeholder text.\n"
+                    "  Edit CHANGELOG.md with real release notes before the prod bump."
+                )
+            break
+
+    ok(f"CHANGELOG.md entry for v{new_ver} looks good.")
 
 
 # ---------------------------------------------------------------------------
@@ -1011,13 +1045,19 @@ def cmd_bump(
     if branch != "dev" and not dry:
         die(f"Must be on 'dev' branch (currently on '{branch}'). Checkout dev first.")
 
-    # 0b. Ensure working tree is clean
-    if not git_is_clean() and not dry:
-        warn("Working tree has uncommitted changes.")
+    # 0b. For prod bumps: verify CHANGELOG before touching anything else.
+    # Must run before the working-tree check so that edits to CHANGELOG.md
+    # (which are uncommitted by design) are read from disk, not stashed away.
+    if not dev_only:
+        step("Verifying CHANGELOG entry")
+        check_changelog(new_ver, dry)
 
-        if not confirm("Stash them and continue?", yes=yes):
-            die("Aborted. Please commit or stash changes first.")
-        run("git stash", dry=dry)
+    # 0c. Ensure working tree is clean.
+    # For prod bumps, uncommitted edits to CHANGELOG.md are expected (the developer
+    # wrote release notes but didn't commit them yet) — git add -A at step 5 will
+    # pick them up.  We only stash on --dev bumps where an unclean tree is unexpected.
+    if not git_is_clean() and not dry:
+        warn("Working tree has uncommitted changes (likely CHANGELOG.md edits) — will be included in the release commit.")
 
     # 1. Tests
     if not skip_tests:
@@ -1032,12 +1072,12 @@ def cmd_bump(
     bump_lib_rs_stub_release(new_ver, dev_only, dry)
     bump_readme_badge(new_ver, dry)
 
-    # 3. Changelog (skipped for --dev: dev bumps are not releases)
-    if not dev_only:
-        step("Updating CHANGELOG")
-        prepend_changelog(new_ver, dry)
-    else:
-        info("Skipping CHANGELOG update (--dev mode)")
+    # 3. Changelog
+    if dev_only:
+        # First --dev bump: scaffold a placeholder entry for the developer to fill in.
+        # Re-runs of --dev on the same version skip this silently.
+        step("Scaffolding CHANGELOG entry")
+        scaffold_changelog(new_ver, dry)
 
     # 4. Build wheel
     build_package(dry)
