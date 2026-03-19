@@ -1057,14 +1057,7 @@ def cmd_bump(
     # wrote release notes but didn't commit them yet) — git add -A at step 5 will
     # pick them up.  We only stash on --dev bumps where an unclean tree is unexpected.
     if not git_is_clean() and not dry:
-        if dev_only:
-            warn("Working tree has uncommitted changes.")
-
-            if not confirm("Stash them and continue?", yes=yes):
-                die("Aborted. Please commit or stash changes first.")
-            run("git stash", dry=dry)
-        else:
-            info("Working tree has uncommitted changes (likely CHANGELOG.md edits) — will be included in the release commit.")
+        warn("Working tree has uncommitted changes (likely CHANGELOG.md edits) — will be included in the release commit.")
 
     # 1. Tests
     if not skip_tests:
