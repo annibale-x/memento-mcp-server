@@ -839,7 +839,14 @@ def build_stub_local(dry: bool) -> None:
 
     if not dry:
         zed_stub_dst_dir.mkdir(parents=True, exist_ok=True)
-        _shutil.copy2(src, zed_stub_dst_dir / dst_name)
+
+        try:
+            _shutil.copy2(src, zed_stub_dst_dir / dst_name)
+        except PermissionError:
+            warn(f"Could not copy stub to Zed work dir (file locked — Zed is probably running).")
+            warn("Close Zed and run:  python scripts/deploy.py dev-stub")
+            warn("Or reload the extension from within Zed after restarting it.")
+            return
 
     ok(f"Stub copied to Zed work dir: {zed_stub_dst_dir / dst_name}")
 
