@@ -1045,13 +1045,26 @@ def cmd_bump(
     if branch != "dev" and not dry:
         die(f"Must be on 'dev' branch (currently on '{branch}'). Checkout dev first.")
 
-    # 0b. Ensure working tree is clean
-    if not git_is_clean() and not dry:
-        warn("Working tree has uncommitted changes.")
+    # 0b. For prod bumps: verify CHANGELOG before touching anything else.
+    # Must run before the working-tree check so that edits to CHANGELOG.md
+    # (which are uncommitted by design) are read from disk, not stashed away.
+    if not dev_only:
+        step("Verifying CHANGELOG entry")
+        check_changelog(new_ver, dry)
 
-        if not confirm("Stash them and continue?", yes=yes):
-            die("Aborted. Please commit or stash changes first.")
-        run("git stash", dry=dry)
+    # 0c. Ensure working tree is clean.
+    # For prod bumps, uncommitted edits to CHANGELOG.md are expected (the developer
+    # wrote release notes but didn't commit them yet) — git add -A at step 5 will
+    # pick them up.  We only stash on --dev bumps where an unclean tree is unexpected.
+    if not git_is_clean() and not dry:
+        if dev_only:
+            warn("Working tree has uncommitted changes.")
+
+            if not confirm("Stash them and continue?", yes=yes):
+                die("Aborted. Please commit or stash changes first.")
+            run("git stash", dry=dry)
+        else:
+            info("Working tree has uncommitted changes (likely CHANGELOG.md edits) — will be included in the release commit.")
 
     # 1. Tests
     if not skip_tests:
@@ -1072,11 +1085,6 @@ def cmd_bump(
         # Re-runs of --dev on the same version skip this silently.
         step("Scaffolding CHANGELOG entry")
         scaffold_changelog(new_ver, dry)
-    else:
-        # Prod bump: verify the entry exists and is not a placeholder.
-        # The developer must have written real release notes during --dev iteration.
-        step("Verifying CHANGELOG entry")
-        check_changelog(new_ver, dry)
 
     # 4. Build wheel
     build_package(dry)
