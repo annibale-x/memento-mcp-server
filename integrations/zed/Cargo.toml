@@ -4,7 +4,7 @@ resolver = "2"
 
 [package]
 name = "memento-mcp-server"
-version = "0.2.15"
+version = "0.2.16"
 edition = "2024"
 authors = ["Hannibal <annibale.x@gmail.com>"]
 description = "Persistent memory for AI agents via MCP."

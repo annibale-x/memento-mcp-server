@@ -1,5 +1,11 @@
 # Changelog
 
+* 2026-03-19: v0.2.16 - Tilde expansion fix for MEMENTO_DB_PATH on all platforms (Hannibal)
+  * Fixed tilde (~) not expanding to home directory on Linux/Darwin when using MEMENTO_DB_PATH env var
+  * Added _PathEnvVar descriptor for automatic tilde expansion in path-based config options
+  * Added fallback for HOME/USERPROFILE unavailability in sandboxed environments
+  * Added test coverage for tilde expansion in config and database engine
+
 * 2026-03-19: v0.2.15 - Tilde expansion fix for Linux/Darwin (Hannibal)
   * Fixed tilde (~) variable expansion on Linux/Darwin systems
 
