@@ -1,5 +1,8 @@
 # Changelog
 
+* 2026-03-19: v0.2.15 - Tilde expansion fix for Linux/Darwin (Hannibal)
+  * Fixed tilde (~) variable expansion on Linux/Darwin systems
+
 * 2026-03-19: v0.2.14 - PyPI repository URL fix and Zed Marketplace submission (Hannibal)
   * Fixed incorrect repository URL in pyproject.toml (memento-mcp-server → mcp-memento)
   * Submitted mcp-memento extension to Zed Extension Marketplace (PR zed-industries/extensions#5301)
