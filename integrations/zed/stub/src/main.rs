@@ -26,24 +26,35 @@ use std::process::Command;
 
 /// Injected by scripts/deploy.py during a version bump.  Matches the PyPI
 /// package version and the Zed extension marketplace version.
-const STUB_VERSION: &str = "v0.2.17";
+const STUB_VERSION: &str = "v0.2.18";
 
 // ---------------------------------------------------------------------------
 // Logging — stderr + persistent file (stderr not visible inside Zed sandbox)
 // ---------------------------------------------------------------------------
 
+/// Returns true if the MEMENTO_DEBUG environment variable is set to a
+/// non-empty value other than "0".
+fn debug_enabled() -> bool {
+    match std::env::var("MEMENTO_DEBUG") {
+        Ok(v) => !v.is_empty() && v != "0",
+        Err(_) => false,
+    }
+}
+
 macro_rules! log {
     ($($arg:tt)*) => {{
-        use std::io::Write as _;
-        let msg = format!($($arg)*);
-        let _ = writeln!(std::io::stderr(), "[MEMENTO-STUB] {}", msg);
+        if debug_enabled() {
+            use std::io::Write as _;
+            let msg = format!($($arg)*);
+            let _ = writeln!(std::io::stderr(), "[MEMENTO-STUB] {}", msg);
 
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(std::env::temp_dir().join("memento_stub_debug.log"))
-        {
-            let _ = writeln!(f, "{}", msg);
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(std::env::temp_dir().join("memento_stub_debug.log"))
+            {
+                let _ = writeln!(f, "{}", msg);
+            }
         }
     }};
 }

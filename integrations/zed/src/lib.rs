@@ -17,7 +17,7 @@ use zed_extension_api::{
 // ---------------------------------------------------------------------------
 
 /// GitHub release tag for the current stub binaries (matches Python version tag).
-const STUB_EXT_RELEASE: &str = "v0.2.17";
+const STUB_EXT_RELEASE: &str = "v0.2.18";
 
 /// Distribution channel: "prod" downloads from the vX.Y.Z GitHub Release;
 /// "dev" downloads from the rolling pre-release tag "dev-latest".
@@ -31,21 +31,39 @@ const REPO: &str = "annibale-x/mcp-memento";
 /// binaries are stored (committed to the repository under integrations/zed/).
 const BUNDLED_BIN_DIR: &str = "stub/bin";
 
-/// Log file path — readable by the user without any special permissions.
-const LOG_FILE: &str = "/tmp/memento-zed.log";
-
 // ---------------------------------------------------------------------------
 
-/// Append a timestamped log line to LOG_FILE.
+/// Returns true if debug logging is enabled.
+///
+/// Logging is OFF by default. To enable, create the marker file:
+///   touch ~/.local/share/zed/extensions/work/mcp-memento/debug.enable
+///   (Linux/macOS)
+///   New-Item "$env:LOCALAPPDATA\Zed\extensions\work\mcp-memento\debug.enable"
+///   (Windows PowerShell)
+fn debug_enabled() -> bool {
+    std::fs::metadata("debug.enable").is_ok()
+}
+
+/// Append a timestamped log line to the platform temp directory.
+/// On Linux/macOS: $TMPDIR or /tmp → memento-zed.log
+/// On Windows:     %TEMP%          → memento-zed.log
+///
+/// No-op unless debug.enable marker file exists in the extension work directory.
 fn log(msg: &str) {
+    if !debug_enabled() {
+        return;
+    }
+
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
+    let path = std::env::temp_dir().join("memento-zed.log");
+
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(LOG_FILE)
+        .open(path)
     {
         let _ = writeln!(f, "[{ts}] [Memento] {msg}");
     }

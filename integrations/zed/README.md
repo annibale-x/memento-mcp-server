@@ -185,7 +185,44 @@ On an official release:
 
 ---
 
-## 8. Settings Reference
+## 8. Debug Logging
+
+Logging is **disabled by default** in production. Two separate mechanisms exist,
+one per component.
+
+### WASM extension (`lib.rs`)
+
+The WASM sandbox cannot read host environment variables. Logging is controlled by
+a **marker file** in the Zed extension work directory:
+
+| Platform | Command to enable |
+|---|---|
+| Linux/macOS | `touch ~/.local/share/zed/extensions/work/mcp-memento/debug.enable` |
+| Windows | `New-Item "$env:LOCALAPPDATA\Zed\extensions\work\mcp-memento\debug.enable"` |
+
+Log output: `memento-zed.log` in the OS temp directory
+(`/tmp/` on Linux/macOS, `%TEMP%\` on Windows).
+
+To disable: delete the `debug.enable` file.
+
+### Native stub (`stub/src/main.rs`)
+
+Controlled by the `MEMENTO_DEBUG` environment variable:
+
+```
+MEMENTO_DEBUG=1   # enable
+MEMENTO_DEBUG=0   # disable (default)
+```
+
+Log output: `memento_stub_debug.log` in the OS temp directory.
+
+To pass the variable on macOS/Linux, set it in your shell before launching Zed,
+or add it to `~/.zshrc` / `~/.bashrc`. On Windows, set it via System Properties
+or PowerShell: `$env:MEMENTO_DEBUG = "1"`.
+
+---
+
+## 9. Settings Reference
 
 | Setting | Default | Description |
 |---|---|---|
@@ -197,7 +234,7 @@ On an official release:
 
 ---
 
-## 9. Cargo Workspace Layout
+## 10. Cargo Workspace Layout
 
 The workspace root is `integrations/zed/Cargo.toml` with two members:
 
@@ -218,7 +255,7 @@ cargo build --release --manifest-path integrations/zed/stub/Cargo.toml
 
 ---
 
-## 10. Coding Standards
+## 11. Coding Standards
 
 - **Airy Code Style**: 1 empty line before `if`/`else`/`match`, 2 empty lines before `fn`/`struct`/`impl`.
 - **Conventional Commits**: `type(scope): description` — e.g. `fix(zed): correct stub path on Windows`.

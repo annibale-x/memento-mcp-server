@@ -3,19 +3,20 @@
 deploy.py — MCP Memento unified release & deploy script.
 
 Usage:
-    python scripts/deploy.py bump X.Y.Z [--ext N] [options]
+    python scripts/deploy.py bump X.Y.Z [options]
     python scripts/deploy.py build
     python scripts/deploy.py publish --target {testpypi|pypi}
-    python scripts/deploy.py ext-release --ext N     # alias: zed-release
-    python scripts/deploy.py ext-binaries --ext N    # alias: zed-binaries
+    python scripts/deploy.py build-zed-stub
+    python scripts/deploy.py ext-binaries [--version X.Y.Z]
+    python scripts/deploy.py upload-stubs [--version X.Y.Z]
     python scripts/deploy.py status
 
 Commands
 --------
-  bump X.Y.Z        Full release cycle: bump versions, update changelog/README,
-                    commit dev, merge dev→main, push both, create Python tag,
-                    build wheel, trigger IDE extension stub CI (if --ext given).
-                    Use --dry-run to preview without making changes.
+  bump X.Y.Z        Full release cycle: bump versions in all manifests, update
+                    CHANGELOG.md and README.md, commit, tag, push. With --dev,
+                    creates a local-only tag without merging to main or publishing
+                    to PyPI. Use --dry-run to preview without making changes.
 
   build             Build sdist + wheel (no version bump).
 
@@ -23,32 +24,41 @@ Commands
                     --target testpypi  →  twine upload --repository testpypi dist/*
                     --target pypi      →  twine upload --repository pypi dist/*
 
-  ext-release       Push tag vX.Y.Z-ext.N to trigger GitHub Actions stub build.
-                    Uses current version from pyproject.toml unless --version given.
-                    Alias: zed-release (kept for backward compatibility).
+  build-zed-stub    Build the native stub binary for the current platform, copy
+                    it into integrations/zed/stub/bin/ and into the Zed extension
+                    work directory, then commit and push.
+                    Use this during active Zed extension development after editing
+                    stub/src/main.rs.
 
-  ext-binaries      Download CI-built stub binaries into stub/bin/ and commit.
-                    Alias: zed-binaries (kept for backward compatibility).
+  ext-binaries      Download CI-built stub binaries from the GitHub Release
+                    vX.Y.Z into stub/bin/ and commit them to the repo.
+                    Run this after the CI workflow has completed successfully.
+
+  upload-stubs      Create the GitHub Release vX.Y.Z (if it does not exist) and
+                    upload the local stub binaries from stub/bin/ as release assets.
+                    Use as a manual fallback if the CI upload step failed.
 
   status            Print current versions across all manifests.
 
 Options
 -------
-  --ext N           Extension release counter (integer). Required for bump when
-                    you also want to trigger an IDE extension stub release.
+  --dev             Bump version locally only: no merge to main, no PyPI publish.
+                    STUB_CHANNEL is set to "dev" in lib.rs.
   --dry-run         Print all actions without executing them.
   --skip-tests      Skip pytest before release.
-  --skip-merge      Do not merge dev→main (stays on dev branch only).
-  --version X.Y.Z   Override Python version (for ext-release command).
-  --yes             Non-interactive: skip all confirmation prompts.
+  --version X.Y.Z   Override version (for ext-binaries and upload-stubs).
+  --yes, -y         Non-interactive: skip all confirmation prompts.
 
 Examples
 --------
-  # Full bump to 0.3.0, create extension ext.2 release, publish to PyPI
-  python scripts/deploy.py bump 0.3.0 --ext 2 --yes
+  # Full release to 0.3.0 (tests, bump, tag, push, CI stub build)
+  python scripts/deploy.py bump 0.3.0 --yes
+
+  # Dev-only bump (local tag, no PyPI, STUB_CHANNEL=dev)
+  python scripts/deploy.py bump 0.3.0 --dev --yes
 
   # Dry run to preview everything
-  python scripts/deploy.py bump 0.3.0 --ext 2 --dry-run
+  python scripts/deploy.py bump 0.3.0 --dry-run
 
   # Build wheel only
   python scripts/deploy.py build
@@ -59,11 +69,14 @@ Examples
   # Publish to PyPI
   python scripts/deploy.py publish --target pypi
 
-  # Push extension stub tag only (already on correct version)
-  python scripts/deploy.py ext-release --ext 3
+  # Rebuild stub for current platform and update stub/bin/
+  python scripts/deploy.py build-zed-stub
 
-  # Download CI binaries and commit to repo
-  python scripts/deploy.py ext-binaries --ext 3
+  # Download CI-built binaries after CI completes and commit to repo
+  python scripts/deploy.py ext-binaries --version 0.3.0
+
+  # Manually create release and upload local binaries (CI upload fallback)
+  python scripts/deploy.py upload-stubs --version 0.3.0
 
   # Show current version state
   python scripts/deploy.py status
