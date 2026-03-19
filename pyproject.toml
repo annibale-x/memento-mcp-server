@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-memento"
-version = "0.2.13"
+version = "0.2.14"
 description = "Intelligent persistent memory for AI agents and IDEs via Model Context Protocol (MCP)."
 readme = "README.md"
 authors = [
@@ -52,8 +52,8 @@ mcp-memento = "memento.cli:main"
 memento-gui = "memento.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/annibale-x/memento-mcp-server"
-Issues = "https://github.com/annibale-x/memento-mcp-server/issues"
+Homepage = "https://github.com/annibale-x/mcp-memento"
+Issues = "https://github.com/annibale-x/mcp-memento/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

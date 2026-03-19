@@ -28,7 +28,7 @@ For detailed documentation, see:
 - docs/TOOLS.md for complete tool reference
 """
 
-__version__ = "0.2.13"
+__version__ = "0.2.14"
 __author__ = "Hannibal"
 __email__ = "annibale.x@gmail.com"
 

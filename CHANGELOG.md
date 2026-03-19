@@ -1,5 +1,9 @@
 # Changelog
 
+* 2026-03-19: v0.2.14 - PyPI repository URL fix and Zed Marketplace submission (Hannibal)
+  * Fixed incorrect repository URL in pyproject.toml (memento-mcp-server → mcp-memento)
+  * Submitted mcp-memento extension to Zed Extension Marketplace (PR zed-industries/extensions#5301)
+
 * 2026-03-19: v0.2.13 - deploy.py release workflow hardening (Hannibal)
   * Fixed bump prod after --dev on same version: tag local-only no longer causes fatal error, retag + push offered automatically
 
