@@ -38,7 +38,7 @@ a `Command` to Zed. It uses a **download-first with local cache** strategy:
 
 | Priority | Location | When present |
 |----------|----------|--------------|
-| 1 | `stub/bin/<asset>` relative to WASM CWD | Placed there by `deploy.py dev-stub` (dev) or by Zed from the extension package (marketplace) |
+| 1 | `stub/bin/<asset>` relative to WASM CWD | Placed there by `deploy.py build-zed-stub` (dev) or by Zed from the extension package (marketplace) |
 | 2 | `<download-name>` in WASM CWD | Cached from a previous download |
 | 3 | GitHub Release `vX.Y.Z` | Downloaded on first run, cached for future runs |
 
@@ -108,7 +108,7 @@ They are used by the marketplace install path (Zed copies them into the work dir
 After cloning, run:
 
 ```
-python scripts/deploy.py dev-stub
+python scripts/deploy.py build-zed-stub
 ```
 
 This command:
@@ -137,7 +137,7 @@ Zed compiles the WASM and loads the extension. No rebuild needed after editing
 ### After modifying `stub/src/main.rs`
 
 ```
-python scripts/deploy.py dev-stub
+python scripts/deploy.py build-zed-stub
 ```
 
 Rebuild, copy to both locations, commit, push.

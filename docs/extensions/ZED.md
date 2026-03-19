@@ -147,7 +147,7 @@ invoke Python directly:
 
 If you see a `404 Not Found` error when downloading the stub:
 
-- If using a **dev install**: run `python scripts/deploy.py dev-stub` from the repo root.
+- If using a **dev install**: run `python scripts/deploy.py build-zed-stub` from the repo root.
   This builds the stub and copies it to the Zed work directory.
 - If using the **marketplace install**: the stub is downloaded automatically from the
   GitHub release. Check your internet connection.

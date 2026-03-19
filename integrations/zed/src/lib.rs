@@ -112,7 +112,7 @@ impl MementoExtension {
         //
         // Zed uses  <data>/extensions/work/<ext-id>/  as the WASM sandbox CWD.
         // It does NOT copy repo source files there.  The binary is placed here
-        // by running:  python scripts/deploy.py dev-stub
+        // by running:  python scripts/deploy.py build-zed-stub
         // ------------------------------------------------------------------
         let bundled_path = format!("{}/{}", BUNDLED_BIN_DIR, asset_name);
         log(&format!("Step 1: checking bundled path: {}", bundled_path));

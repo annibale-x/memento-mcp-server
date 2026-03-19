@@ -748,7 +748,7 @@ def upload_stub_binaries_to_dev_prerelease(dry: bool) -> None:
     files = sorted(ZED_STUB_BIN.glob("memento-stub-*"))
 
     if not files:
-        die(f"No stub binaries found in {ZED_STUB_BIN}. Run 'dev-stub' first.")
+        die(f"No stub binaries found in {ZED_STUB_BIN}. Run 'build-zed-stub' first.")
 
     # Delete existing release+tag so we can recreate cleanly.
     # Errors are ignored — the release may not exist yet.
@@ -891,7 +891,7 @@ def build_stub_local(dry: bool) -> None:
 
     if zed_work_dir is None:
         warn("Could not locate Zed data directory; skipping work-dir copy.")
-        warn("Run 'python scripts/deploy.py dev-stub' again after installing Zed.")
+        warn("Run 'python scripts/deploy.py build-zed-stub' again after installing Zed.")
         return
 
     zed_stub_dst_dir = zed_work_dir / "stub" / "bin"
@@ -1240,15 +1240,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_pub.add_argument("--dry-run", action="store_true")
 
-    # ── dev-stub ──────────────────────────────────────────────────────────
+    # ── build-zed-stub ────────────────────────────────────────────────────
     # Builds the Rust stub for the current platform and copies the binary
     # into stub/bin/, then commits.  Use during active Zed extension development
     # to keep the bundled binary in sync without doing a full bump.
-    p_dev_stub = sub.add_parser(
-        "dev-stub",
+    p_build_zed_stub = sub.add_parser(
+        "build-zed-stub",
         help="Build stub binary for current platform and commit to stub/bin/.",
     )
-    p_dev_stub.add_argument("--dry-run", action="store_true")
+    p_build_zed_stub.add_argument("--dry-run", action="store_true")
 
     # ── ext-binaries ──────────────────────────────────────────────────────
     # Downloads CI-built stub binaries from the GitHub release vX.Y.Z and
@@ -1315,7 +1315,7 @@ def main() -> None:
     elif args.command == "publish":
         publish(target=args.target, dry=args.dry_run)
 
-    elif args.command == "dev-stub":
+    elif args.command == "build-zed-stub":
         cmd_dev_stub(dry=args.dry_run)
 
     elif args.command == "ext-binaries":

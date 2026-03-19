@@ -60,7 +60,7 @@ python scripts/deploy.py publish --target testpypi
 python scripts/deploy.py publish --target pypi
 ```
 
-### `dev-stub`
+### `build-zed-stub`
 Build the Rust stub binary for the **current platform** using `cargo build --release`,
 copy it into `integrations/zed/stub/bin/`, and commit.
 
@@ -68,8 +68,8 @@ Use this during active Zed extension development when you modify `stub/src/main.
 and want the bundled binary updated without doing a full `bump`.
 
 ```bash
-python scripts/deploy.py dev-stub
-python scripts/deploy.py dev-stub --dry-run   # preview only
+python scripts/deploy.py build-zed-stub
+python scripts/deploy.py build-zed-stub --dry-run   # preview only
 ```
 
 > **Note**: this only updates the binary for your current OS/arch.
@@ -148,7 +148,7 @@ python scripts/deploy.py publish --target pypi
 
 ```bash
 # After modifying stub/src/main.rs only (no version bump needed):
-python scripts/deploy.py dev-stub
+python scripts/deploy.py build-zed-stub
 
 # After any change (Python server, lib.rs, stub) — full dev cycle:
 python scripts/deploy.py bump 0.3.0 --dev --yes
