@@ -168,20 +168,32 @@ const BUNDLED_BIN_DIR: &str = "stub/bin";   // Relative to WASM CWD
 
 ## 7. Release Workflow
 
-The full release is handled by `scripts/deploy.py`. See `scripts/README.md` for details.
+The full release is handled by `scripts/deploy.py`. The intended workflow is:
 
 ```
-# Official release (triggers CI cross-compile for all 5 platforms):
-python scripts/deploy.py bump X.Y.Z --yes
-
-# Dev bump (local tag only, no CI, no PyPI):
-python scripts/deploy.py bump X.Y.Z --dev --yes
+sviluppo → bump → test & fix → bump → promote → publish
 ```
 
-On an official release:
-- GitHub Actions (`.github/workflows/zed-stub-release.yml`) cross-compiles stub
-  binaries for all 5 targets and uploads them as assets to the release.
-- `deploy.py` uploads the binaries from `stub/bin/` to the GitHub Release as well.
+```
+# Dev bump (local tag only, no CI, no PyPI — always non-interactive):
+python scripts/deploy.py bump X.Y.Z
+
+# Promote current dev version to official release (triggers CI):
+python scripts/deploy.py promote --yes
+
+# Publish to PyPI:
+python scripts/deploy.py publish
+
+# Publish to TestPyPI:
+python scripts/deploy.py publish --test
+```
+
+On `promote`:
+- CHANGELOG entry is verified (must not contain placeholder text).
+- `dev` is merged into `main`.
+- Tag `vX.Y.Z` is pushed, triggering GitHub Actions (`.github/workflows/zed-stub-release.yml`).
+- CI cross-compiles stub binaries for all 5 targets and uploads them to the GitHub Release.
+- `deploy.py` also uploads the local binaries from `stub/bin/` as a safety net.
 
 ---
 
