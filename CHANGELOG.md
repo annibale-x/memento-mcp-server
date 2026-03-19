@@ -1,11 +1,12 @@
 # Changelog
 
-* 2026-03-19: v0.2.18 - Debug logging opt-in for Zed extension (Hannibal)
-  * WASM extension logging disabled by default; enabled via debug.enable marker file in Zed work directory
-  * Stub logging disabled by default; enabled via MEMENTO_DEBUG=1 environment variable
+* 2026-03-19: v0.2.18 - Debug logging opt-in and deploy.py CLI redesign (Hannibal)
+  * Zed extension and stub logging disabled by default; both enabled via debug.enable marker file in Zed work directory
+  * Stub debug_enabled() checks MEMENTO_WORK_DIR first, then falls back to stub binary directory
   * Fixed WASM log path: replaced hardcoded /tmp/memento-zed.log with cross-platform std::env::temp_dir()
-  * Updated integrations/zed/README.md with debug logging section (section 8)
-  * Updated scripts/deploy.py docstring: added build-zed-stub, upload-stubs, corrected options and examples
+  * deploy.py: bump X.Y.Z always dev (non-interactive); promote replaces prod bump; publish defaults to PyPI; publish -t for TestPyPI
+  * Updated integrations/zed/README.md: unified debug logging section, updated release workflow
+  * Updated scripts/deploy.py docstring and help to reflect new CLI
 
 * 2026-03-19: v0.2.17 - Isolated venv for Zed extension stub (Hannibal)
   * Zed stub now creates and manages an isolated Python venv inside the Zed extension work directory (~/.local/share/zed/extensions/work/mcp-memento/venv/)

@@ -199,38 +199,36 @@ On `promote`:
 
 ## 8. Debug Logging
 
-Logging is **disabled by default** in production. Two separate mechanisms exist,
-one per component.
+Logging is **disabled by default** in production. Both the WASM extension and the
+native stub use the **same mechanism**: a `debug.enable` marker file in the Zed
+extension work directory.
 
-### WASM extension (`lib.rs`)
-
-The WASM sandbox cannot read host environment variables. Logging is controlled by
-a **marker file** in the Zed extension work directory:
-
-| Platform | Command to enable |
+| Platform | Work directory |
 |---|---|
-| Linux/macOS | `touch ~/.local/share/zed/extensions/work/mcp-memento/debug.enable` |
-| Windows | `New-Item "$env:LOCALAPPDATA\Zed\extensions\work\mcp-memento\debug.enable"` |
+| Linux | `~/.local/share/zed/extensions/work/mcp-memento/` |
+| macOS | `~/Library/Application Support/Zed/extensions/work/mcp-memento/` |
+| Windows | `%LOCALAPPDATA%\Zed\extensions\work\mcp-memento\` |
 
-Log output: `memento-zed.log` in the OS temp directory
-(`/tmp/` on Linux/macOS, `%TEMP%\` on Windows).
+**To enable logging:**
 
-To disable: delete the `debug.enable` file.
+```bash
+# Linux/macOS
+touch ~/.local/share/zed/extensions/work/mcp-memento/debug.enable
 
-### Native stub (`stub/src/main.rs`)
-
-Controlled by the `MEMENTO_DEBUG` environment variable:
-
-```
-MEMENTO_DEBUG=1   # enable
-MEMENTO_DEBUG=0   # disable (default)
+# Windows (PowerShell)
+New-Item "$env:LOCALAPPDATA\Zed\extensions\work\mcp-memento\debug.enable"
 ```
 
-Log output: `memento_stub_debug.log` in the OS temp directory.
+**To disable:** delete the `debug.enable` file.
 
-To pass the variable on macOS/Linux, set it in your shell before launching Zed,
-or add it to `~/.zshrc` / `~/.bashrc`. On Windows, set it via System Properties
-or PowerShell: `$env:MEMENTO_DEBUG = "1"`.
+**Log output:**
+
+| Component | Log file |
+|---|---|
+| WASM extension | `memento-zed.log` in OS temp dir |
+| Native stub | `memento_stub_debug.log` in OS temp dir |
+
+OS temp dir: `/tmp/` on Linux/macOS, `%TEMP%\` on Windows.
 
 ---
 

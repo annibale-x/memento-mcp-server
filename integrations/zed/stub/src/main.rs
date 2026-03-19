@@ -32,13 +32,32 @@ const STUB_VERSION: &str = "v0.2.18";
 // Logging — stderr + persistent file (stderr not visible inside Zed sandbox)
 // ---------------------------------------------------------------------------
 
-/// Returns true if the MEMENTO_DEBUG environment variable is set to a
-/// non-empty value other than "0".
+/// Returns true if debug logging is enabled.
+///
+/// Checks for a `debug.enable` marker file in (in order):
+///   1. MEMENTO_WORK_DIR (the Zed extension work directory, passed by the WASM)
+///   2. The directory containing this stub binary
+///
+/// To enable on Linux/macOS:
+///   touch ~/.local/share/zed/extensions/work/mcp-memento/debug.enable
+/// To enable on Windows (PowerShell):
+///   New-Item "$env:LOCALAPPDATA\Zed\extensions\work\mcp-memento\debug.enable"
 fn debug_enabled() -> bool {
-    match std::env::var("MEMENTO_DEBUG") {
-        Ok(v) => !v.is_empty() && v != "0",
-        Err(_) => false,
+    // 1. Zed extension work directory (preferred — same file as WASM checks).
+    if let Ok(work) = env::var("MEMENTO_WORK_DIR") {
+        if !work.is_empty() {
+            return Path::new(&work).join("debug.enable").exists();
+        }
     }
+
+    // 2. Fallback: directory containing the stub binary.
+    if let Ok(exe) = env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            return dir.join("debug.enable").exists();
+        }
+    }
+
+    false
 }
 
 macro_rules! log {
