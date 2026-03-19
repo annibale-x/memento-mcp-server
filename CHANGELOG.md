@@ -1,11 +1,10 @@
 # Changelog
 
-* 2026-03-19: v0.2.13 - <TITLE> (Hannibal)
-  * <release notes here>
+* 2026-03-19: v0.2.13 - deploy.py release workflow hardening (Hannibal)
+  * Fixed bump prod after --dev on same version: tag local-only no longer causes fatal error, retag + push offered automatically
 
 
 * 2026-03-19: v0.2.12 - deploy.py release workflow hardening (Hannibal)
-  * Fixed bump prod after --dev on same version: tag local-only no longer causes fatal error, retag + push offered automatically
   * Fixed "release not found": upload_stub_binaries_to_release now creates the GitHub Release object before uploading assets
   * Fixed bump resume: tag already on remote treated as mid-flight resume, tagging step skipped gracefully
   * Added git_tag_exists_remote() using git ls-remote for reliable local-vs-remote tag distinction
