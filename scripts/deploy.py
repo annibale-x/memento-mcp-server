@@ -838,14 +838,26 @@ def build_stub_local(dry: bool) -> None:
     zed_stub_dst_dir = zed_work_dir / "stub" / "bin"
 
     if not dry:
+        import os as _os
+
         zed_stub_dst_dir.mkdir(parents=True, exist_ok=True)
 
+        dst_final = zed_stub_dst_dir / dst_name
+        dst_tmp = zed_stub_dst_dir / (dst_name + ".tmp")
+
         try:
-            _shutil.copy2(src, zed_stub_dst_dir / dst_name)
+            # Copy to a temp name first, then atomically replace the target.
+            # On Windows the destination binary may be memory-mapped by Zed's
+            # WASM runtime; a direct overwrite raises PermissionError, but
+            # replacing via a temporary file succeeds because Windows allows
+            # renaming over an in-use file when the new inode is distinct.
+            _shutil.copy2(src, dst_tmp)
+            _os.replace(dst_tmp, dst_final)
         except PermissionError:
-            warn(f"Could not copy stub to Zed work dir (file locked — Zed is probably running).")
-            warn("Close Zed and run:  python scripts/deploy.py dev-stub")
-            warn("Or reload the extension from within Zed after restarting it.")
+            dst_tmp.unlink(missing_ok=True)
+            warn("Could not update stub in Zed work dir (file locked by Zed).")
+            warn("Reload the extension inside Zed to pick up the new binary:")
+            warn("  Ctrl+Shift+P → 'zed: extensions' → Reload mcp-memento")
             return
 
     ok(f"Stub copied to Zed work dir: {zed_stub_dst_dir / dst_name}")
