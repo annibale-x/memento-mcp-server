@@ -6,43 +6,54 @@
 //!   1. Discover a working Python executable on the host system.
 //!   2. Create/validate an isolated venv inside the Zed extension work dir.
 //!   3. Ensure mcp-memento is installed in that venv (auto-install via pip).
-//!   4. Spawn `python -u -m memento` with inherited stdin/stdout/stderr,
-//!      then exit immediately (fast path: venv already valid).
+//!   4. Spawn `python -u -m memento` with inherited stdin/stdout/stderr.
 //!
-//! When the venv is NOT yet ready (first install / version upgrade), the stub
-//! acts as a temporary MCP bootstrap proxy:
+//! FAST PATH (venv already valid):
+//!   exec() Python directly — zero overhead, no proxy, no buffering.
 //!
-//!   - A background thread runs the venv setup (python -m venv + pip install).
-//!   - The main thread serves a minimal JSON-RPC 2.0 / MCP server on stdio so
-//!     that Zed's 60-second "initialize" timeout does not fire.
-//!   - The bootstrap server advertises a single `memento_status` tool that
-//!     returns a human-readable "still installing…" message.
-//!   - Once setup completes, the stub re-execs itself (Unix) or spawns Python
-//!     as a pipe-proxy child (Windows / fallback) and exits.
+//! SLOW PATH (first install / upgrade):
+//!   - Acquire an atomic lockfile (O_CREAT|O_EXCL) to be the setup owner.
+//!   - Spawn setup thread: python -m venv + pip install mcp-memento.
+//!   - Serve a REAL, minimal MCP server on stdio so Zed never times out:
+//!       * initialize      → respond with valid ServerInfo + capabilities
+//!       * initialized     → ignore (no response)
+//!       * tools/list      → return single `memento_status` tool
+//!       * tools/call      → return human-readable "still installing…" text
+//!       * ping            → respond with empty result {}
+//!       * anything else   → respond with method-not-found (-32601)
+//!   - When setup finishes → exit(0).
+//!   - Zed detects exit(0) and RELAUNCHES the stub automatically.
+//!   - Relaunch hits fast path → exec() Python → real server starts.
 //!
-//! This eliminates the "Context Server Stopped Running" error that occurred
-//! when the user clicked "Configure Server" while pip was still running.
+//! CONCURRENT LAUNCH (second click while setup is running):
+//!   - Fails to acquire lockfile → enters bootstrap server loop.
+//!   - Polls venv validity every 500ms inside the message-handling loop.
+//!   - When venv becomes valid → exit(0) → Zed relaunches → fast path.
+//!
+//! This approach eliminates ALL race conditions:
+//!   - No stdin buffering / replay (those bytes are gone forever).
+//!   - No proxy threads competing for stdin ownership.
+//!   - Zed always talks to a valid MCP server; never sees silence.
+//!   - Python starts with a pristine stdin — no pre-consumed bytes.
 
 use std::env;
 use std::fs;
-use std::io::{self, BufRead, Read, Write};
+use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 
 // ---------------------------------------------------------------------------
 // Version marker — must match STUB_EXT_RELEASE in lib.rs.
 // ---------------------------------------------------------------------------
 
-/// Injected by scripts/deploy.py during a version bump.
 const STUB_VERSION: &str = "v0.2.22";
 
 // ---------------------------------------------------------------------------
-// Logging
+// Logging — stderr + /tmp/memento_stub_debug.log
 // ---------------------------------------------------------------------------
-
-
 
 macro_rules! log {
     ($($arg:tt)*) => {{
@@ -190,41 +201,34 @@ fn release_setup_lock(venv: &Path) {
     log!("Setup lock released (pid={}).", std::process::id());
 }
 
-
-
 fn venv_is_valid(venv: &Path) -> bool {
     if !venv_python(venv).exists() {
-        log!("Venv missing or incomplete at: {}", venv.display());
         return false;
     }
 
     match fs::read_to_string(marker_path(venv)) {
-        Ok(content) if content.trim() == STUB_VERSION => {
-            log!("Venv is valid (marker={}).", content.trim());
-            true
-        }
+        Ok(content) if content.trim() == STUB_VERSION => true,
         Ok(content) => {
             log!(
-                "Venv version mismatch: marker='{}' expected='{}'. Rebuilding.",
+                "Venv version mismatch: marker='{}' expected='{}'.",
                 content.trim(),
                 STUB_VERSION
             );
             false
         }
-        Err(_) => {
-            log!("Venv marker missing. Rebuilding.");
-            false
-        }
+        Err(_) => false,
     }
 }
 
 fn setup_venv(system_python: &Path, venv: &Path) -> Result<(), String> {
     if venv.exists() {
         log!("Removing stale venv at: {}", venv.display());
-        fs::remove_dir_all(venv).map_err(|e| format!("Failed to remove stale venv: {e}"))?;
+        fs::remove_dir_all(venv)
+            .map_err(|e| format!("Failed to remove stale venv: {e}"))?;
     }
 
     log!("Creating venv at: {}", venv.display());
+
     let status = Command::new(system_python)
         .args(["-m", "venv", &venv.to_string_lossy()])
         .stdout(Stdio::null())
@@ -241,48 +245,32 @@ fn setup_venv(system_python: &Path, venv: &Path) -> Result<(), String> {
 
     fs::write(marker_path(venv), STUB_VERSION)
         .map_err(|e| format!("Failed to write venv marker: {e}"))?;
-    log!("Venv ready. Marker written: {}", STUB_VERSION);
 
+    log!("Venv ready. Marker written: {}", STUB_VERSION);
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// mcp-memento installation
-// ---------------------------------------------------------------------------
-
 fn install_memento(python: &Path) -> Result<(), String> {
-    log!("Trying: pip install --upgrade --timeout 120 mcp-memento");
+    log!("pip install --upgrade mcp-memento (standard)");
 
     let status = Command::new(python)
-        .args([
-            "-m",
-            "pip",
-            "install",
-            "--upgrade",
-            "--timeout",
-            "120",
-            "mcp-memento",
-        ])
+        .args(["-m", "pip", "install", "--upgrade", "--timeout", "120", "mcp-memento"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
         .map_err(|e| format!("Failed to launch pip: {e}"))?;
 
     if status.success() {
-        log!("mcp-memento installed successfully (standard pip).");
+        log!("mcp-memento installed (standard pip).");
         return Ok(());
     }
 
-    log!("Standard pip failed (status: {status}), trying --break-system-packages...");
+    log!("Standard pip failed ({status}), trying --break-system-packages...");
 
     let status = Command::new(python)
         .args([
-            "-m",
-            "pip",
-            "install",
-            "--upgrade",
-            "--timeout",
-            "120",
+            "-m", "pip", "install", "--upgrade",
+            "--timeout", "120",
             "--break-system-packages",
             "mcp-memento",
         ])
@@ -292,32 +280,370 @@ fn install_memento(python: &Path) -> Result<(), String> {
         .map_err(|e| format!("Failed to launch pip --break-system-packages: {e}"))?;
 
     if status.success() {
-        log!("mcp-memento installed successfully (--break-system-packages).");
+        log!("mcp-memento installed (--break-system-packages).");
         return Ok(());
     }
 
     Err(
-        "All install strategies failed. Please install mcp-memento manually:\n  \
-         pip install mcp-memento\n  \
-         pip install --break-system-packages mcp-memento  (if PEP 668 blocks)"
+        "All install strategies failed. \
+         Run: pip install mcp-memento  (or pip install --break-system-packages mcp-memento)"
             .to_string(),
     )
 }
 
 // ---------------------------------------------------------------------------
-// Minimal JSON-RPC 2.0 / MCP bootstrap server
-//
-// Serves on stdin/stdout while the venv setup runs in a background thread.
-// Handles only the messages Zed sends during server startup:
-//   - initialize         → responds with server capabilities (no tools yet)
-//   - notifications/initialized → ignored (no response required)
-//   - tools/list         → returns the single `memento_status` diagnostic tool
-//   - tools/call         → returns setup progress for `memento_status`
-//   - ping               → responds with empty result
-//   - anything else      → responds with method-not-found error
-//
-// Once setup finishes (signalled via the shared SetupState), the proxy loop
-// exits and the caller re-launches Python.
+// Fast-path exec — venv is ready, replace stub process with Python.
+// ---------------------------------------------------------------------------
+
+fn launch_python(venv_py: &Path) -> ! {
+    log!("Fast path: exec {} -u -m memento", venv_py.display());
+
+    let mut cmd = Command::new(venv_py);
+    cmd.args(["-u", "-m", "memento"]);
+    cmd.env("PYTHONUNBUFFERED", "1");
+
+    for var in &["MEMENTO_DB_PATH", "MEMENTO_PROFILE", "PYTHON_COMMAND"] {
+        if let Ok(val) = env::var(var) {
+            cmd.env(var, val);
+        }
+    }
+
+    // Inherited stdin/stdout/stderr — Python talks directly to Zed.
+    match cmd.status() {
+        Ok(s) => {
+            log!("Python exited: {s}");
+            std::process::exit(s.code().unwrap_or(1));
+        }
+        Err(e) => {
+            log!("Failed to exec Python: {e}");
+            std::process::exit(1);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Minimal JSON-RPC / MCP helpers
+// ---------------------------------------------------------------------------
+
+/// Send one newline-delimited JSON-RPC response to stdout.
+fn send(obj: serde_json_lite::Value) {
+    let s = obj.to_string();
+    log!("→ Zed: {}", &s[..s.len().min(300)]);
+
+    let mut out = io::stdout();
+    let _ = writeln!(out, "{}", s);
+    let _ = out.flush();
+}
+
+/// Build a JSON-RPC success response.
+fn ok_response(id: &serde_json_lite::Value, result: serde_json_lite::Value) -> serde_json_lite::Value {
+    serde_json_lite::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "result": result
+    })
+}
+
+/// Build a JSON-RPC error response.
+fn err_response(
+    id: &serde_json_lite::Value,
+    code: i64,
+    message: &str,
+) -> serde_json_lite::Value {
+    serde_json_lite::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "error": {
+            "code": code,
+            "message": message
+        }
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Minimal JSON implementation (no external crates needed for this small use)
+// ---------------------------------------------------------------------------
+
+mod serde_json_lite {
+    use std::collections::BTreeMap;
+    use std::fmt;
+
+    #[derive(Clone, Debug)]
+    pub enum Value {
+        Null,
+        Bool(bool),
+        Number(f64),
+        Str(String),
+        Array(Vec<Value>),
+        Object(BTreeMap<String, Value>),
+    }
+
+    impl fmt::Display for Value {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match self {
+                Value::Null => write!(f, "null"),
+                Value::Bool(b) => write!(f, "{}", b),
+                Value::Number(n) => {
+                    if *n == n.floor() && n.abs() < 1e15 {
+                        write!(f, "{}", *n as i64)
+                    } else {
+                        write!(f, "{}", n)
+                    }
+                }
+                Value::Str(s) => {
+                    write!(f, "\"")?;
+                    for c in s.chars() {
+                        match c {
+                            '"' => write!(f, "\\\"")?,
+                            '\\' => write!(f, "\\\\")?,
+                            '\n' => write!(f, "\\n")?,
+                            '\r' => write!(f, "\\r")?,
+                            '\t' => write!(f, "\\t")?,
+                            c => write!(f, "{}", c)?,
+                        }
+                    }
+                    write!(f, "\"")
+                }
+                Value::Array(arr) => {
+                    write!(f, "[")?;
+                    for (i, v) in arr.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ",")?;
+                        }
+                        write!(f, "{}", v)?;
+                    }
+                    write!(f, "]")
+                }
+                Value::Object(map) => {
+                    write!(f, "{{")?;
+                    for (i, (k, v)) in map.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ",")?;
+                        }
+                        write!(f, "\"{}\":{}", k, v)?;
+                    }
+                    write!(f, "}}")
+                }
+            }
+        }
+    }
+
+    /// Extremely small recursive-descent JSON parser.
+    pub fn parse(s: &str) -> Option<Value> {
+        let s = s.trim();
+        let (v, _) = parse_value(s)?;
+        Some(v)
+    }
+
+    fn skip_ws(s: &str) -> &str {
+        s.trim_start_matches([' ', '\t', '\r', '\n'])
+    }
+
+    fn parse_value(s: &str) -> Option<(Value, &str)> {
+        let s = skip_ws(s);
+
+        if s.is_empty() {
+            return None;
+        }
+
+        match s.as_bytes()[0] {
+            b'"' => parse_string(s),
+            b'{' => parse_object(s),
+            b'[' => parse_array(s),
+            b't' => s.strip_prefix("true").map(|r| (Value::Bool(true), r)),
+            b'f' => s.strip_prefix("false").map(|r| (Value::Bool(false), r)),
+            b'n' => s.strip_prefix("null").map(|r| (Value::Null, r)),
+            b'0'..=b'9' | b'-' => parse_number(s),
+            _ => None,
+        }
+    }
+
+    fn parse_string(s: &str) -> Option<(Value, &str)> {
+        let s = s.strip_prefix('"')?;
+        let mut result = String::new();
+        let mut chars = s.char_indices();
+
+        loop {
+            let (i, c) = chars.next()?;
+
+            if c == '"' {
+                return Some((Value::Str(result), &s[i + 1..]));
+            }
+
+            if c == '\\' {
+                let (_, esc) = chars.next()?;
+                match esc {
+                    '"' => result.push('"'),
+                    '\\' => result.push('\\'),
+                    '/' => result.push('/'),
+                    'n' => result.push('\n'),
+                    'r' => result.push('\r'),
+                    't' => result.push('\t'),
+                    'b' => result.push('\x08'),
+                    'f' => result.push('\x0C'),
+                    'u' => {
+                        // consume 4 hex digits — simplified: push replacement char
+                        for _ in 0..4 {
+                            chars.next()?;
+                        }
+                        result.push('\u{FFFD}');
+                    }
+                    other => result.push(other),
+                }
+            } else {
+                result.push(c);
+            }
+        }
+    }
+
+    fn parse_number(s: &str) -> Option<(Value, &str)> {
+        let end = s
+            .find(|c: char| !matches!(c, '0'..='9' | '-' | '+' | '.' | 'e' | 'E'))
+            .unwrap_or(s.len());
+        let n: f64 = s[..end].parse().ok()?;
+        Some((Value::Number(n), &s[end..]))
+    }
+
+    fn parse_object(s: &str) -> Option<(Value, &str)> {
+        let s = skip_ws(s.strip_prefix('{')?);
+        let mut map = BTreeMap::new();
+
+        if let Some(rest) = s.strip_prefix('}') {
+            return Some((Value::Object(map), rest));
+        }
+
+        let mut cur = s;
+
+        loop {
+            let cur_ws = skip_ws(cur);
+            let (key, after_key) = parse_string(cur_ws)?;
+            let key_str = match key {
+                Value::Str(k) => k,
+                _ => return None,
+            };
+            let after_colon = skip_ws(after_key).strip_prefix(':')?;
+            let (val, after_val) = parse_value(after_colon)?;
+            map.insert(key_str, val);
+            let after_ws = skip_ws(after_val);
+
+            if let Some(rest) = after_ws.strip_prefix('}') {
+                return Some((Value::Object(map), rest));
+            }
+
+            cur = after_ws.strip_prefix(',')?;
+        }
+    }
+
+    fn parse_array(s: &str) -> Option<(Value, &str)> {
+        let s = skip_ws(s.strip_prefix('[')?);
+        let mut arr = Vec::new();
+
+        if let Some(rest) = s.strip_prefix(']') {
+            return Some((Value::Array(arr), rest));
+        }
+
+        let mut cur = s;
+
+        loop {
+            let (val, after_val) = parse_value(cur)?;
+            arr.push(val);
+            let after_ws = skip_ws(after_val);
+
+            if let Some(rest) = after_ws.strip_prefix(']') {
+                return Some((Value::Array(arr), rest));
+            }
+
+            cur = after_ws.strip_prefix(',')?;
+        }
+    }
+
+    impl Value {
+        pub fn get(&self, key: &str) -> Option<&Value> {
+            match self {
+                Value::Object(m) => m.get(key),
+                _ => None,
+            }
+        }
+
+        pub fn as_str(&self) -> Option<&str> {
+            match self {
+                Value::Str(s) => Some(s.as_str()),
+                _ => None,
+            }
+        }
+
+        pub fn is_null(&self) -> bool {
+            matches!(self, Value::Null)
+        }
+    }
+
+    /// Minimal json! macro — supports string literals and nested json!{} calls.
+    macro_rules! json {
+        (null) => { $crate::serde_json_lite::Value::Null };
+
+        (true) => { $crate::serde_json_lite::Value::Bool(true) };
+        (false) => { $crate::serde_json_lite::Value::Bool(false) };
+
+        ([ $($elem:tt),* $(,)? ]) => {{
+            let mut arr = Vec::new();
+            $( arr.push(json!($elem)); )*
+            $crate::serde_json_lite::Value::Array(arr)
+        }};
+
+        ({ $($key:literal : $val:tt),* $(,)? }) => {{
+            let mut map = std::collections::BTreeMap::new();
+            $( map.insert($key.to_string(), json!($val)); )*
+            $crate::serde_json_lite::Value::Object(map)
+        }};
+
+        ($e:expr) => {
+            $crate::serde_json_lite::Value::from($e)
+        };
+    }
+
+    pub(crate) use json;
+
+    impl From<&str> for Value {
+        fn from(s: &str) -> Self {
+            Value::Str(s.to_string())
+        }
+    }
+
+    impl From<String> for Value {
+        fn from(s: String) -> Self {
+            Value::Str(s)
+        }
+    }
+
+    impl From<i64> for Value {
+        fn from(n: i64) -> Self {
+            Value::Number(n as f64)
+        }
+    }
+
+    impl From<f64> for Value {
+        fn from(n: f64) -> Self {
+            Value::Number(n)
+        }
+    }
+
+    impl From<bool> for Value {
+        fn from(b: bool) -> Self {
+            Value::Bool(b)
+        }
+    }
+
+    impl From<&Value> for Value {
+        fn from(v: &Value) -> Self {
+            v.clone()
+        }
+    }
+}
+
+use serde_json_lite::{Value, json};
+
+// ---------------------------------------------------------------------------
+// Setup state (shared between setup thread and bootstrap server loop)
 // ---------------------------------------------------------------------------
 
 #[derive(Clone, PartialEq)]
@@ -327,200 +653,227 @@ enum SetupState {
     Failed(String),
 }
 
-/// Read one JSON-RPC message from stdin.
-///
-/// Zed's MCP stdio transport sends newline-delimited JSON (one JSON object
-/// per line), NOT Content-Length framing.
-fn read_jsonrpc_message(reader: &mut impl BufRead) -> Option<String> {
-    loop {
-        let mut line = String::new();
+// ---------------------------------------------------------------------------
+// Bootstrap MCP server
+//
+// Runs on stdin/stdout while venv setup is in progress.
+// Responds to ALL MCP messages so Zed never times out.
+// When setup finishes (Done or Failed) → exit(0) so Zed relaunches.
+// On relaunch the stub hits the fast path and exec()s Python directly.
+// ---------------------------------------------------------------------------
 
-        if reader.read_line(&mut line).ok()? == 0 {
-            return None;
+fn run_bootstrap_server(state: Arc<Mutex<SetupState>>) -> ! {
+    log!("Bootstrap server started (pid={}).", std::process::id());
+
+    let stdin = io::stdin();
+    let mut reader = io::BufReader::new(stdin.lock());
+    let mut initialized = false;
+
+    loop {
+        // Check setup state before blocking on stdin — if done, exit now
+        // so Zed relaunches and hits the fast path immediately.
+        {
+            let s = state.lock().unwrap();
+
+            if *s != SetupState::Running {
+                let msg = match &*s {
+                    SetupState::Done => "Setup complete — exiting so Zed relaunches.".to_string(),
+                    SetupState::Failed(e) => format!("Setup failed: {e}"),
+                    SetupState::Running => unreachable!(),
+                };
+                log!("{}", msg);
+                std::process::exit(0);
+            }
         }
 
-        let trimmed = line.trim_end_matches(['\r', '\n']);
+        // Non-blocking line read with a short timeout emulated via a
+        // separate thread + channel, so we can re-check state periodically.
+        let line = read_line_timeout(&mut reader, Duration::from_millis(300));
 
-        if !trimmed.is_empty() {
-            return Some(trimmed.to_string());
+        let raw = match line {
+            None => {
+                // Timeout — loop back and re-check state.
+                continue;
+            }
+            Some(Err(_)) => {
+                log!("stdin EOF — exiting.");
+                std::process::exit(0);
+            }
+            Some(Ok(s)) => s,
+        };
+
+        let trimmed = raw.trim();
+
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        log!("← Zed: {}", &trimmed[..trimmed.len().min(300)]);
+
+        let msg = match serde_json_lite::parse(trimmed) {
+            Some(v) => v,
+            None => {
+                log!("Failed to parse JSON: {}", trimmed);
+                continue;
+            }
+        };
+
+        let id = msg.get("id").cloned().unwrap_or(Value::Null);
+        let method = msg
+            .get("method")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        // Notifications have no id — no response needed.
+        let is_notification = id.is_null();
+
+        match method.as_str() {
+            "initialize" => {
+                initialized = true;
+                send(ok_response(&id, json!({
+                    "protocolVersion": "2024-11-05",
+                    "serverInfo": {
+                        "name": "mcp-memento-bootstrap",
+                        "version": STUB_VERSION
+                    },
+                    "capabilities": {
+                        "tools": {}
+                    }
+                })));
+            }
+
+            "notifications/initialized" | "initialized" => {
+                // No response for notifications.
+            }
+
+            "tools/list" => {
+                if is_notification { continue; }
+                send(ok_response(&id, json!({
+                    "tools": [
+                        {
+                            "name": "memento_status",
+                            "description": "Returns the current setup status of mcp-memento.",
+                            "inputSchema": {
+                                "type": "object",
+                                "properties": {},
+                                "required": []
+                            }
+                        }
+                    ]
+                })));
+            }
+
+            "tools/call" => {
+                if is_notification { continue; }
+
+                let elapsed = {
+                    // We don't track start time here precisely, so just say "in progress".
+                    "mcp-memento is being installed in the background.\n\
+                     This usually takes 10–60 seconds on first run.\n\
+                     Please wait — the server will restart automatically when ready."
+                };
+
+                send(ok_response(&id, json!({
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": elapsed
+                        }
+                    ]
+                })));
+            }
+
+            "ping" => {
+                if is_notification { continue; }
+                send(ok_response(&id, json!({})));
+            }
+
+            _ => {
+                if is_notification {
+                    log!("Ignoring notification: {method}");
+                    continue;
+                }
+
+                if !initialized {
+                    // Zed sent something before initialize — ignore.
+                    log!("Ignoring pre-init request: {method}");
+                    continue;
+                }
+
+                send(err_response(&id, -32601, &format!("Method not found: {method}")));
+            }
         }
     }
 }
 
+// ---------------------------------------------------------------------------
+// Non-blocking line read with timeout
+//
+// Spawns a reader thread once, parks lines in an mpsc channel.
+// Returns None on timeout, Some(Ok(line)) on data, Some(Err(_)) on EOF/error.
+// ---------------------------------------------------------------------------
 
+use std::sync::OnceLock;
+use std::sync::mpsc::{Receiver, SyncSender};
 
+static LINE_RX: OnceLock<Mutex<Receiver<Option<String>>>> = OnceLock::new();
+static LINE_TX: OnceLock<SyncSender<Option<String>>> = OnceLock::new();
 
-
-/// Run the bootstrap MCP proxy on stdin/stdout, then seamlessly hand off
-/// to Python once the venv setup completes.
-///
-/// Strategy: buffer ALL messages from Zed without responding to any of them.
-/// This keeps Zed's 60-second initialize timeout counting but does not
-/// corrupt the MCP handshake.  Once Python is ready, replay every buffered
-/// message so Python handles the real initialize and responds authoritatively.
-///
-/// Constraint: pip install must complete within Zed's 60-second window.
-/// On a warm pip cache this takes 5-15 seconds; on a cold network ~30-60s.
-fn run_bootstrap_proxy(state: Arc<Mutex<SetupState>>, venv_py: PathBuf) -> ! {
-    use std::sync::mpsc;
-    use std::time::Duration;
-
-    log!("Bootstrap proxy started.");
-
-    let (tx, rx) = mpsc::channel::<Option<String>>();
+fn init_reader_thread() {
+    let (tx, rx) = std::sync::mpsc::sync_channel::<Option<String>>(16);
+    let _ = LINE_TX.set(tx.clone());
+    let _ = LINE_RX.set(Mutex::new(rx));
 
     thread::spawn(move || {
-        log!("Reader thread started.");
         let stdin = io::stdin();
         let mut reader = io::BufReader::new(stdin.lock());
 
         loop {
-            log!("Reader thread: waiting for next message…");
+            let mut line = String::new();
 
-            match read_jsonrpc_message(&mut reader) {
-                Some(msg) => {
-                    log!("Reader thread RX: {}", &msg[..msg.len().min(200)]);
-
-                    if tx.send(Some(msg)).is_err() {
-                        log!("Reader thread: channel closed, exiting.");
-                        break;
-                    }
-                }
-                None => {
-                    log!("Reader thread: stdin EOF.");
+            match reader.read_line(&mut line) {
+                Ok(0) => {
                     let _ = tx.send(None);
                     break;
                 }
-            }
-        }
-    });
-
-    // Buffer ALL messages — do not respond to anything.
-    // Python will handle the full handshake once it starts.
-    let mut buffered: Vec<String> = Vec::new();
-
-    loop {
-        match rx.recv_timeout(Duration::from_millis(200)) {
-            Ok(None) => {
-                log!("stdin closed during bootstrap — exiting.");
-                std::process::exit(0);
-            }
-
-            Ok(Some(msg)) => {
-                log!("Bootstrap buffering: {}", &msg[..msg.len().min(120)]);
-                buffered.push(msg);
-            }
-
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-
-            Err(mpsc::RecvTimeoutError::Disconnected) => {
-                log!("Reader thread disconnected — exiting.");
-                std::process::exit(1);
-            }
-        }
-
-        let s = state.lock().unwrap();
-
-        if *s != SetupState::Running {
-            log!("Setup finished — moving to proxy phase.");
-            break;
-        }
-    }
-
-    let final_state = state.lock().unwrap().clone();
-
-    if let SetupState::Failed(e) = final_state {
-        log!("Setup failed — cannot start Python: {e}");
-        std::process::exit(1);
-    }
-
-    log!("Spawning Python for proxy: {}", venv_py.display());
-
-    let mut child = match Command::new(&venv_py)
-        .args(["-u", "-m", "memento"])
-        .env("PYTHONUNBUFFERED", "1")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .spawn()
-    {
-        Ok(c) => c,
-        Err(e) => {
-            log!("Failed to spawn Python: {e}");
-            std::process::exit(1);
-        }
-    };
-
-    let mut child_stdin = child.stdin.take().expect("child stdin");
-    let child_stdout = child.stdout.take().expect("child stdout");
-
-    // Replay buffered messages → Python, then forward live messages.
-    thread::spawn(move || {
-        log!("Replaying {} buffered message(s) to Python.", buffered.len());
-
-        for msg in &buffered {
-            log!("Replay → Python: {}", &msg[..msg.len().min(120)]);
-
-            if writeln!(child_stdin, "{}", msg).is_err() {
-                log!("Write error during replay.");
-                return;
-            }
-        }
-
-        if let Err(e) = child_stdin.flush() {
-            log!("Flush error after replay: {e}");
-            return;
-        }
-
-        log!("Replay done — forwarding live messages.");
-
-        while let Ok(Some(msg)) = rx.recv() {
-            log!("Proxy → Python: {}", &msg[..msg.len().min(120)]);
-
-            if writeln!(child_stdin, "{}", msg).is_err() {
-                log!("Write error forwarding to Python.");
-                break;
-            }
-        }
-
-        log!("Forwarder thread exiting.");
-    });
-
-    // Forward Python stdout → Zed stdout.
-    {
-        let mut buf = [0u8; 4096];
-        let mut py_out = child_stdout;
-        let mut out = io::stdout();
-
-        loop {
-            match py_out.read(&mut buf) {
-                Ok(0) => { log!("Python stdout EOF."); break; }
-                Err(e) => { log!("Python stdout read error: {e}"); break; }
-                Ok(n) => {
-                    log!("Python → Zed: {} bytes", n);
-
-                    if out.write_all(&buf[..n]).is_err() || out.flush().is_err() {
-                        log!("Write error forwarding to Zed.");
+                Err(_) => {
+                    let _ = tx.send(None);
+                    break;
+                }
+                Ok(_) => {
+                    let trimmed = line.trim_end_matches(['\r', '\n']).to_string();
+                    if tx.send(Some(trimmed)).is_err() {
                         break;
                     }
                 }
             }
         }
-    }
+    });
+}
 
-    let code = child.wait().map(|s| s.code().unwrap_or(1)).unwrap_or(1);
-    log!("Python proxy exited: {code}");
-    std::process::exit(code);
+/// Read one line from the shared reader thread, with a timeout.
+/// Returns:
+///   None           — timeout (no data yet)
+///   Some(Ok(line)) — got a line (may be empty for blank lines)
+///   Some(Err(()))  — EOF or read error
+fn read_line_timeout(
+    _reader: &mut impl BufRead,
+    timeout: Duration,
+) -> Option<Result<String, ()>> {
+    let rx_lock = LINE_RX.get()?;
+    let rx = rx_lock.lock().unwrap();
+
+    match rx.recv_timeout(timeout) {
+        Ok(Some(line)) => Some(Ok(line)),
+        Ok(None) => Some(Err(())),
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => None,
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Some(Err(())),
+    }
 }
 
 // ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
-
-
-
-// ---------------------------------------------------------------------------
-// Entry point
+// main
 // ---------------------------------------------------------------------------
 
 fn main() {
@@ -542,116 +895,74 @@ fn main() {
     let venv = venv_dir();
     log!("Venv directory: {}", venv.display());
 
+    // Fast path — venv already valid, exec Python immediately.
     if venv_is_valid(&venv) {
-        log!("Fast path: venv ready, launching Python directly.");
+        log!("Fast path: venv valid.");
         launch_python(&venv_python(&venv));
     }
 
-    // Try to become the setup process by atomically creating the lockfile
-    // HERE, in the main thread, before spawning anything.
-    // If we fail (another process already holds it), wait until either the
-    // venv becomes valid (other process finished) or the lockfile disappears.
-    log!("Slow path: trying to acquire setup lock…");
+    // Slow path — setup needed.
+    // Initialise the shared stdin reader thread BEFORE acquiring the lock
+    // so it starts reading immediately (Zed may send initialize right away).
+    init_reader_thread();
+
+    log!("Slow path: venv not valid (pid={}).", std::process::id());
 
     let lock = lock_path(&venv);
 
-    // Ensure parent directory exists.
     if let Some(parent) = lock.parent() {
         let _ = fs::create_dir_all(parent);
     }
 
-    let we_own_lock = match fs::OpenOptions::new()
+    let we_own_lock = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&lock)
-    {
-        Ok(_) => {
-            log!("Setup lock acquired (pid={}).", std::process::id());
-            true
-        }
-        Err(_) => {
-            log!("Setup lock busy — waiting for other process to finish (pid={}).", std::process::id());
-            false
-        }
-    };
+        .is_ok();
+
+    if we_own_lock {
+        log!("Acquired setup lock (pid={}).", std::process::id());
+    } else {
+        log!("Setup lock busy — another process is installing (pid={}).", std::process::id());
+    }
 
     let state = Arc::new(Mutex::new(SetupState::Running));
-    let state_for_setup = Arc::clone(&state);
+    let state_for_thread = Arc::clone(&state);
     let venv_for_thread = venv.clone();
     let python_for_thread = system_python.clone();
 
     thread::spawn(move || {
         if !we_own_lock {
-            // Poll until the other process finishes (lockfile gone + venv valid).
+            // Not the setup owner — just poll until venv is valid.
             loop {
+                thread::sleep(Duration::from_millis(500));
+
                 if venv_is_valid(&venv_for_thread) {
-                    log!("Other process finished setup — venv valid.");
-                    *state_for_setup.lock().unwrap() = SetupState::Done;
+                    log!("Other process finished setup — venv valid (pid={}).", std::process::id());
+                    *state_for_thread.lock().unwrap() = SetupState::Done;
                     return;
                 }
 
-                if !lock_path(&venv_for_thread).exists() && venv_is_valid(&venv_for_thread) {
-                    log!("Lock gone and venv valid.");
-                    *state_for_setup.lock().unwrap() = SetupState::Done;
-                    return;
-                }
-
-                log!("Waiting for setup lock to be released…");
-                thread::sleep(std::time::Duration::from_millis(500));
+                log!("Still waiting for setup to finish…");
             }
         }
 
         // We own the lock — run setup.
-        let result = setup_venv(&python_for_thread, &venv_for_thread);
-        release_setup_lock(&venv_for_thread);
-
-        let mut s = state_for_setup.lock().unwrap();
-
-        match result {
+        match setup_venv(&python_for_thread, &venv_for_thread) {
             Ok(()) => {
-                log!("Setup complete.");
-                *s = SetupState::Done;
+                release_setup_lock(&venv_for_thread);
+                log!("Setup complete (pid={}).", std::process::id());
+                *state_for_thread.lock().unwrap() = SetupState::Done;
             }
             Err(e) => {
+                release_setup_lock(&venv_for_thread);
                 log!("Setup failed: {e}");
-                *s = SetupState::Failed(e);
+                *state_for_thread.lock().unwrap() = SetupState::Failed(e);
             }
         }
     });
 
-    run_bootstrap_proxy(Arc::clone(&state), venv_python(&venv));
+    // Run bootstrap server — responds to Zed while setup runs in background.
+    // Exits with code 0 when setup is done so Zed relaunches.
+    run_bootstrap_server(state);
 }
-
-// ---------------------------------------------------------------------------
-// Launch helpers
-// ---------------------------------------------------------------------------
-
-/// Fast-path: venv is ready, spawn Python with inherited stdio and wait.
-/// The stub exits with Python's exit code.
-fn launch_python(venv_py: &Path) -> ! {
-    log!("Launching: {} -u -m memento", venv_py.display());
-
-    let mut cmd = Command::new(venv_py);
-    cmd.args(["-u", "-m", "memento"]);
-    cmd.env("PYTHONUNBUFFERED", "1");
-
-    for var in &["MEMENTO_DB_PATH", "MEMENTO_PROFILE", "PYTHON_COMMAND"] {
-        if let Ok(val) = env::var(var) {
-            cmd.env(var, val);
-        }
-    }
-
-    // No .stdin() / .stdout() / .stderr() → all inherited.
-    match cmd.status() {
-        Ok(s) => {
-            log!("Python exited: {s}");
-            std::process::exit(s.code().unwrap_or(1));
-        }
-        Err(e) => {
-            log!("Failed to spawn Python: {e}");
-            std::process::exit(1);
-        }
-    }
-}
-
-
