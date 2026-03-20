@@ -2,9 +2,16 @@
 members = [".", "stub"]
 resolver = "2"
 
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"
+
 [package]
 name = "memento-mcp-server"
-version = "0.2.21"
+version = "0.2.24"
 edition = "2024"
 authors = ["Hannibal <annibale.x@gmail.com>"]
 description = "Persistent memory for AI agents via MCP."

@@ -1,5 +1,32 @@
 # Changelog
 
+* 2026-03-20: v0.2.24 - README TOC PyPI fix + stub pip timeout + CI binary size fix (Hannibal)
+  * README: fixed Table of Contents anchor links for PyPI compatibility using explicit HTML anchors (<a name>)
+  * README: removed stale TOC entry pointing to non-existent section; simplified TOC in DECAY_SYSTEM, INTEGRATION, RELATIONSHIPS
+  * Stub: added --timeout 120 to both pip install strategies to prevent false-failure on slow PyPI connections
+  * Stub: removed Stdio::null() suppression during pip install so errors are visible in Zed logs
+  * Stub: moved [profile.release] to workspace root Cargo.toml — CI binaries now correctly optimized (495 KB → 309 KB)
+
+
+* 2026-03-20: v0.2.23 - Stub: race condition fixes + slow-path tool discovery (Hannibal)
+  * Stub: replace PID-based lockfile with flock advisory lock — kernel auto-releases on SIGKILL, eliminates zombie-PID stale lock bug
+  * Stub: Windows lock via LockFileEx with LOCKFILE_FAIL_IMMEDIATELY (windows-sys 0.59)
+  * Stub: inject notifications/tools/list_changed after proxy handoff so Zed discovers all 13 tools without restart
+  * Stub: replay initialize to Python with synthetic id:-1 to avoid colliding with bootstrap-answered id:1
+  * Stub: filter replay to initialize + notifications only — skip requests already answered by bootstrap
+  * Stub: bootstrap initialize declares capabilities.tools.listChanged=true
+
+
+* 2026-03-20: v0.2.22 - MCP bootstrap proxy: fix "Context Server Stopped" on Linux (Hannibal)
+  * Stub: MCP bootstrap proxy for slow-path (venv not ready on first install/upgrade)
+  * Bootstrap serves a minimal JSON-RPC 2.0 MCP server on stdio while pip runs in background thread
+  * Zed initialize answered within milliseconds — no more 60s timeout crash on first install
+  * Exposes memento_status tool returning human-readable setup progress
+  * On Unix: re-exec after setup for zero-overhead hand-off with fully inherited stdio
+  * On Windows: bidirectional pipe proxy after setup completes
+  * Pip install timeout raised from 60s to 120s
+
+
 * 2026-03-20: v0.2.21 - README TOC PyPI fix + stub pip timeout (Hannibal)
   * Fixed README Table of Contents anchor links for PyPI compatibility (HTML explicit anchors, removed emoji-derived slugs)
   * Removed stale TOC entry pointing to non-existent Auto-Onboarding Protocol section

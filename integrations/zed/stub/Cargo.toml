@@ -5,6 +5,12 @@ edition = "2024"
 authors = ["Hannibal <annibale.x@gmail.com>"]
 description = "Native MCP stub launcher for mcp-memento Zed extension."
 
+[dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_IO"] }
+
 [[bin]]
 name = "memento-stub"
 path = "src/main.rs"

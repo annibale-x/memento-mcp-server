@@ -39,6 +39,12 @@ This means **zero manual setup**: install the extension, open Zed, done.
 - **Python 3.10+** installed on your system
 - Internet access on first run (to download `mcp-memento` via pip if not installed)
 
+> **Note — first install / update:** On the very first install (and sometimes right after an
+> update), the extension may show only **1 tool available** in Zed. This is expected behaviour:
+> the launcher is downloading and installing the `mcp-memento` Python package in the background.
+> Once installation completes (usually within a few seconds), the tool list refreshes
+> automatically and all tools for the selected profile become available.
+
 Python is discovered automatically in this order:
 
 | Platform | Candidates tried |

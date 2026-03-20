@@ -17,7 +17,7 @@ use zed_extension_api::{
 // ---------------------------------------------------------------------------
 
 /// GitHub release tag for the current stub binaries (matches Python version tag).
-const STUB_EXT_RELEASE: &str = "v0.2.21";
+const STUB_EXT_RELEASE: &str = "v0.2.24";
 
 /// Distribution channel: "prod" downloads from the vX.Y.Z GitHub Release;
 /// "dev" downloads from the rolling pre-release tag "dev-latest".
@@ -382,6 +382,14 @@ impl zed::Extension for MementoExtension {
 
         let installation_instructions = format!(
             r#"
+> **First install / update note:** On the very first install (and sometimes after an
+> update), Memento may initially report only **1 tool available** — this is expected.
+> The launcher is downloading and installing the Python package in the background.
+> Once installation completes (usually a few seconds), Zed will automatically refresh
+> and expose all tools for the selected profile.
+
+---
+
 **Memento** requires **Python 3.10+** on your system.
 A small native launcher discovers Python, installs **mcp-memento** if needed,
 and starts the MCP server automatically.
