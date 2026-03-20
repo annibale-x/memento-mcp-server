@@ -2,17 +2,13 @@
 
 ## Table of Contents
 
-- [Integration Categories](#integration-categories)
-  - [1. IDE Integrations](#1-ide-integrations)
-  - [2. Python Integrations](#2-python-integrations)
-  - [3. Agent Integrations](#3-agent-integrations)
-- [Quick Start Examples](#quick-start-examples)
-- [Choosing the Right Integration](#choosing-the-right-integration)
-- [Configuration Hierarchy](#configuration-hierarchy)
-- [Common Integration Patterns](#common-integration-patterns)
-- [Concurrency and Locking](#concurrency-and-locking)
-- [Getting Help](#getting-help)
-- [Next Steps](#next-steps)
+- Integration Categories (IDE, Python, Agent)
+- Quick Start Examples
+- Choosing the Right Integration
+- Configuration Hierarchy
+- Common Integration Patterns
+- Concurrency and Locking
+- Getting Help & Next Steps
 
 This guide provides an overview of Memento integration options. For detailed instructions, please refer to the specific integration guides.
 

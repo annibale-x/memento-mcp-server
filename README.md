@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-blueviolet)](https://spec.modelcontextprotocol.io/)
-[![Latest Release](https://img.shields.io/badge/release-v0.2.19-purple.svg)](https://github.com/annibale-x/mcp-memento/releases/tag/v0.2.19)
+[![Latest Release](https://img.shields.io/badge/release-v0.2.21-purple.svg)](https://github.com/annibale-x/mcp-memento/releases/tag/v0.2.21)
 
 Intelligent memory management for MCP clients with confidence tracking, relationship mapping, and knowledge quality maintenance.
 
@@ -17,16 +17,16 @@ Build a personal or team knowledge base that grows smarter over time, accessible
 
 ## Table of Contents
 
-- [🌱 A Gentle Introduction](#-a-gentle-introduction)
-- [🚀 Quick Start](#-quick-start)
-- [⚙️ Configuration](#️-configuration)
-- [💬 Natural Language Interaction](#-natural-language-interaction-chat-based)
-- [🔗 Integrations](#-integrations)
-- [📖 Core Concepts](#-core-concepts)
-- [🔄 Memento Auto-Onboarding Protocol](#-memento-auto-onboarding-protocol)
-- [📜 Background](#-background)
-- [🙏 Acknowledgments](#-acknowledgments)
+- [🌱 A Gentle Introduction](#a-gentle-introduction)
+- [🚀 Quick Start](#quick-start)
+- [⚙️ Configuration](#configuration)
+- [💬 Natural Language Interaction](#basic-usage-examples)
+- [🔗 Integrations](#integrations)
+- [📖 Core Concepts](#core-concepts)
+- [📜 Background](#background)
+- [🙏 Acknowledgments](#acknowledgments)
 
+<a name="a-gentle-introduction"></a>
 ## 🌱 A Gentle Introduction
 
 **What is Memento?**
@@ -47,6 +47,7 @@ Memento is **not an autonomous agent** that watches your screen and magically de
 
 Alternatively, you can add custom instructions to your AI (see our [Agent Configuration Guide](docs/AGENT_CONFIGURATION.md)) to make it automatically execute these steps without you having to ask every time.
 
+<a name="key-features"></a>
 ## ✨ Key Features
 
 ### 🧠 Intelligent Confidence System
@@ -73,6 +74,7 @@ Alternatively, you can add custom instructions to your AI (see our [Agent Config
 - **Automatic maintenance**: Confidence decay, relationship integrity
 - **Shared database**: Same database works across all integrations
 
+<a name="quick-start"></a>
 ## 🚀 Quick Start
 
 ### 1. Installation
@@ -167,10 +169,12 @@ recall_mementos(query="Redis timeout solutions")
 **💬 Natural Language**: You can also interact with Memento through natural conversation. Just tell your AI assistant things like "Remember that..." or "Store this..." or "Memento..."- no code required.
 
 
+<a name="core-concepts"></a>
 ## 📖 Core Concepts
 
 For a deep dive into Memento's concepts (Confidence System, Tagging, Relationships), please read the comprehensive [RULES.md](./docs/RULES.md) and [RELATIONSHIPS.md](./docs/RELATIONSHIPS.md) documentation.
 
+<a name="integrations"></a>
 ## 🔗 Integrations
 
 Memento works with all major development tools:
@@ -189,6 +193,7 @@ Memento works with all major development tools:
 
 **See also**: [Integration Overview](docs/INTEGRATION.md) for guidance on choosing the right integration.
 
+<a name="basic-usage-examples"></a>
 ## 🛠️ Basic Usage Examples
 
 The examples below show the **MCP tool calls** that an AI assistant (Zed, Cursor,
@@ -276,6 +281,7 @@ AI: ✅ Memento stored - "Deployment script location: /scripts/deploy.sh"
 
 The AI can also store important information automatically when configured with the guidelines in [AGENT_CONFIGURATION.md](./docs/AGENT_CONFIGURATION.md).
 
+<a name="configuration"></a>
 ## ⚙️ Configuration
 
 Memento supports multiple configuration sources (in order of precedence):
@@ -316,6 +322,7 @@ profile: extended
 log_level: INFO
 ```
 
+<a name="documentation-structure"></a>
 ## 📚 Documentation Structure
 
 ### Essential Guides
@@ -336,6 +343,7 @@ log_level: INFO
 - **[Database Schema](docs/dev/SCHEMA.md)** - Technical database structure
 - **[Contributing Guidelines](CONTRIBUTING.md)** - Development setup and workflow
 
+<a name="architecture-overview"></a>
 ## 🏗️ Architecture Overview
 
 ### Database Schema
@@ -351,6 +359,7 @@ The system works identically across all platforms:
 3. **Same search ranking**: Results ordered by `confidence × importance`
 4. **Same relationship types**: 35 semantic relationship types available everywhere
 
+<a name="background"></a>
 ## 📜 Background
 
 Memento is a simplified, lightweight fork of [MemoryGraph](https://github.com/memory-graph/memory-graph) by Gregory Dickson, optimized for MCP integration across IDEs and CLI agents.
@@ -367,12 +376,14 @@ For true multi-tenancy, use the original MemoryGraph project.
 - **Use Memento**: For lightweight, cross-platform memory management in IDEs and CLI tools
 - **Use MemoryGraph**: For enterprise use cases requiring multi-tenancy, bi-temporal tracking, or custom backends
 
+<a name="acknowledgments"></a>
 ## 🙏 Acknowledgments
 
 Memento is built upon the solid foundation of Gregory Dickson's [MemoryGraph](https://github.com/memory-graph/memory-graph) project. We're grateful for his pioneering work in memory management systems.
 
 This fork maintains compatibility with MemoryGraph's core concepts while adapting them for the specific needs of MCP integration and modern development tooling. For users requiring the full power of MemoryGraph's advanced features, we recommend exploring the original project.
 
+<a name="contributing"></a>
 ## 🤝 Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
@@ -382,10 +393,12 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 - Documentation standards
 - Pull request process
 
+<a name="license"></a>
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
+<a name="links"></a>
 ## 🔗 Links
 
 - **[GitHub Repository](https://github.com/annibale-x/mcp-memento)** - Source code and issues

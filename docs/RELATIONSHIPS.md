@@ -2,22 +2,13 @@
 
 ## Table of Contents
 
-- [Introduction to Relationships in Memento](#introduction-to-relationships-in-memento)
-- [Relationship Categories](#relationship-categories)
-- [Complete List of Relationship Types](#complete-list-of-relationship-types)
-  - [1. Causal Relationships](#1-causal-relationships-5-types)
-  - [2. Solution Relationships](#2-solution-relationships-5-types)
-  - [3. Context Relationships](#3-context-relationships-5-types)
-  - [4. Learning Relationships](#4-learning-relationships-5-types)
-  - [5. Similarity Relationships](#5-similarity-relationships-5-types)
-  - [6. Workflow Relationships](#6-workflow-relationships-5-types)
-  - [7. Quality Relationships](#7-quality-relationships-5-types)
-- [Practical Usage Examples](#practical-usage-examples)
-- [Best Practices for Relationship Usage](#best-practices-for-relationship-usage)
-- [Common Relationship Patterns](#common-relationship-patterns)
-- [Relationship Search Examples](#relationship-search-examples)
-- [Troubleshooting](#troubleshooting)
-- [Quick Reference Cheat Sheet](#quick-reference-cheat-sheet)
+- Introduction to Relationships in Memento
+- Relationship Categories
+- Complete List of Relationship Types (7 categories: Causal, Solution, Context, Learning, Similarity, Workflow, Quality)
+- Practical Usage Examples
+- Best Practices & Common Patterns
+- Relationship Search Examples
+- Troubleshooting & Quick Reference
 - [Additional Resources](#additional-resources)
 
 ---

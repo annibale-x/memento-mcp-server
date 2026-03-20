@@ -17,12 +17,12 @@ use zed_extension_api::{
 // ---------------------------------------------------------------------------
 
 /// GitHub release tag for the current stub binaries (matches Python version tag).
-const STUB_EXT_RELEASE: &str = "v0.2.19";
+const STUB_EXT_RELEASE: &str = "v0.2.21";
 
 /// Distribution channel: "prod" downloads from the vX.Y.Z GitHub Release;
 /// "dev" downloads from the rolling pre-release tag "dev-latest".
 /// Set automatically by scripts/deploy.py during a version bump.
-const STUB_CHANNEL: &str = "prod";
+const STUB_CHANNEL: &str = "dev";
 
 /// GitHub repository (owner/name) hosting the releases.
 const REPO: &str = "annibale-x/mcp-memento";
@@ -374,28 +374,37 @@ impl zed::Extension for MementoExtension {
 
         let default_settings = concat!(
             "{\n",
-            "  \"MEMENTO_DB_PATH\": \"default\",\n",
             "  \"MEMENTO_PROFILE\": \"core\",\n",
-            "  \"PYTHON_COMMAND\": \"default\"\n",
+            "  \"MEMENTO_DB_PATH\": \"default\",\n",
+            "  \"PYTHON_COMMAND\" : \"default\"\n",
             "}"
         );
 
         let installation_instructions = format!(
-            "Memento requires Python 3.8+ on your system.\n\n\
-             A small native launcher (memento-stub) discovers Python, installs\n\
-             mcp-memento if needed, and starts the MCP server automatically.\n\n\
-             Settings\n\
-             --------\n\
-             MEMENTO_DB_PATH  Path to the SQLite database.\n\
-             \t'default' uses the OS default: {}\n\
-             \tSet a custom absolute path to override.\n\n\
-             MEMENTO_PROFILE  Tool set exposed to the AI agent.\n\
-             \tcore     — basic memory operations (default)\n\
-             \textended — + statistics and confidence decay\n\
-             \tadvanced — + graph analytics\n\n\
-             PYTHON_COMMAND   Python executable to use.\n\
-             \t'default' tries py / python3 / python and common install paths.\n\
-             \tSet an absolute path if your Python is not on the system PATH.",
+            r#"
+**Memento** requires **Python 3.10+** on your system.
+A small native launcher discovers Python, installs **mcp-memento** if needed,
+and starts the MCP server automatically.
+
+---
+
+__**Configuration parameters:**__
+
+- **MEMENTO_DB_PATH**: Path to the SQLite database.
+  - **default**: **`{}`**
+
+  (_Set a custom absolute path to override._)
+
+- **MEMENTO_PROFILE**: Tool set exposed to the AI agent.
+  - **core** : basic memory operations (default)
+  - **extended** : **core** + statistics and confidence decay
+  - **advanced** : **extended** + graph analytics
+
+- **PYTHON_COMMAND**: Python executable to use.
+  - **default** : tries **py**, **python3**, **python** and common install paths.
+
+  (_Set an absolute path if your Python is not on the system **PATH**._)
+	        "#,
             db_path_default_hint
         );
 

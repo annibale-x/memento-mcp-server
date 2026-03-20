@@ -2,22 +2,11 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Problem Solved](#problem-solved)
-- [System Architecture](#system-architecture)
-  - [Database Schema](#database-schema)
-  - [Confidence Ranges](#confidence-ranges)
-- [Decay Mechanics](#decay-mechanics)
-  - [Base Decay Formula](#base-decay-formula)
-  - [Intelligent Decay Rules](#intelligent-decay-rules)
-  - [Decay Calculation Example](#decay-calculation-example)
-- [How Decay is Applied](#how-decay-is-applied)
-  - [1. Automatic On-Access Decay](#1-automatic-on-access-decay)
-  - [2. Manual Decay Application](#2-manual-decay-application)
-  - [3. Maintenance Script](#3-maintenance-script)
-  - [4. Real-time vs Batch Processing](#4-real-time-vs-batch-processing)
-  - [5. Configuration Options](#5-configuration-options)
-  - [6. Monitoring Decay Application](#6-monitoring-decay-application)
+- Overview
+- Problem Solved
+- System Architecture (Database Schema, Confidence Ranges)
+- Decay Mechanics (Base Decay Formula, Intelligent Decay Rules, Calculation Example)
+- How Decay is Applied (Automatic On-Access, Manual, Maintenance Script, Real-time vs Batch, Configuration, Monitoring)
 
 - [Confidence Boosting](#confidence-boosting)
 - [MCP Tools for Confidence Management](#mcp-tools-for-confidence-management)

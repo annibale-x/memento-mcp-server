@@ -1,5 +1,9 @@
 # Changelog
 
+* 2026-03-20: v0.2.21 - <TITLE> (Hannibal)
+  * <release notes here>
+
+
 * 2026-03-20: v0.2.19 - Documentation audit and cleanup (Hannibal)
   * Rewrote API.md: removed non-existent HTTP REST/FastAPI/Node.js SDK/Kubernetes content; now documents only MCP client, Docker, and CLI export/import
   * Fixed DECAY_SYSTEM.md: removed phantom bi-temporal SQL fields, non-existent YAML config keys, missing CI workflow references, and obsolete sections
