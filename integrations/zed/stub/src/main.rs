@@ -685,25 +685,40 @@ fn proxy_to_python(venv_py: &Path, buffered: Vec<String>) -> ! {
         // Strategy: replay ONLY initialize + notifications (no-id messages).
         // After listChanged, Zed will send a fresh tools/list with a new ID
         // that Python can answer correctly.
-        let replay_msgs: Vec<&String> = buffered
+        // Send Python a synthetic initialize using a stub-internal ID (-1)
+        // that Zed is not tracking. This way Python's initialize response
+        // goes to Zed with id:-1 which Zed silently discards as orphan,
+        // instead of colliding with the id:1 the bootstrap already answered.
+        let init_msg = buffered.iter().find(|m| {
+            let (_, method) = extract_id_method(m);
+            method == "initialize"
+        });
+
+        let notifs: Vec<&String> = buffered
             .iter()
-            .filter(|m| {
-                let (_, method) = extract_id_method(m);
-                method == "initialize" || is_notification(m)
-            })
+            .filter(|m| is_notification(m))
             .collect();
 
-        log!(
-            "Replaying {}/{} message(s) to Python (initialize + notifications only).",
-            replay_msgs.len(),
-            buffered.len()
-        );
+        if let Some(orig) = init_msg {
+            // Replace the original id with -1
+            let synthetic = orig.replacen(
+                &format!("\"id\":{}", extract_str_or_num(orig, "\"id\"")),
+                "\"id\":-1",
+                1,
+            );
+            log!("Replay → Python (synthetic initialize id=-1): {}", &synthetic[..synthetic.len().min(120)]);
+            if writeln!(py_stdin, "{}", synthetic).is_err() {
+                log!("Write error during initialize replay.");
+                let _ = ready_tx.send(());
+                return;
+            }
+        }
 
-        for msg in replay_msgs {
+        log!("Replaying {} notification(s) to Python.", notifs.len());
+        for msg in notifs {
             log!("Replay → Python: {}", &msg[..msg.len().min(120)]);
-
             if writeln!(py_stdin, "{}", msg).is_err() {
-                log!("Write error during replay.");
+                log!("Write error during notification replay.");
                 let _ = ready_tx.send(());
                 return;
             }
