@@ -214,6 +214,8 @@ fn setup_venv(system_python: &Path, venv: &Path) -> Result<(), String> {
     log!("Creating venv at: {}", venv.display());
     let status = Command::new(system_python)
         .args(["-m", "venv", &venv.to_string_lossy()])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .status()
         .map_err(|e| format!("Failed to create venv: {e}"))?;
 
@@ -237,6 +239,7 @@ fn setup_venv(system_python: &Path, venv: &Path) -> Result<(), String> {
 
 fn install_memento(python: &Path) -> Result<(), String> {
     log!("Trying: pip install --upgrade --timeout 120 mcp-memento");
+
     let status = Command::new(python)
         .args([
             "-m",
@@ -247,6 +250,8 @@ fn install_memento(python: &Path) -> Result<(), String> {
             "120",
             "mcp-memento",
         ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .status()
         .map_err(|e| format!("Failed to launch pip: {e}"))?;
 
@@ -254,6 +259,7 @@ fn install_memento(python: &Path) -> Result<(), String> {
         log!("mcp-memento installed successfully (standard pip).");
         return Ok(());
     }
+
     log!("Standard pip failed (status: {status}), trying --break-system-packages...");
 
     let status = Command::new(python)
@@ -267,6 +273,8 @@ fn install_memento(python: &Path) -> Result<(), String> {
             "--break-system-packages",
             "mcp-memento",
         ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .status()
         .map_err(|e| format!("Failed to launch pip --break-system-packages: {e}"))?;
 
