@@ -1,5 +1,13 @@
 # Changelog
 
+* 2026-03-20: v0.2.24 - README TOC PyPI fix + stub pip timeout + CI binary size fix (Hannibal)
+  * README: fixed Table of Contents anchor links for PyPI compatibility using explicit HTML anchors (<a name>)
+  * README: removed stale TOC entry pointing to non-existent section; simplified TOC in DECAY_SYSTEM, INTEGRATION, RELATIONSHIPS
+  * Stub: added --timeout 120 to both pip install strategies to prevent false-failure on slow PyPI connections
+  * Stub: removed Stdio::null() suppression during pip install so errors are visible in Zed logs
+  * Stub: moved [profile.release] to workspace root Cargo.toml — CI binaries now correctly optimized (495 KB → 309 KB)
+
+
 * 2026-03-20: v0.2.23 - Stub: race condition fixes + slow-path tool discovery (Hannibal)
   * Stub: replace PID-based lockfile with flock advisory lock — kernel auto-releases on SIGKILL, eliminates zombie-PID stale lock bug
   * Stub: Windows lock via LockFileEx with LOCKFILE_FAIL_IMMEDIATELY (windows-sys 0.59)
