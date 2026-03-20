@@ -416,19 +416,26 @@ fn json_get_id(json: &str) -> Option<String> {
     }
 }
 
-/// Run the bootstrap MCP proxy on stdin/stdout.
+/// Run the bootstrap MCP proxy on stdin/stdout, then seamlessly hand off
+/// to Python once the venv setup completes.
 ///
-/// Returns when setup is done (or failed) and it is safe to launch Python.
+/// Phase 1 — Bootstrap: answer Zed's `initialize` (and any other messages)
+///   while the venv setup runs in a background thread.
 ///
-/// The reader runs on a dedicated thread so that the main loop can poll the
-/// setup state via `recv_timeout` even when Zed sends no messages.
-fn run_bootstrap_proxy(state: Arc<Mutex<SetupState>>) {
+/// Phase 2 — Proxy: spawn Python as a child with piped stdio, then forward
+///   bytes bidirectionally between Zed (our stdin/stdout) and Python.
+///   This keeps the same stdin/stdout pipe that Zed opened — no re-exec,
+///   no lost messages.
+fn run_bootstrap_proxy(state: Arc<Mutex<SetupState>>, venv_py: PathBuf) -> ! {
     use std::sync::mpsc;
     use std::time::Duration;
 
     log!("Bootstrap proxy started.");
 
-    // Spawn a reader thread that sends decoded JSON-RPC messages over a channel.
+    // -----------------------------------------------------------------------
+    // Phase 1: read messages from stdin on a dedicated thread, handle them
+    // in the main thread with a 200 ms poll so we notice when setup finishes.
+    // -----------------------------------------------------------------------
     let (tx, rx) = mpsc::channel::<Option<String>>();
 
     thread::spawn(move || {
@@ -450,61 +457,128 @@ fn run_bootstrap_proxy(state: Arc<Mutex<SetupState>>) {
         }
     });
 
-    let stdout = io::stdout();
-    let mut writer = stdout.lock();
+    {
+        let stdout = io::stdout();
+        let mut writer = stdout.lock();
 
-    loop {
-        // Poll for setup completion every 200 ms even with no incoming message.
-        match rx.recv_timeout(Duration::from_millis(200)) {
-            // Reader thread closed stdin → exit.
-            Ok(None) => {
-                log!("stdin closed — exiting bootstrap proxy.");
-                break;
+        'bootstrap: loop {
+            match rx.recv_timeout(Duration::from_millis(200)) {
+                Ok(None) => {
+                    log!("stdin closed during bootstrap — exiting.");
+                    std::process::exit(0);
+                }
+
+                Ok(Some(msg)) => {
+                    log!("Bootstrap RX: {}", &msg[..msg.len().min(200)]);
+
+                    let method = json_get_str(&msg, "method").unwrap_or("").to_string();
+                    let id = json_get_id(&msg);
+
+                    if method.starts_with("notifications/") || method == "$/cancelRequest" {
+                        log!("Bootstrap: ignoring notification '{}'", method);
+                    }
+                    else if let Some(id) = id {
+                        let response = build_response(&method, &id, &state);
+                        log!("Bootstrap TX: {}", &response[..response.len().min(200)]);
+
+                        if let Err(e) = write_jsonrpc_message(&mut writer, &response) {
+                            log!("Bootstrap write error: {e}");
+                            std::process::exit(1);
+                        }
+                    }
+                    else {
+                        log!("Bootstrap: no id, skipping '{}'", method);
+                    }
+                }
+
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    log!("Reader thread disconnected — exiting.");
+                    std::process::exit(1);
+                }
             }
 
-            // Got a message — handle it.
-            Ok(Some(msg)) => {
-                log!("Bootstrap RX: {}", &msg[..msg.len().min(200)]);
+            let s = state.lock().unwrap();
 
-                let method = json_get_str(&msg, "method").unwrap_or("").to_string();
-                let id = json_get_id(&msg);
+            if *s != SetupState::Running {
+                log!("Setup finished — moving to proxy phase.");
+                break 'bootstrap;
+            }
+        }
+    } // release stdout lock before proxy
 
-                // Notifications require no response.
-                if method.starts_with("notifications/") || method == "$/cancelRequest" {
-                    log!("Bootstrap: ignoring notification '{}'", method);
-                }
-                else if let Some(id) = id {
-                    let response = build_response(&method, &id, &state);
-                    log!("Bootstrap TX: {}", &response[..response.len().min(200)]);
+    // -----------------------------------------------------------------------
+    // Phase 2: check setup outcome.
+    // -----------------------------------------------------------------------
+    let final_state = state.lock().unwrap().clone();
 
-                    if let Err(e) = write_jsonrpc_message(&mut writer, &response) {
-                        log!("Bootstrap write error: {e}");
+    if let SetupState::Failed(e) = final_state {
+        log!("Setup failed — cannot start Python: {e}");
+        std::process::exit(1);
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase 3: spawn Python and proxy stdin/stdout.
+    //
+    // The channel `rx` already owns the reader thread that holds stdin.
+    // We forward messages from the channel → Python's stdin, and forward
+    // Python's stdout → our stdout.
+    // -----------------------------------------------------------------------
+    log!("Spawning Python for proxy: {}", venv_py.display());
+
+    let mut child = match Command::new(&venv_py)
+        .args(["-u", "-m", "memento"])
+        .env("PYTHONUNBUFFERED", "1")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            log!("Failed to spawn Python: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    let mut child_stdin = child.stdin.take().expect("child stdin");
+    let child_stdout = child.stdout.take().expect("child stdout");
+
+    // Forward channel messages → Python stdin.
+    thread::spawn(move || {
+        while let Ok(Some(msg)) = rx.recv() {
+            // Re-frame as Content-Length message for Python's MCP reader.
+            let frame = format!("Content-Length: {}\r\n\r\n{}", msg.len(), msg);
+
+            if child_stdin.write_all(frame.as_bytes()).is_err() {
+                break;
+            }
+        }
+        // When channel closes (stdin EOF), child_stdin drop closes Python's stdin.
+    });
+
+    // Forward Python stdout → our stdout.
+    {
+        let mut buf = [0u8; 4096];
+        let mut py_out = child_stdout;
+        let mut out = io::stdout();
+
+        loop {
+            match py_out.read(&mut buf) {
+                Ok(0) | Err(_) => break,
+                Ok(n) => {
+                    if out.write_all(&buf[..n]).is_err() || out.flush().is_err() {
                         break;
                     }
                 }
-                else {
-                    log!("Bootstrap: no id, skipping '{}'", method);
-                }
             }
-
-            // Timeout — just check setup state.
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
-
-            // Channel disconnected (reader thread panicked).
-            Err(mpsc::RecvTimeoutError::Disconnected) => {
-                log!("Reader thread disconnected — exiting bootstrap proxy.");
-                break;
-            }
-        }
-
-        // Exit as soon as setup is no longer running.
-        let s = state.lock().unwrap();
-
-        if *s != SetupState::Running {
-            log!("Setup finished — exiting bootstrap proxy.");
-            break;
         }
     }
+
+    let code = child.wait().map(|s| s.code().unwrap_or(1)).unwrap_or(1);
+    log!("Python proxy exited: {code}");
+    std::process::exit(code);
 }
 
 fn build_response(method: &str, id: &str, state: &Arc<Mutex<SetupState>>) -> String {
@@ -566,102 +640,6 @@ fn build_response(method: &str, id: &str, state: &Arc<Mutex<SetupState>>) -> Str
 }
 
 // ---------------------------------------------------------------------------
-// Pipe proxy (used after setup completes to hand off stdio to Python)
-//
-// On Unix we re-exec the stub itself — the new instance finds a valid venv
-// and goes straight to `cmd.status()` with inherited stdio.
-//
-// On Windows (and as Unix fallback) we spawn Python as a child with piped
-// stdio and manually forward bytes in both directions.
-// ---------------------------------------------------------------------------
-
-/// Attempt re-exec on Unix by replacing this process image with a fresh stub.
-/// Returns only if exec failed (falls through to pipe_proxy).
-#[cfg(unix)]
-fn try_reexec() -> ! {
-    use std::os::unix::process::CommandExt;
-
-    let exe = match env::current_exe() {
-        Ok(p) => p,
-        Err(e) => {
-            log!("current_exe failed: {e}");
-            std::process::exit(1);
-        }
-    };
-
-    log!("Re-execing stub: {}", exe.display());
-
-    // CommandExt::exec() replaces the process image; only returns on error.
-    let err = Command::new(&exe).exec();
-    log!("Re-exec failed: {err}");
-    std::process::exit(1);
-}
-
-/// Spawn Python as a child with piped stdio and forward bytes bidirectionally.
-/// Used on Windows, and as a fallback if re-exec is unavailable.
-#[cfg_attr(unix, allow(dead_code))]
-fn pipe_proxy(venv_py: &Path) {
-    log!("Starting pipe proxy to: {}", venv_py.display());
-
-    let mut child = match Command::new(venv_py)
-        .args(["-u", "-m", "memento"])
-        .env("PYTHONUNBUFFERED", "1")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .spawn()
-    {
-        Ok(c) => c,
-        Err(e) => {
-            log!("Failed to spawn Python for pipe proxy: {e}");
-            std::process::exit(1);
-        }
-    };
-
-    let mut child_stdin = child.stdin.take().expect("child stdin");
-    let mut child_stdout = child.stdout.take().expect("child stdout");
-
-    // stdin → child stdin (separate thread)
-    let stdin_thread = thread::spawn(move || {
-        let mut buf = [0u8; 4096];
-        let mut stdin = io::stdin();
-
-        loop {
-            match stdin.read(&mut buf) {
-                Ok(0) | Err(_) => break,
-                Ok(n) => {
-                    if child_stdin.write_all(&buf[..n]).is_err() {
-                        break;
-                    }
-                }
-            }
-        }
-    });
-
-    // child stdout → stdout (main thread)
-    {
-        let mut buf = [0u8; 4096];
-        let mut stdout = io::stdout();
-
-        loop {
-            match child_stdout.read(&mut buf) {
-                Ok(0) | Err(_) => break,
-                Ok(n) => {
-                    if stdout.write_all(&buf[..n]).is_err() || stdout.flush().is_err() {
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    let _ = stdin_thread.join();
-    let code = child.wait().map(|s| s.code().unwrap_or(1)).unwrap_or(1);
-    log!("Pipe proxy child exited: {code}");
-    std::process::exit(code);
-}
-
-// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -673,9 +651,6 @@ fn main() {
         std::env::consts::OS
     );
 
-    // ------------------------------------------------------------------
-    // Phase 1: find system Python.
-    // ------------------------------------------------------------------
     let system_python = match find_python() {
         Some(p) => p,
         None => {
@@ -684,23 +659,14 @@ fn main() {
         }
     };
 
-    // ------------------------------------------------------------------
-    // Phase 2: check venv validity.
-    // ------------------------------------------------------------------
     let venv = venv_dir();
     log!("Venv directory: {}", venv.display());
 
     if venv_is_valid(&venv) {
-        // Fast path — venv is ready, hand off to Python immediately.
         log!("Fast path: venv ready, launching Python directly.");
         launch_python(&venv_python(&venv));
     }
 
-    // ------------------------------------------------------------------
-    // Slow path — venv needs setup.
-    // Spin up setup in a background thread, serve MCP bootstrap on stdio
-    // so Zed does not time out waiting for `initialize`.
-    // ------------------------------------------------------------------
     log!("Slow path: venv not ready, starting bootstrap proxy + setup thread.");
 
     let state = Arc::new(Mutex::new(SetupState::Running));
@@ -712,7 +678,6 @@ fn main() {
         log!("Setup thread started.");
 
         let result = setup_venv(&python_bg, &venv_bg);
-
         let mut s = state_bg.lock().unwrap();
 
         match result {
@@ -727,29 +692,7 @@ fn main() {
         }
     });
 
-    // Run bootstrap proxy until setup finishes (or stdin closes).
-    run_bootstrap_proxy(Arc::clone(&state));
-
-    // ------------------------------------------------------------------
-    // Phase 3: setup done — check outcome and hand off to Python.
-    // ------------------------------------------------------------------
-    let final_state = state.lock().unwrap().clone();
-
-    match final_state {
-        SetupState::Done => {
-            log!("Setup done — handing off to Python.");
-            hand_off_to_python(&venv_python(&venv));
-        }
-        SetupState::Failed(e) => {
-            log!("Setup failed, cannot start Python: {e}");
-            std::process::exit(1);
-        }
-        SetupState::Running => {
-            // stdin was closed before setup finished (user closed Zed).
-            log!("stdin closed before setup finished — exiting.");
-            std::process::exit(0);
-        }
-    }
+    run_bootstrap_proxy(Arc::clone(&state), venv_python(&venv));
 }
 
 // ---------------------------------------------------------------------------
@@ -784,19 +727,4 @@ fn launch_python(venv_py: &Path) -> ! {
     }
 }
 
-/// Slow-path hand-off: after bootstrap proxy, transfer control to Python.
-///
-/// On Unix: re-exec this stub (which will find the now-valid venv and hit
-/// the fast path with fully inherited stdio — no proxy overhead).
-///
-/// On Windows / fallback: use a bidirectional pipe proxy.
-fn hand_off_to_python(venv_py: &Path) -> ! {
-    #[cfg(unix)]
-    {
-        let _ = venv_py;
-        try_reexec();
-    }
 
-    #[cfg(not(unix))]
-    pipe_proxy(venv_py);
-}
