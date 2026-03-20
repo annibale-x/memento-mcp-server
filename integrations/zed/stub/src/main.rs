@@ -677,12 +677,29 @@ fn proxy_to_python(venv_py: &Path, buffered: Vec<String>) -> ! {
 
     // Replay buffered messages + forward future ones from the reader channel.
     thread::spawn(move || {
+        // During bootstrap we already responded to requests like tools/list.
+        // Zed considers those request IDs closed. If we replay them, Python
+        // responds with the same IDs but Zed discards the responses (orphan).
+        // Worse, Zed may also have already timed out waiting for tools/list.
+        //
+        // Strategy: replay ONLY initialize + notifications (no-id messages).
+        // After listChanged, Zed will send a fresh tools/list with a new ID
+        // that Python can answer correctly.
+        let replay_msgs: Vec<&String> = buffered
+            .iter()
+            .filter(|m| {
+                let (_, method) = extract_id_method(m);
+                method == "initialize" || is_notification(m)
+            })
+            .collect();
+
         log!(
-            "Replaying {} buffered message(s) to Python.",
+            "Replaying {}/{} message(s) to Python (initialize + notifications only).",
+            replay_msgs.len(),
             buffered.len()
         );
 
-        for msg in &buffered {
+        for msg in replay_msgs {
             log!("Replay → Python: {}", &msg[..msg.len().min(120)]);
 
             if writeln!(py_stdin, "{}", msg).is_err() {
