@@ -1,5 +1,9 @@
 # Changelog
 
+* 2026-03-20: v0.2.23 - <TITLE> (Hannibal)
+  * <release notes here>
+
+
 * 2026-03-20: v0.2.22 - MCP bootstrap proxy: fix "Context Server Stopped" on Linux (Hannibal)
   * Stub: MCP bootstrap proxy for slow-path (venv not ready on first install/upgrade)
   * Bootstrap serves a minimal JSON-RPC 2.0 MCP server on stdio while pip runs in background thread
