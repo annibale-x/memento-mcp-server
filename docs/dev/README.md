@@ -57,7 +57,7 @@ mcp-memento/
 ├── src/
 │   └── memento/                  ← Python package root
 │       ├── __init__.py           ← __version__ lives here
-│       ├── cli.py                ← CLI entry point (memento / mcp-memento)
+│       ├── cli.py                ← CLI entry point (memento)
 │       ├── server.py             ← MCP server, tool dispatcher
 │       ├── config.py             ← Configuration loader (YAML + env vars)
 │       ├── models.py             ← Pydantic data models
@@ -82,7 +82,7 @@ mcp-memento/
 │               ├── memento-stub-x86_64-unknown-linux-gnu
 │               └── memento-stub-aarch64-unknown-linux-gnu
 │
-├── tests/                        ← pytest test suite (167+ tests)
+├── tests/                        ← pytest test suite (169+ tests)
 ├── docs/
 │   ├── dev/
 │   │   ├── DEV.md               ← this file
@@ -155,7 +155,7 @@ rustc --version   # should be >= 1.85.0
 ## 4. Running Tests
 
 ```bash
-# Full test suite (all 167+ tests)
+# Full test suite (all 169+ tests)
 pytest
 
 # Short output
@@ -186,10 +186,10 @@ here for reference only.
 
 ```bash
 # 1. Dry run — preview everything without side effects
-python scripts/deploy.py bump 0.3.0 --ext 2 --dry-run
+python scripts/deploy.py bump 0.3.0 --dry-run
 
 # 2. Execute the full bump
-python scripts/deploy.py bump 0.3.0 --ext 2 --yes
+python scripts/deploy.py bump 0.3.0 --yes
 
 # What 'bump' does, in order:
 #   a) Runs pytest
@@ -201,39 +201,42 @@ python scripts/deploy.py bump 0.3.0 --ext 2 --yes
 #   e) git add -A && git commit "chore(release): bump version to X.Y.Z"
 #   f) git push origin dev
 #   g) git tag vX.Y.Z && git push origin vX.Y.Z
-#   h) git merge dev → main, git push origin main, checkout dev
-#   i) git tag vX.Y.Z-ext.N && git push origin vX.Y.Z-ext.N
-#      → triggers GitHub Actions to cross-compile stub for all platforms
+#   h) Uploads stub binaries to GitHub release
+#   i) git merge dev → main, git push origin main, checkout dev
 
-# 3. Monitor CI
-gh run list --repo annibale-x/mcp-memento
+# 3. Monitor CI (cross-compiles stub for all 5 platforms)
+gh run list --repo annibale-x/mcp-memento --limit 5
 gh run watch <run-id> --repo annibale-x/mcp-memento
 
-# 4. When CI succeeds — download binaries and commit to repo
-python scripts/deploy.py ext-binaries --ext 2
+# 4. When CI succeeds — pull fresh binaries into repo and commit
+python scripts/deploy.py ext-binaries
 
 # 5. Publish to TestPyPI first (optional but recommended)
-python scripts/deploy.py publish --target testpypi
+python scripts/deploy.py publish --test
 
 # 6. Publish to PyPI
-python scripts/deploy.py publish --target pypi
+python scripts/deploy.py publish
 ```
 
-### Python-only release (no Zed changes)
+### Dev-only release (publish to PyPI later)
 
 ```bash
-python scripts/deploy.py bump 0.3.1 --skip-merge --yes
-python scripts/deploy.py publish --target pypi
+# 1. Release to GitHub only, stay on dev (also rebuilds stub for current platform)
+python scripts/deploy.py bump 0.3.0 --dev --yes
+
+# 2. When ready to publish — automatically merges dev → main before upload
+python scripts/deploy.py publish
 ```
 
-### Zed extension-only release (no Python version bump)
+### Zed extension development loop
 
 ```bash
-# Only push a new ext tag, no version change
-python scripts/deploy.py ext-release --ext 3
+# After modifying stub/src/main.rs only (no version bump needed):
+python scripts/deploy.py build-zed-stub
 
-# Wait for CI, then download and commit binaries
-python scripts/deploy.py ext-binaries --ext 3
+# After any change (Python server, lib.rs, stub) — full dev cycle:
+python scripts/deploy.py bump 0.3.0 --dev --yes
+# Then reload the extension in Zed via "Install Dev Extension"
 ```
 
 ### Build wheel only (no git operations)
@@ -258,23 +261,23 @@ python scripts/deploy.py status
 
 | Command | Description |
 |---|---|
-| `bump X.Y.Z [--ext N]` | Full release cycle |
-| `build` | Build sdist + wheel |
-| `publish --target {testpypi\|pypi}` | Upload dist/* with twine |
-| `ext-release --ext N` | Push IDE extension stub CI tag only |
-| `ext-binaries --ext N` | Download CI artifacts + commit |
-| `status` | Print all version strings |
+| `bump X.Y.Z` | Full release cycle (tests, version bump, build, tag, push, upload stubs, merge) |
+| `build` | Build sdist + wheel only |
+| `publish` | Upload `dist/*` to PyPI (auto-merges dev → main first) |
+| `publish --test` | Upload `dist/*` to TestPyPI |
+| `build-zed-stub` | Build stub binary for current platform and commit |
+| `ext-binaries` | Download CI-built stub binaries from GitHub release and commit |
+| `status` | Print all version strings from every manifest |
 
 ### Options
 
 | Option | Applies to | Description |
 |---|---|---|
-| `--ext N` | `bump`, `ext-release`, `ext-binaries` | Extension release counter (integer) |
-| `--dry-run` | all | Preview without executing |
-| `--skip-tests` | `bump` | Skip pytest |
-| `--skip-merge` | `bump` | Skip dev→main merge |
+| `--dry-run` | all | Preview all actions without executing |
+| `--skip-tests` | `bump` | Skip pytest before release |
+| `--dev` | `bump` | Do not merge `dev → main`; rebuild stub for current platform |
 | `--yes` / `-y` | `bump`, `ext-binaries` | Auto-confirm all prompts |
-| `--version X.Y.Z` | `ext-release`, `ext-binaries` | Override Python version |
+| `--version X.Y.Z` | `ext-binaries` | Override Python version |
 
 ### Files modified by `bump`
 
@@ -376,8 +379,8 @@ Push a Zed release tag — GitHub Actions handles everything:
 ```bash
 git tag v0.3.0-ext.2
 git push origin v0.3.0-ext.2
-# or via deploy script:
-python scripts/deploy.py ext-release --ext 2
+# or via deploy script (promote handles this automatically):
+python scripts/deploy.py promote --yes
 ```
 
 CI compiles all 5 targets in parallel (~1 minute total):
@@ -522,7 +525,7 @@ restores the original `README.md` afterwards. No manual intervention needed.
 
 1. Open Zed → `Extensions`
 2. Scroll to `Memento MCP Server` → `Uninstall`
-3.  → select the  directory inside your local clone
+3. Click `Install Dev Extension` → select the `integrations/zed` directory inside your local clone
 4. Open a project, configure the server
 5. `zed: open log` → search `[MEMENTO-STUB]` for stub output
 

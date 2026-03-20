@@ -1,5 +1,16 @@
 # IDE Integration Guide
 
+## Table of Contents
+
+- [Installation](#installation)
+- [Zed Editor](#zed-editor) — primary reference for Configuration Methods
+- [Cursor](#cursor)
+- [Windsurf](#windsurf)
+- [VSCode](#vscode)
+- [Claude Desktop](#claude-desktop)
+- [Troubleshooting Common Issues](#troubleshooting-common-issues)
+- [Best Practices](#best-practices)
+
 This guide covers how to integrate Memento with various Integrated Development Environments (IDEs) and code editors that support the Model Context Protocol (MCP). Memento provides persistent memory capabilities to enhance your AI-assisted coding experience.
 
 ## Installation
@@ -106,7 +117,7 @@ Memento supports multiple configuration approaches. For clarity, we recommend ch
   "context_servers": {
     "memento": {
       "command": "memento",
-      "args": ["--profile", "extended", "--db", "~/.zed-memento/context.db", "--log-level", "INFO"]
+      "args": ["--profile", "extended", "--db", "~/.mcp-memento/context.db", "--log-level", "INFO"]
     }
   }
 }
@@ -121,7 +132,7 @@ Memento supports multiple configuration approaches. For clarity, we recommend ch
       "args": [],
       "env": {
         "MEMENTO_PROFILE": "extended",
-        "MEMENTO_DB_PATH": "~/.zed-memento/context.db",
+        "MEMENTO_DB_PATH": "~/.mcp-memento/context.db",
         "MEMENTO_LOG_LEVEL": "INFO"
       }
     }
@@ -133,7 +144,7 @@ Memento supports multiple configuration approaches. For clarity, we recommend ch
 Create `~/.mcp-memento/config.yaml`:
 ```yaml
 profile: extended
-db_path: ~/.zed-memento/context.db
+db_path: ~/.mcp-memento/context.db
 logging:
   level: INFO
 ```
@@ -359,7 +370,8 @@ Visual Studio Code can integrate with Memento through the MCP extension, providi
 
 ### Prerequisites
 - **VS Code 1.99+** (MCP support added in this release; use `1.100+` for the stable GA build)
-- **MCP Extension for VSCode** installed
+- **MCP tool-call support via GitHub Copilot Chat**: MCP servers are natively supported when using GitHub Copilot Chat with a model that supports tool calls (e.g. GPT-4o, Claude 3.5 Sonnet). No separate extension required for VS Code 1.99+.
+- Alternatively, install the [**MCP for VS Code**](https://marketplace.visualstudio.com/search?term=MCP&target=VSCode) extension from the Marketplace if you prefer a standalone MCP client outside of Copilot.
 
 ### Configuration
 
@@ -649,65 +661,24 @@ This means Claude Desktop can't find the Memento command. Solutions:
 
 ## Best Practices
 
-### Configuration Management
+> For the full set of memory usage conventions and tool guidelines, see [**RULES.md**](../RULES.md).
 
-1. **Use project-specific configurations** for team projects
-2. **Version control** your `.cursor/mcp.json` or `.vscode/mcp.json` files
-3. **Document** configurations for team members
-4. **Test** configurations before sharing with team
+### Quick Reference
 
-### Memory Management
-
-1. **Backup important memories**:
-   ```bash
-   # Export memories to JSON (use --format, required)
-   memento export --format json --output memories-backup.json
-   ```
-
-3. **Use appropriate profiles**:
-   - `core`: Basic memory operations
-   - `extended`: Most users (adds analytics)
-   - `advanced`: Power users with large databases
-
-### IDE-Specific Tips
-
-**Zed**:
-- Use project-specific configurations for different codebases
-- Leverage Zed's multiplayer features for team knowledge sharing
-
-**Cursor**:
-- Always use Agent mode for memory operations
-- Store patterns as you discover them
-- Query before implementing new features
-
-**Windsurf**:
-- Use consistent tagging for cross-project knowledge
-- Store architectural decisions as you make them
-
-**VSCode**:
-- Configure at workspace level for project-specific memory
-- Combine with GitHub Copilot for enhanced AI assistance
-
-**Claude Desktop**:
-- Use full paths in configuration
-- Store context between different conversation topics
-- Build up project knowledge over multiple sessions
-
-### Performance Optimization
-
-1. **Monitor database growth**:
-   ```bash
-   # Check size periodically
-   du -h ~/.mcp-memento/context.db
-   ```
-
-2. **Archive inactive projects**:
-   ```bash
-   # Export old project memories (--format is required)
-   memento export --format json --output old-project.json
-   ```
-
-3. **Use appropriate profile** for your needs
+- **Configuration**: commit `.cursor/mcp.json` / `.vscode/mcp.json` for team projects; use `~/.config/zed/settings.json` for global Zed config.
+- **Profiles**: `core` for minimal setups, `extended` for most users, `advanced` for large databases.
+- **Backup**:
+  ```bash
+  memento export --format json --output memories-backup.json
+  ```
+- **Monitor DB size**:
+  ```bash
+  du -h ~/.mcp-memento/context.db
+  ```
+- **Zed**: leverage the native extension for Windows; use project-specific configs for team knowledge sharing.
+- **Cursor / Windsurf**: always use Agent mode for memory tool calls.
+- **VSCode**: Agent mode or `@workspace` prefix required for Copilot to invoke tools.
+- **Claude Desktop**: use full binary paths; fully quit and restart after config changes.
 
 ## Next Steps
 

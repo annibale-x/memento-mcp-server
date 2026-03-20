@@ -6,6 +6,18 @@ Ready-to-use snippets for configuring your agent to effectively use Memento. For
 
 ---
 
+## Table of Contents
+- [Memento Auto-Onboarding Protocol](#memento-auto-onboarding-protocol)
+- [Quick Start (Minimal)](#quick-start-minimal)
+- [Recommended (Comprehensive)](#recommended-comprehensive)
+- [Project-Specific Configuration](#project-specific-configuration)
+- [Advanced: Team Collaboration](#advanced-team-collaboration)
+- [Domain-Specific Examples](#domain-specific-examples)
+- [Testing Your Configuration](#testing-your-configuration)
+- [Troubleshooting](#troubleshooting)
+
+---
+
 ## Memento Auto-Onboarding Protocol
 
 Memento is designed to automatically inject its memory management protocol through the `memento_onboarding()` tool. Even without specific configuration protocols, Memento can provide comprehensive onboarding guidance.

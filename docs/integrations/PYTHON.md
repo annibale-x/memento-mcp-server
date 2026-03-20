@@ -60,12 +60,11 @@ memento --version
 memento --health
 ```
 
-The package installs two equivalent CLI entry points:
+The package installs one CLI entry point:
 
 | Command | Description |
 |---|---|
 | `memento` | Primary entry point |
-| `mcp-memento` | Alias — identical behaviour |
 
 ---
 
@@ -432,7 +431,7 @@ Example JSON output:
 ```json
 {
   "status": "healthy",
-  "version": "0.2.6",
+  "version": "X.Y.Z",
   "backend_type": "sqlite",
   "connected": true,
   "db_path": "/home/user/.mcp-memento/context.db",

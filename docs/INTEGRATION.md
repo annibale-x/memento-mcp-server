@@ -1,5 +1,19 @@
 # Integration Guide
 
+## Table of Contents
+
+- [Integration Categories](#integration-categories)
+  - [1. IDE Integrations](#1-ide-integrations)
+  - [2. Python Integrations](#2-python-integrations)
+  - [3. Agent Integrations](#3-agent-integrations)
+- [Quick Start Examples](#quick-start-examples)
+- [Choosing the Right Integration](#choosing-the-right-integration)
+- [Configuration Hierarchy](#configuration-hierarchy)
+- [Common Integration Patterns](#common-integration-patterns)
+- [Concurrency and Locking](#concurrency-and-locking)
+- [Getting Help](#getting-help)
+- [Next Steps](#next-steps)
+
 This guide provides an overview of Memento integration options. For detailed instructions, please refer to the specific integration guides.
 
 ## Integration Categories
@@ -50,57 +64,12 @@ For CLI tools and custom applications.
 
 ## Quick Start Examples
 
-### Configuration Methods
-Memento supports multiple configuration approaches. For clarity, we recommend choosing **one method consistently**:
-
-**Method A: CLI Arguments** (recommended - most explicit)
-```json
-{
-  "context_servers": {
-    "memento": {
-      "command": "memento",
-      "args": ["--profile", "extended", "--db", "~/.mcp-memento/context.db"]
-    }
-  }
-}
-```
-
-**Method B: Environment Variables**
-```json
-{
-  "context_servers": {
-    "memento": {
-      "command": "memento",
-      "args": [],
-      "env": {
-        "MEMENTO_PROFILE": "extended",
-        "MEMENTO_DB_PATH": "~/.mcp-memento/context.db"
-      }
-    }
-  }
-}
-```
-
-**Method C: YAML Configuration File**
-Create `~/.mcp-memento/config.yaml`:
-```yaml
-profile: extended
-db_path: ~/.mcp-memento/context.db
-```
-Then use minimal JSON config:
-```json
-{
-  "context_servers": {
-    "memento": {
-      "command": "memento",
-      "args": []
-    }
-  }
-}
-```
+> **Configuration Methods**: Memento supports CLI arguments, environment variables, and YAML config files.
+> See the full reference in [IDE Integration Guide — Configuration Methods](./integrations/IDE.md#configuration-methods)
+> or [README — Configuration](../README.md#configuration).
 
 ### IDE Example (Zed Editor)
-Using **Method A: CLI Arguments** (recommended):
+Minimal config using CLI arguments (recommended):
 ```json
 {
   "context_servers": {
@@ -203,7 +172,6 @@ Memento supports multiple configuration sources. Order of precedence (highest fi
    The `memento.yaml` file is searched in this order (first found wins):
    - Current working directory (`./memento.yaml`)
    - User home directory (`~/.mcp-memento/config.yaml`)
-   - System config directory (`/etc/memento/memento.yaml` on Linux/macOS)
 
 4. **Built-in defaults** (lowest priority)
 
@@ -226,10 +194,16 @@ memento --profile extended
 ### Pattern 2: Team Shared Memory
 Share a database across team members:
 ```bash
-# Use shared network location
+# Linux/macOS: use a shared network mount
 export MEMENTO_DB_PATH="/mnt/shared/team-memory.db"
+
+# Windows: use a UNC path or mapped drive
+# set MEMENTO_DB_PATH=\\server\share\team-memory.db
+# set MEMENTO_DB_PATH=Z:\team-memory.db
+
 memento --profile extended
 ```
+> **Note (Windows)**: `/mnt/shared/...` is a Unix-style path. Use a UNC path or mapped drive letter instead.
 
 ### Pattern 3: Development vs Production
 Different profiles for different environments:
@@ -287,7 +261,6 @@ If you encounter "database is locked" errors:
 
 ### Community Support
 - **GitHub Issues**: [Report bugs or request features](https://github.com/annibale-x/mcp-memento/issues)
-- **Discussions**: [Community forum](https://github.com/annibale-x/mcp-memento/discussions)
 - **Documentation**: Check the `docs/` directory for complete guides
 
 ## Next Steps

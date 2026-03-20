@@ -1,5 +1,22 @@
 # Changelog
 
+* 2026-03-20: v0.2.19 - Documentation audit and cleanup (Hannibal)
+  * Rewrote API.md: removed non-existent HTTP REST/FastAPI/Node.js SDK/Kubernetes content; now documents only MCP client, Docker, and CLI export/import
+  * Fixed DECAY_SYSTEM.md: removed phantom bi-temporal SQL fields, non-existent YAML config keys, missing CI workflow references, and obsolete sections
+  * Fixed CONTRIBUTING.md: corrected changelog format, removed obsolete manual release checklist, updated project structure, removed mcp-memento entry point reference
+  * Rewrote tests/README.md: accurate test file list, correct pytest/pytest-asyncio template, removed legacy run_tests.py references
+  * Removed mcp-memento CLI alias entry point (was a no-op gui-script wrapper)
+  * Removed memento-gui gui-script entry point (crashed silently due to pythonw.exe suppressing stdio)
+  * Added TOC to 8 documents that lacked one (TOOLS, RELATIONSHIPS, AGENT_CONFIGURATION, INTEGRATION, SCHEMA, DECAY_SYSTEM, IDE, AGENT)
+  * Eliminated duplicate Claude Desktop section between IDE.md and AGENT.md
+  * Eliminated 5+ redundant copies of Configuration Methods across integration guides
+  * Aligned docs/dev/README.md and scripts/README.md release workflow documentation
+  * Fixed Python 3.8+ → 3.10+ in ZED.md and integrations/zed/README.md
+  * Fixed ~/.zed-memento path → ~/.mcp-memento in IDE.md
+  * Fixed RELATIONSHIPS.md: replaced non-existent EXEMPLIFIES type with CONFIRMS
+  * Removed /etc/memento/memento.yaml (never implemented) from INTEGRATION.md
+  * Compacted README.md: added TOC, reduced Natural Language section, compacted Background section
+
 * 2026-03-19: v0.2.18 - Debug logging opt-in and deploy.py CLI redesign (Hannibal)
   * Zed extension and stub logging disabled by default; both enabled via debug.enable marker file in Zed work directory
   * Stub debug_enabled() checks MEMENTO_WORK_DIR first, then falls back to stub binary directory
@@ -43,7 +60,6 @@
   * Fixed changelog duplication: --dev bumps no longer write to CHANGELOG.md
   * Fixed changelog deduplication: prepend_changelog skips silently if entry already exists
   * Changed changelog strategy: --dev scaffolds a placeholder entry; prod bump verifies entry is filled and blocks on placeholder text
-
 
 * 2026-03-19: v0.2.11 - deploy.py robustness fixes for release workflow (Hannibal)
   * Fixed bump command crashing when prod release attempted after a --dev bump on the same version (tag exists only locally)
@@ -409,21 +425,3 @@
 - **Major version (0.x.y)**: Breaking changes to API or architecture
 - **Minor version (0.x.y)**: New features and enhancements
 - **Patch version (0.x.y.z)**: Bug fixes and minor improvements
-
-## Migration Notes
-
-### From v0.1.3 to v0.1.4
-- This version removes all non-SQLite backend support
-- Configuration is now simplified with only SQLite options
-- Multi-tenant features have been removed
-- The system is now focused on single-user, local storage for Zed editor
-
-### From original MemoryGraph
-- This fork focuses on simplicity and Zed editor integration
-- Only SQLite backend is supported
-- Advanced features have been removed in favor of core functionality
-- The project is now named "mcp-memento" to reflect its purpose
-
-## Acknowledgments
-
-This project is a simplified fork of the original MemoryGraph project by Gregory Dickson, adapted specifically for Zed editor integration with a focus on simplicity and local storage.

@@ -1,330 +1,213 @@
-# Test Suite Documentation - mcp-memento
-
-## Overview
-
-This test suite validates the functionality, reliability, and integration capabilities of the **mcp-memento** project. The suite ensures that the MCP Memento server operates correctly with SQLite backend and integrates seamlessly with Zed editor.
-
-## Test Architecture
-
-### Test Files Structure
-
-```
-tests/
-├── test_relationships.py          # Memory relationship functionality tests
-├── test_tools.py                  # MCP tools and protocol tests
-├── test_server_startup.py         # Server initialization and CLI tests
-├── test_import.json               # Sample data for import/export testing
-├── run_tests.py                   # Main test runner with reporting
-├── README.md                      # This documentation
-└── test_data/                     # Test databases (gitignored)
-```
-
-### Test Categories
-
-| Category | File | Coverage |
-|----------|------|----------|
-| **Core Functionality** | `test_relationships.py` | Memory relationships, relationship types, bidirectional queries, filtering |
-| **MCP Protocol** | `test_tools.py` | All MCP tools, parameter validation, error handling, search functionality |
-| **Server Operations** | `test_server_startup.py` | Server initialization, CLI commands, health checks, configuration |
-| **Data Operations** | All files | Import/export, data integrity, JSON validation |
-
-## Running Tests
-
-### Quick Start Commands
-
-```bash
-# From project root directory
-cd tests
-python run_tests.py
-
-# With verbose output
-python run_tests.py -v
-
-# Save results to JSON file
-python run_tests.py -o results.json
-
-# Run specific test file
-python test_relationships.py
-python test_tools.py
-```
-
-### Platform-Specific Scripts
-
-#### Windows
-```batch
-run_tests.bat              # Basic test run
-run_tests.bat -v           # Verbose output
-run_tests.bat -o results.json  # Save results
-```
-
-#### Unix/Linux/MacOS
-```bash
-chmod +x run_tests.sh      # Make executable (first time)
-./run_tests.sh             # Basic test run
-./run_tests.sh -v          # Verbose output
-./run_tests.sh -o results.json  # Save results
-```
-
-### Test Runner Options
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| `-v`, `--verbose` | Enable verbose output | `python run_tests.py -v` |
-| `-o`, `--output` | Save results to JSON file | `python run_tests.py -o results.json` |
-| `--list` | List available test files | `python run_tests.py --list` |
-| `--help` | Show help message | `python run_tests.py --help` |
-
-## Test Coverage
-
-### 1. Memory Relationship Tests (`test_relationships.py`)
-- **Relationship Creation**: Valid relationship type creation and validation
-- **Bidirectional Queries**: Forward and backward relationship traversal
-- **Type Filtering**: Filtering relationships by specific types
-- **Error Handling**: Invalid relationship type handling
-- **Memory Connectivity**: Graph connectivity and path finding
-
-### 2. MCP Tools Tests (`test_tools.py`)
-- **Basic Operations**: `store_memento`, `get_memento`, `update_memento`, `delete_memento`
-- **Search Operations**: `search_mementos`, `contextual_memento_search`
-- **Relationship Tools**: `create_memento_relationship`, `get_related_mementos`
-- **Analytics Tools**: `get_memento_statistics`, `get_recent_memento_activity`
-- **Advanced Tools**: `find_path_between_mementos`, `analyze_memento_graph`
-
-### 3. Server Startup Tests (`test_server_startup.py`)
-- **CLI Commands**: `--show-config`, `--health`, `--profile` options
-- **Server Initialization**: Proper MCP server startup and stdio communication
-- **Configuration**: Environment variable and YAML configuration handling
-- **Error Handling**: Graceful error recovery and cleanup
-
-### 4. Integration Tests
-- **Zed MCP Protocol**: Proper JSON-RPC communication
-- **Environment Variables**: `MEMENTO_DB_PATH`, `MEMENTO_PROFILE` handling
-- **Database Operations**: SQLite connection and transaction management
-- **Unicode Support**: UTF-8 encoding for tool descriptions and memory content
-
-## Test Data
-
-### Sample Data (`test_import.json`)
-Contains comprehensive test data with:
-- **6 sample memories** covering different types (configuration, decision, reference, issue, bug_fix, learning)
-- **6 relationships** with various types (depends_on, related_to, caused_by, solution_for, learned_from, context_for)
-- **Complete metadata** for testing import/export functionality
-
-### Test Database
-- **Location**: `tests/test_data/test_memory.db`
-- **Format**: SQLite with optimized schema for mcp-memento
-- **Management**: Automatically created/cleaned during tests
-- **Git Ignored**: Excluded from version control via `.gitignore`
-
-## Writing New Tests
-
-### Test Template
-```python
-#!/usr/bin/env python3
-"""
-Test module description.
-"""
-
-import asyncio
-import sys
-import os
-
-# Add project root to Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from memento import Memento
-from memento.models import Memory, MemoryType, RelationshipType
-
-async def main() -> bool:
-    """
-    Main test function - REQUIRED for test runner compatibility.
-    
-    Returns:
-        bool: True if all tests pass, False otherwise
-    """
-    print("[INFO] Starting test: Your Test Name")
-    
-    try:
-        # Initialize server
-        server = Memento()
-        await server.initialize()
-        
-        # Test 1: Basic functionality
-        print("  [TEST] Testing basic operation...")
-        # Your test code here
-        
-        # Test 2: Error handling
-        print("  [TEST] Testing error handling...")
-        # Your test code here
-        
-        # Cleanup
-        await server.cleanup()
-        
-        print("[PASS] All tests completed successfully")
-        return True
-        
-    except Exception as e:
-        print(f"[FAIL] Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-if __name__ == "__main__":
-    success = asyncio.run(main())
-    sys.exit(0 if success else 1)
-```
-
-### Test Requirements
-1. **Async `main()` function**: Must be async and return boolean
-2. **Clear output**: Use `[PASS]`, `[FAIL]`, `[INFO]` prefixes
-3. **Resource cleanup**: Always clean up server instances
-4. **Error handling**: Catch and report exceptions appropriately
-5. **Platform compatibility**: Use ASCII indicators for Windows compatibility
-
-### Best Practices
-- **Isolate tests**: Each test should be independent
-- **Mock external dependencies**: Use mocks for network/database when appropriate
-- **Test edge cases**: Include boundary conditions and error scenarios
-- **Document test purpose**: Clear comments explaining what each test validates
-
-## Test Output Format
-
-### Standard Output Format
-```
-[HH:MM:SS] [LEVEL] Message content
-```
-
-### Status Indicators
-| Indicator | Meaning | Platform |
-|-----------|---------|----------|
-| `[PASS]` | Test passed | All platforms |
-| `[FAIL]` | Test failed | All platforms |
-| `[INFO]` | Informational message | All platforms |
-| `[WARN]` | Warning or skipped test | All platforms |
-| `[OK]` | Operation successful | All platforms |
-| `[ERROR]` | Error occurred | All platforms |
-
-## Continuous Integration
-
-### CI/CD Integration
-The test suite is designed for seamless CI/CD integration:
-
-- **Exit codes**: Returns 0 on success, non-zero on failure
-- **JSON output**: Machine-readable results for CI reporting
-- **No interactive prompts**: Fully automated execution
-- **Resource cleanup**: Automatic cleanup of test artifacts
-
-### Environment Variables for CI
-```bash
-# Database configuration
-export MEMENTO_DB_PATH=tests/test_data/ci_test.db
-
-# Tool profile
-export MEMENTO_PROFILE=extended
-
-# Logging
-export MEMENTO_LOG_LEVEL=INFO
-
-# Encoding (important for Windows CI)
-export PYTHONIOENCODING=utf-8
-export PYTHONUTF8=1
-```
-
-## Troubleshooting
-
-### Common Issues and Solutions
-
-| Issue | Solution |
-|-------|----------|
-| **Import errors** | Run from `tests` directory or add project root to Python path |
-| **Database errors** | Ensure write permissions to `test_data` directory |
-| **Unicode errors** | Set `PYTHONIOENCODING=utf-8` and `PYTHONUTF8=1` environment variables |
-| **Async errors** | Ensure `main()` is async and uses `asyncio.run()` |
-| **Windows path issues** | Use forward slashes in paths and proper escaping |
-
-### Debugging Tests
-```bash
-# Run single test with debug output
-python -m pdb test_relationships.py
-
-# Run with increased verbosity
-python test_tools.py 2>&1 | tee debug.log
-
-# Check test database
-sqlite3 tests/test_data/test_memory.db ".tables"
-```
-
-### Test Database Management
-```bash
-# Clean test database
-rm -f tests/test_data/*.db
-
-# Inspect test database schema
-sqlite3 tests/test_data/test_memory.db ".schema"
-
-# Export test data
-sqlite3 tests/test_data/test_memory.db ".dump" > backup.sql
-```
-
-## Performance Considerations
-
-### Test Optimization
-- **Database isolation**: Each test uses isolated database connections
-- **Async operations**: All tests use async/await for better performance
-- **Resource pooling**: Connection pooling for database operations
-- **Cleanup hooks**: Automatic cleanup of test artifacts
-
-### Memory Management
-- **Context managers**: Use `async with` for resource management
-- **Connection pooling**: Reuse database connections when possible
-- **Batch operations**: Group related operations for efficiency
-- **Cleanup verification**: Verify resources are properly released
-
-## Version Compatibility
-
-### Python Version Support
-- **Primary**: Python 3.10+
-- **Tested**: Python 3.11, 3.12
-- **Async support**: Full async/await compatibility
-
-### Platform Support
-| Platform | Status | Notes |
-|----------|--------|-------|
-| **Windows** | ✅ Fully supported | ASCII indicators, path handling |
-| **Linux** | ✅ Fully supported | UTF-8 native, standard paths |
-| **macOS** | ✅ Fully supported | Unix-like, UTF-8 native |
-
-### Dependencies
-- **mcp-memento**: Parent package (in development mode)
-- **SQLite3**: Included with Python standard library
-- **pytest**: Optional for advanced testing patterns
-- **asyncio**: Standard library for async operations
-
-## Contributing to Tests
-
-### Adding New Tests
-1. **Create test file** in `tests/` directory
-2. **Follow template structure** with async `main()` function
-3. **Add comprehensive test cases** covering functionality and edge cases
-4. **Test locally** before committing
-5. **Update documentation** if adding new test categories
-
-### Test Quality Standards
-- **Code coverage**: Aim for high coverage of critical paths
-- **Readability**: Clear test names and comments
-- **Maintainability**: Easy to update when code changes
-- **Performance**: Efficient execution without unnecessary delays
-- **Reliability**: Consistent results across runs
-
-## License and Attribution
-
-### License
-Same as main project - **MIT License**.
-
-### Acknowledgments
-Test suite developed as part of the **mcp-memento** project for Zed editor integration. Special focus on Windows compatibility and MCP protocol compliance.
+# Test Suite — mcp-memento
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Test Files](#test-files)
+- [Directory Structure](#directory-structure)
+- [Running Tests](#running-tests)
+- [Configuration](#configuration)
+- [Writing New Tests](#writing-new-tests)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-*Last Updated: 2026-03-15*  
-*Test Suite Version: Compatible with mcp-memento v0.1.14+*
+## Overview
+
+This directory contains the full pytest-based test suite for mcp-memento. Tests cover core models,
+database operations, CLI, MCP tools, FTS search, pagination, relationships, confidence system,
+context extraction, and server startup.
+
+---
+
+## Test Files
+
+| File | Description |
+|------|-------------|
+| `test_standard_pytest.py` | Comprehensive pytest suite covering configuration, models, database, tools, CLI, and integration. Uses fixtures for DB isolation. |
+| `test_cli.py` | CLI functionality: argument parsing, `--health`, `--show-config`, `--profile`, import/export handlers. |
+| `test_tools.py` | Tool models, definitions, registry, and parameter validation. |
+| `test_relationships.py` | Relationship models, types, validation, and serialization. |
+| `test_server_startup.py` | Server initialization, database connection, and basic startup behaviour. |
+| `test_confidence_system.py` | Confidence decay, intelligent decay rules per memory type, boost-on-access, low-confidence detection, critical-memory exemption. |
+| `test_fts_integration.py` | Full-Text Search schema creation, search operations, ranking, and error handling. |
+| `test_pagination.py` | `paginate_memories` and `count_memories` utilities with async mocks. |
+| `test_context_extractor.py` | `extract_context_structure`, `parse_context`, and all private extractor helpers. |
+| `test_project_detection.py` | `detect_project_context` return shape and required keys. |
+
+---
+
+## Directory Structure
+
+```
+tests/
+├── README.md                   # This file
+├── test_standard_pytest.py     # Comprehensive fixture-based suite
+├── test_cli.py                 # CLI tests
+├── test_tools.py               # Tool model/registry tests
+├── test_relationships.py       # Relationship model tests
+├── test_server_startup.py      # Server startup tests
+├── test_confidence_system.py   # Confidence system tests
+├── test_fts_integration.py     # Full-Text Search tests
+├── test_pagination.py          # Pagination utility tests
+├── test_context_extractor.py   # Context extractor tests
+├── test_project_detection.py   # Project detection tests
+├── run_tests.py                # Legacy runner (do not use)
+├── run_tests.bat               # Legacy Windows script (do not use)
+├── run_tests.sh                # Legacy Unix script (do not use)
+├── utils/                      # Shared test helpers
+└── test_data/                  # Temporary test databases (git-ignored)
+```
+
+---
+
+## Running Tests
+
+All tests are executed with **pytest** from the project root.
+
+### Run the full suite
+
+```bash
+pytest tests/
+```
+
+### Run with verbose output
+
+```bash
+pytest tests/ -v
+```
+
+### Run a single file
+
+```bash
+pytest tests/test_cli.py -v
+```
+
+### Run a single test by name
+
+```bash
+pytest tests/test_confidence_system.py -k "test_decay"
+```
+
+### Run with coverage
+
+```bash
+pytest tests/ --cov=memento --cov-report=term-missing
+```
+
+### Run only async tests
+
+```bash
+pytest tests/ -m asyncio
+```
+
+---
+
+## Configuration
+
+pytest behaviour is controlled by `pyproject.toml` (or `pytest.ini`) in the project root.
+Key settings:
+
+```
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+```
+
+Useful environment variables:
+
+```bash
+MEMENTO_DB_PATH=tests/test_data/ci_test.db
+MEMENTO_PROFILE=extended
+MEMENTO_LOG_LEVEL=WARNING
+PYTHONIOENCODING=utf-8   # required on Windows CI
+PYTHONUTF8=1             # required on Windows CI
+```
+
+---
+
+## Writing New Tests
+
+### Sync test (no async)
+
+```python
+# tests/test_example.py
+import pytest
+from memento.models import Memory
+
+
+def test_memory_title_required():
+    with pytest.raises(Exception):
+        Memory(title=None)
+```
+
+### Async test with pytest-asyncio
+
+```python
+# tests/test_example_async.py
+import pytest
+from unittest.mock import AsyncMock
+
+
+@pytest.mark.asyncio
+async def test_store_and_retrieve(temp_db_path):
+    # temp_db_path fixture is defined in test_standard_pytest.py
+    # or define your own via conftest.py
+    db = AsyncMock()
+    db.store.return_value = {"id": "abc", "title": "Example"}
+
+    result = await db.store({"title": "Example"})
+
+    assert result["id"] == "abc"
+```
+
+### Fixture for isolated DB
+
+```python
+import os
+import tempfile
+import pytest
+
+
+@pytest.fixture
+def temp_db_path():
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+        path = tmp.name
+    yield path
+    if os.path.exists(path):
+        os.unlink(path)
+```
+
+### Best practices
+
+- One assertion focus per test function.
+- Use `pytest.fixture` for setup/teardown — never global state.
+- Mock external I/O (`AsyncMock`, `MagicMock`, `patch`).
+- Name tests as `test_<what>_<condition>` for clarity.
+- Keep test data in `tests/test_data/` (git-ignored).
+
+---
+
+## Troubleshooting
+
+| Symptom | Solution |
+|---------|----------|
+| `ModuleNotFoundError: memento` | Run pytest from the **project root**, not from `tests/`. |
+| `ScopeMismatch` with async fixtures | Ensure `asyncio_mode = "auto"` is set in `pyproject.toml`. |
+| Database permission errors | Verify write access to `tests/test_data/`. |
+| Unicode decode errors on Windows | Set `PYTHONIOENCODING=utf-8` and `PYTHONUTF8=1`. |
+| Stale `.pyc` / import cache issues | Run `pytest --cache-clear` or delete `__pycache__` dirs. |
+
+### Inspect a test database manually
+
+```bash
+sqlite3 tests/test_data/test_memory.db ".tables"
+sqlite3 tests/test_data/test_memory.db ".schema memories"
+```
+
+### Clean all test artifacts
+
+```bash
+find tests/test_data -name "*.db" -delete
+find tests -name "__pycache__" -type d -exec rm -rf {} +
+```

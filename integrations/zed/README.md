@@ -42,7 +42,13 @@ a `Command` to Zed. It uses a **download-first with local cache** strategy:
 | 2 | `<download-name>` in WASM CWD | Cached from a previous download |
 | 3 | GitHub Release `vX.Y.Z` | Downloaded on first run, cached for future runs |
 
-The WASM CWD is `%LOCALAPPDATA%\Zed\extensions\work\mcp-memento\` on Windows.
+The WASM CWD is:
+
+| Platform | WASM CWD |
+|----------|----------|
+| Windows | `%LOCALAPPDATA%\Zed\extensions\work\mcp-memento\` |
+| macOS | `~/Library/Application Support/Zed/extensions/work/mcp-memento/` |
+| Linux | `~/.local/share/zed/extensions/work/mcp-memento/` |
 
 #### 2. Native stub (`stub/src/main.rs`)
 
@@ -97,7 +103,7 @@ They are used by the marketplace install path (Zed copies them into the work dir
   rustup target add wasm32-wasip1
   ```
 - **Zed Editor** installed.
-- **Python 3.8+** on the host system.
+- **Python 3.10+** on the host system.
 
 ---
 
@@ -168,32 +174,56 @@ const BUNDLED_BIN_DIR: &str = "stub/bin";   // Relative to WASM CWD
 
 ## 7. Release Workflow
 
-The full release is handled by `scripts/deploy.py`. The intended workflow is:
+The full release is handled by `scripts/deploy.py`. See [`scripts/README.md`](../../scripts/README.md)
+for the authoritative command reference.
+
+### Typical flow
 
 ```
-sviluppo → bump → test & fix → bump → promote → publish
+# 1. Dry run — verify everything looks correct
+python scripts/deploy.py bump X.Y.Z --dry-run
+
+# 2. Full release (bumps versions, builds, tags, pushes, uploads stub binaries, merges dev → main)
+python scripts/deploy.py bump X.Y.Z --yes
+
+# 3. Publish to PyPI (merge dev → main is done automatically if not already merged)
+python scripts/deploy.py publish --target pypi
 ```
 
+### Dev-only release (publish to PyPI later)
+
 ```
-# Dev bump (local tag only, no CI, no PyPI — always non-interactive):
-python scripts/deploy.py bump X.Y.Z
+# Release to GitHub only, stay on dev (also rebuilds stub for current platform):
+python scripts/deploy.py bump X.Y.Z --dev --yes
 
-# Promote current dev version to official release (triggers CI):
-python scripts/deploy.py promote --yes
-
-# Publish to PyPI:
-python scripts/deploy.py publish
-
-# Publish to TestPyPI:
-python scripts/deploy.py publish --test
+# When ready to publish — publish automatically merges dev → main first:
+python scripts/deploy.py publish --target pypi
 ```
 
-On `promote`:
-- CHANGELOG entry is verified (must not contain placeholder text).
-- `dev` is merged into `main`.
-- Tag `vX.Y.Z` is pushed, triggering GitHub Actions (`.github/workflows/zed-stub-release.yml`).
-- CI cross-compiles stub binaries for all 5 targets and uploads them to the GitHub Release.
-- `deploy.py` also uploads the local binaries from `stub/bin/` as a safety net.
+### Zed extension development loop
+
+```
+# After modifying stub/src/main.rs only (no version bump needed):
+python scripts/deploy.py build-zed-stub
+
+# After any change (Python server, lib.rs, stub) — full dev cycle:
+python scripts/deploy.py bump X.Y.Z --dev --yes
+# Then reload the extension in Zed via "Install Dev Extension"
+```
+
+On a full `bump` (without `--dev`):
+- Versions are bumped across all manifests (`pyproject.toml`, `extension.toml`, `Cargo.toml`, `lib.rs`).
+- `CHANGELOG.md` and `README.md` badges are updated.
+- `dev` is merged into `main`, tag `vX.Y.Z` is pushed.
+- GitHub Actions (`.github/workflows/zed-stub-release.yml`) cross-compiles stub binaries
+  for all 5 targets and uploads them to the GitHub Release.
+- Local binaries from `stub/bin/` are also uploaded as a safety net.
+
+After CI finishes, optionally pull fresh CI-built binaries into the repo:
+
+```
+python scripts/deploy.py ext-binaries
+```
 
 ---
 

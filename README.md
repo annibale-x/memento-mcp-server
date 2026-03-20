@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-blueviolet)](https://spec.modelcontextprotocol.io/)
-[![Latest Release](https://img.shields.io/badge/release-v0.2.18-purple.svg)](https://github.com/annibale-x/mcp-memento/releases/tag/v0.2.18)
+[![Latest Release](https://img.shields.io/badge/release-v0.2.19-purple.svg)](https://github.com/annibale-x/mcp-memento/releases/tag/v0.2.19)
 
 Intelligent memory management for MCP clients with confidence tracking, relationship mapping, and knowledge quality maintenance.
 
@@ -14,6 +14,18 @@ Memento is an MCP server that provides persistent memory capabilities across mul
 - **Applications**: Any MCP-compatible application
 
 Build a personal or team knowledge base that grows smarter over time, accessible from all your development tools.
+
+## Table of Contents
+
+- [🌱 A Gentle Introduction](#-a-gentle-introduction)
+- [🚀 Quick Start](#-quick-start)
+- [⚙️ Configuration](#️-configuration)
+- [💬 Natural Language Interaction](#-natural-language-interaction-chat-based)
+- [🔗 Integrations](#-integrations)
+- [📖 Core Concepts](#-core-concepts)
+- [🔄 Memento Auto-Onboarding Protocol](#-memento-auto-onboarding-protocol)
+- [📜 Background](#-background)
+- [🙏 Acknowledgments](#-acknowledgments)
 
 ## 🌱 A Gentle Introduction
 
@@ -127,6 +139,7 @@ Then use minimal JSON config:
 ```bash
 gemini --mcp-servers memento
 ```
+> **Note**: The exact flag syntax depends on your Gemini CLI version. Refer to [AGENT_CONFIGURATION.md](./docs/AGENT_CONFIGURATION.md) for version-specific setup instructions.
 
 ### 3. First Steps
 
@@ -153,10 +166,6 @@ recall_mementos(query="Redis timeout solutions")
 
 **💬 Natural Language**: You can also interact with Memento through natural conversation. Just tell your AI assistant things like "Remember that..." or "Store this..." or "Memento..."- no code required.
 
-
-## 🔄 Memento Auto-Onboarding Protocol
-
-Memento injects its memory management protocol into AI agents automatically via the `memento_onboarding()` tool. For detailed agent configurations and copy-paste prompt templates, refer to [AGENT_CONFIGURATION.md](./docs/AGENT_CONFIGURATION.md).
 
 ## 📖 Core Concepts
 
@@ -245,65 +254,27 @@ related = get_related_mementos(
 
 ### Natural Language Interaction (Chat-Based)
 
-Memento is designed to work seamlessly through natural language conversations with your AI assistant. You can interact with memories using everyday language:
+Memento works through natural language conversations. The AI assistant interprets intent and calls the appropriate tools automatically.
 
-**Store personal information:**
-```
-User: Remember that my name is Hannibal
-AI: ✅ Memento stored - "Your name is Hannibal"
-
-User: Remember that I love programming in Rust
-AI: ✅ Memento stored and relationship created: "Hannibal loves Rust programming"
-```
-
-**Store work-related knowledge:**
+**Store information:**
 ```
 User: Remember that we solved Redis timeout with connection pooling
-AI: ✅ Memento stored and linked to previous problem - "Redis timeout solution with connection pooling"
-
-User: Store this fix: increased database timeout to 30 seconds
-AI: ✅ Memento stored - "Database timeout fix: 30 seconds"
+AI: ✅ Memento stored - "Redis timeout solution: connection pooling"
 ```
 
-**Retrieve knowledge naturally:**
+**Retrieve knowledge:**
 ```
 User: What do you remember about Redis timeout?
 AI: Found 2 solutions: 1) Connection pooling... 2) Query optimization...
-
-User: What do we know about WebSocket memory leaks?
-AI: Found 3 solutions: 1) Proper cleanup in on_close()... 2) Buffer management... 3) Connection limits...
-```
-
-**Create relationships automatically:**
-```
-User: Remember that the connection pooling solution solves the Redis timeout
-AI: ✅ Memento stored and relationship created: solution SOLVES problem
-
-User: Remember that the WebSocket fix addresses the memory leak issue
-AI: ✅ Memento stored and relationship created: fix ADDRESSES error
 ```
 
 **Using the "Memento" keyword:**
-You can also start any sentence with "Memento" to store or retrieve information:
 ```
-User: Memento I love coffee
-AI: ✅ Memento stored - "Hannibal loves coffee"
-
-User: Memento what is the Gemini API key for the project?
-AI: Found API key: "AIzaSyD...". Would you like me to store this information securely?
-
 User: Memento the deployment script is in /scripts/deploy.sh
 AI: ✅ Memento stored - "Deployment script location: /scripts/deploy.sh"
-
-User: Memento how do we handle authentication?
-AI: Found 3 authentication patterns: 1) JWT with refresh tokens... 2) OAuth2 integration... 3) API key middleware...
 ```
 
-**Automatic storage**
-The AI assistant automatically stores important information without explicit commands when configured with proper guidelines
-
-**Multi-language support:**
-Memento understands trigger phrases in multiple languages; this natural language interface makes Memento accessible to everyone, not just developers, while maintaining all the advanced features like confidence tracking and relationship mapping in the background.
+The AI can also store important information automatically when configured with the guidelines in [AGENT_CONFIGURATION.md](./docs/AGENT_CONFIGURATION.md).
 
 ## ⚙️ Configuration
 
@@ -382,36 +353,19 @@ The system works identically across all platforms:
 
 ## 📜 Background
 
-Memento is a simplified, lightweight fork of the original [MemoryGraph](https://github.com/memory-graph/memory-graph) project by Gregory Dickson. The goal of this fork is to create a focused, portable memory management system specifically optimized for MCP (Model Context Protocol) integration across all major IDEs and CLI agents.
+Memento is a simplified, lightweight fork of [MemoryGraph](https://github.com/memory-graph/memory-graph) by Gregory Dickson, optimized for MCP integration across IDEs and CLI agents.
 
-### Why a Simplified Fork?
-MemoryGraph is a powerful, feature-rich memory system with extensive capabilities. However, for MCP integration and broad IDE compatibility, we needed a more focused approach:
-
-- **Lightweight & Portable**: Removed heavy dependencies like NetworkX and complex backend systems
-- **Token-Efficient**: Simplified architecture reduces token consumption in AI interactions
-- **Cross-Platform Focus**: Optimized for seamless integration with Zed, Cursor, Windsurf, VSCode, Claude Desktop, and CLI agents
-- **Core Features Only**: Focused on essential memory operations, confidence tracking, and relationship mapping
-- **Simplified Storage**: SQLite-only backend removes complexity of multi-backend support
-
-### What Was Simplified?
-- **Removed**: Bi-temporal tracking system (replaced with simpler confidence-based decay)
-- **Removed**: Proactive memory features (now uses guideline-based storage)
-- **Removed**: Multi-tenant architecture (focused on single-user local storage)
-- **Removed**: Heavy dependencies (NetworkX, complex database backends)
-- **Removed**: Tens of thousands of lines of backend-specific code
+The fork focuses on portability and token efficiency: it removes heavy dependencies (NetworkX, multi-backend storage, bi-temporal tracking, multi-tenant architecture) in favor of a SQLite-only backend with confidence-based decay and guideline-driven storage.
 
 ### Team Collaboration & Remote Deployment
-While Memento has removed formal multi-tenant architecture, it still supports team collaboration through **shared database access**:
 
-- **Team Collaboration**: Multiple users can share the same SQLite database file (e.g., on network storage). The [Team Collaboration guidelines](docs/AGENT_CONFIGURATION.md#advanced-team-collaboration) provide tagging conventions (`team:[team-name]`, `author:[name]`) for organized shared usage.
-- **Remote MCP Server**: Memento can run as a remote MCP server accessible by multiple clients. However, all clients share the same database without built-in tenant isolation.
-- **Shared Memory Guidelines**: The included team collaboration templates are valid and functional for teams willing to share a common knowledge base with tagging-based organization.
+Multiple users can share a SQLite database (e.g., on network storage) using tagging conventions (`team:[name]`, `author:[name]`). Memento can also run as a remote MCP server, though all clients share the same database without tenant isolation. See [Team Collaboration guidelines](docs/AGENT_CONFIGURATION.md#advanced-team-collaboration) for details.
 
-For true multi-tenancy with isolated databases per team/user, consider using the original MemoryGraph project which includes built-in tenant isolation and advanced access controls.
+For true multi-tenancy, use the original MemoryGraph project.
 
 ### When to Choose MemoryGraph vs Memento?
 - **Use Memento**: For lightweight, cross-platform memory management in IDEs and CLI tools
-- **Use MemoryGraph**: For complex enterprise use cases requiring multi-tenancy, bi-temporal tracking, advanced analytics, or custom backend systems
+- **Use MemoryGraph**: For enterprise use cases requiring multi-tenancy, bi-temporal tracking, or custom backends
 
 ## 🙏 Acknowledgments
 

@@ -1,5 +1,19 @@
 # Database Schema Documentation
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Tables](#tables)
+  - [1. `nodes`](#1-nodes-table)
+  - [2. `relationships`](#2-relationships-table)
+  - [3. `nodes_fts` (FTS5)](#3-nodes_fts-virtual-table-fts5)
+  - [4. Additional Indexes](#4-additional-indexes)
+- [JSON Properties Structure](#json-properties-structure)
+- [Common Query Patterns](#common-query-patterns)
+- [Database Initialization](#database-initialization)
+- [Schema Migrations](#schema-migrations)
+- [Notes](#notes)
+
 ## Overview
 
 This document describes the SQLite database schema used by the MCP Memento application. The database stores mementos and their relationships with a confidence scoring system.
@@ -59,9 +73,9 @@ Full-text search virtual table for efficient text searching on memory content.
 | `id` | TEXT | Memory node ID (linked to `nodes.id`) |
 | `title` | TEXT | Memory title for full-text search |
 | `content` | TEXT | Memory content for full-text search |
-| `summary` | TEXT | Memory summary for full-text search |
+| `summary` | TEXT | `Memory.summary` — optional brief summary; populated from the `summary` field of the `Memory` object at write time (see `store_memory` / `update_memory` in `interface.py`); stored independently from `nodes.properties` to allow FTS tokenisation |
 
-**Note:** This is a SQLite FTS5 virtual table that enables fast full-text search capabilities. It's created conditionally based on FTS5 availability.
+**Note:** This is a SQLite FTS5 virtual table. It is populated/updated in `SQLiteMemoryDatabase.store_memory()` and `update_memory()`, and deleted in `delete_memory()`. It is created conditionally — if FTS5 is unavailable the application logs a warning and falls back to a LIKE-based search.
 
 ### 4. Additional Indexes
 
@@ -154,6 +168,16 @@ The schema is initialized by the `SQLiteBackend.initialize_schema()` method, whi
 3. Creates all necessary indexes including confidence and access tracking indexes
 4. Creates the FTS5 virtual table (if available)
 5. Creates the memory version index for optimistic locking
+
+
+## Schema Migrations
+
+Schema management is handled exclusively by `SQLiteBackend.initialize_schema()` (called once at startup). The strategy is **additive and non-destructive**:
+
+- Every DDL statement uses `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`, so re-running on an existing database is a no-op.
+- New columns or tables introduced in future versions must be added as separate `ALTER TABLE … ADD COLUMN` statements inside `initialize_schema()`, guarded by appropriate checks (e.g. catching `OperationalError` when the column already exists), to preserve backwards compatibility.
+- There is currently no versioned migration framework (e.g. Alembic). If a breaking schema change is ever required, a manual migration script must be written and documented here.
+- The FTS virtual table (`nodes_fts`) is populated imperatively at write time by `SQLiteMemoryDatabase`; it is **not** auto-synced from `nodes`. If the table is dropped and recreated, it must be re-populated from the existing `nodes` rows.
 
 ## Notes
 

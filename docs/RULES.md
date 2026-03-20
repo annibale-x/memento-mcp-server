@@ -236,29 +236,10 @@ Use filters to narrow results:
 
 ## Team Collaboration
 
-### 1. Shared Database Rules
-When using a shared database:
-1. **Prefix personal tags**: `user:john/` for personal memories
-2. **Review team memories**: Weekly review of team contributions
-3. **Resolve conflicts**: Discuss and merge duplicate memories
-4. **Maintain quality**: Peer review important memories
-
-### 2. Team Tag Conventions
-- `team-{name}`: Team-specific memories
-- `project-{name}`: Project-specific memories
-- `sprint-{number}`: Sprint-related memories
-- `review-needed`: Needs team review
-- `approved`: Team-approved memory
-
-### 3. Collaboration Workflow
-```
-1. Individual creates memory
-2. Adds `review-needed` tag
-3. Team reviews weekly
-4. If approved, add `approved` tag
-5. If needs work, provide feedback
-6. Archive or delete rejected memories
-```
+For team usage, the core rules above apply globally. Personal tagging prefixes, shared database workflows,
+and review conventions should follow your team's agreed standards. For a complete reference of team-specific
+tagging conventions, collaboration workflows, and ready-to-use configuration snippets, see
+[AGENT_CONFIGURATION.md](./AGENT_CONFIGURATION.md#advanced-team-collaboration).
 
 ## Example Workflows
 

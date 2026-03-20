@@ -36,7 +36,7 @@ This means **zero manual setup**: install the extension, open Zed, done.
 
 ## Requirements
 
-- **Python 3.8+** installed on your system
+- **Python 3.10+** installed on your system
 - Internet access on first run (to download `mcp-memento` via pip if not installed)
 
 Python is discovered automatically in this order:
@@ -147,8 +147,9 @@ invoke Python directly:
 
 If you see a `404 Not Found` error when downloading the stub:
 
-- If using a **dev install**: run `python scripts/deploy.py build-zed-stub` from the repo root.
-  This builds the stub and copies it to the Zed work directory.
+- If using a **dev install**: run `python scripts/deploy.py build-zed-stub` from the repo root
+  (see `scripts/README.md` for the full command reference).
+  This builds the stub for the current platform and copies it to the Zed work directory.
 - If using the **marketplace install**: the stub is downloaded automatically from the
   GitHub release. Check your internet connection.
 
@@ -195,4 +196,4 @@ The stub writes a debug log to:
 - [GitHub Repository](https://github.com/annibale-x/mcp-memento)
 - [PyPI Package](https://pypi.org/project/mcp-memento/)
 - [Full IDE Integration Guide](../integrations/IDE.md)
-- [Developer Guide](../../integrations/zed/README.md)
+- [Developer Guide](../../integrations/zed/README.md) *(path works from the repo root `docs/extensions/` tree)*

@@ -1,5 +1,36 @@
 # Confidence & Decay System - MCP Memento
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Problem Solved](#problem-solved)
+- [System Architecture](#system-architecture)
+  - [Database Schema](#database-schema)
+  - [Confidence Ranges](#confidence-ranges)
+- [Decay Mechanics](#decay-mechanics)
+  - [Base Decay Formula](#base-decay-formula)
+  - [Intelligent Decay Rules](#intelligent-decay-rules)
+  - [Decay Calculation Example](#decay-calculation-example)
+- [How Decay is Applied](#how-decay-is-applied)
+  - [1. Automatic On-Access Decay](#1-automatic-on-access-decay)
+  - [2. Manual Decay Application](#2-manual-decay-application)
+  - [3. Maintenance Script](#3-maintenance-script)
+  - [4. Real-time vs Batch Processing](#4-real-time-vs-batch-processing)
+  - [5. Configuration Options](#5-configuration-options)
+  - [6. Monitoring Decay Application](#6-monitoring-decay-application)
+
+- [Confidence Boosting](#confidence-boosting)
+- [MCP Tools for Confidence Management](#mcp-tools-for-confidence-management)
+- [Search Result Ordering](#search-result-ordering)
+- [Maintenance Routines](#maintenance-routines)
+- [Configuration Examples](#configuration-examples)
+- [Best Practices](#best-practices)
+- [Performance Considerations](#performance-considerations)
+- [Troubleshooting](#troubleshooting)
+- [Conclusion](#conclusion)
+
+---
+
 ## Overview
 
 The **Confidence & Decay System** is an intelligent knowledge quality management system that replaces complex bi-temporal tracking with a simple, automated approach. The system maintains memory accuracy over time by applying automatic decay to the confidence (trust) of relationships between memories.
@@ -22,19 +53,17 @@ The **Confidence & Decay System** is an intelligent knowledge quality management
 
 ### Database Schema
 
-```sql
--- Fields added to relationships table
-confidence FLOAT DEFAULT 0.8,           -- Trust level (0.0-1.0)
-last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- Last usage
-access_count INTEGER DEFAULT 0,         -- Number of accesses
-decay_factor FLOAT DEFAULT 0.95,        -- Monthly decay rate (0.0-1.0)
+The `relationships` table (see [Database Schema](dev/SCHEMA.md)) stores confidence-related fields directly:
 
--- Existing bi-temporal fields (maintained for compatibility)
-valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-valid_until TIMESTAMP,
-recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-invalidated_by TEXT
+```sql
+-- Confidence & decay fields in the relationships table
+confidence    FLOAT     DEFAULT 0.8,               -- Trust level (0.0-1.0)
+last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Last usage
+access_count  INTEGER   DEFAULT 0,                 -- Number of accesses
+decay_factor  FLOAT     DEFAULT 0.95               -- Monthly decay rate (0.0-1.0)
 ```
+
+All other columns (`id`, `from_id`, `to_id`, `rel_type`, `properties`, `created_at`) belong to the core schema. There are no bi-temporal fields in the schema.
 
 ### Confidence Ranges
 
@@ -114,77 +143,27 @@ The confidence decay system is applied automatically through multiple mechanisms
 - **Batch Processing**: Applies decay to all relationships efficiently in SQL batches
 
 ### 3. Maintenance Script
-For production deployments, we recommend setting up a monthly maintenance script:
 
-```bash
-#!/bin/bash
-# monthly-decay-apply.sh
-# Run via cron: 0 0 1 * * /path/to/monthly-decay-apply.sh
+To apply decay programmatically (e.g. from a cron job or scheduled task), call the `apply_memento_confidence_decay` MCP tool via the Python SDK:
 
-# Activate Python environment if needed
-# source /path/to/venv/bin/activate
-
-# Run decay application via MCP client (requires: pip install mcp)
-python -c "
+```python
 import asyncio, json
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 async def apply_decay():
-    params = StdioServerParameters(command='memento', args=['--profile', 'advanced'])
+    params = StdioServerParameters(command="memento", args=["--profile", "advanced"])
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            result = await session.call_tool('apply_memento_confidence_decay', arguments={})
+            result = await session.call_tool("apply_memento_confidence_decay", arguments={})
             data = json.loads(result.content[0].text)
-            print(f'Decay applied: {data}')
+            print(f"Decay applied: {data}")
 
 asyncio.run(apply_decay())
-"
 ```
 
-### 4. Integration with CI/CD
-```yaml
-# .github/workflows/monthly-decay.yml
-name: Monthly Confidence Decay
-on:
-  schedule:
-    - cron: '0 0 1 * *'  # First day of every month at midnight
-  workflow_dispatch:  # Allow manual trigger
-
-jobs:
-  apply-decay:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      
-      - name: Install dependencies
-        run: pip install -e ".[dev]"
-      
-      - name: Apply confidence decay
-        run: |
-          python -c "
-          import asyncio, json
-          from mcp import ClientSession, StdioServerParameters
-          from mcp.client.stdio import stdio_client
-
-          async def apply():
-              params = StdioServerParameters(command='memento', args=['--profile', 'advanced'])
-              async with stdio_client(params) as (read, write):
-                  async with ClientSession(read, write) as session:
-                      await session.initialize()
-                      result = await session.call_tool('apply_memento_confidence_decay', arguments={})
-                      data = json.loads(result.content[0].text)
-                      print(f'Decay applied: {data}')
-
-          asyncio.run(apply())
-          "
-```
-
-### 5. Real-time vs Batch Processing
+### 4. Real-time vs Batch Processing
 | Aspect | Real-time (On-Access) | Batch (Monthly) |
 |--------|----------------------|-----------------|
 | **Scope** | Only accessed memories | All memories |
@@ -192,39 +171,31 @@ jobs:
 | **Freshness** | Always up-to-date | May lag up to 1 month |
 | **Use Case** | User-facing queries | Maintenance & cleanup |
 
-### 6. Configuration Options
-The decay behavior can be configured in `memento.yaml`:
-```yaml
-confidence:
-  # Base monthly decay rate (default: 0.95 = 5% decay per month)
-  base_monthly_decay: 0.95
-  
-  # Enable/disable automatic on-access decay
-  enable_on_access_decay: true
-  
-  # Minimum confidence threshold (memories below this are flagged)
-  minimum_confidence_threshold: 0.2
-  
-  # Protected memory types (no decay)
-  protected_types:
-    - security
-    - auth
-    - api_key
-    - credential
-```
+### 5. Configuration Options
 
-### 7. Monitoring Decay Application
+The `memento.yaml` configuration file supports the following top-level keys:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `db_path` | string | Path to the SQLite database file |
+| `profile` | string | Active profile (`default`, `advanced`, etc.) |
+| `log_level` | string | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `allow_relationship_cycles` | bool | Whether to allow cyclic relationships between nodes |
+
+Decay parameters (decay rate, minimum threshold, protected types) are **not configurable via YAML** — they are governed by the `decay_factor` column stored per-relationship and by the tag-based rules described in the [Intelligent Decay Rules](#intelligent-decay-rules) section.
+
+### 6. Monitoring Decay Application
 Check if decay is working properly:
 ```sql
--- Check average confidence over time
-SELECT 
-  strftime('%Y-%m', recorded_at) as month,
-  COUNT(*) as relationships,
-  AVG(confidence) as avg_confidence,
-  MIN(confidence) as min_confidence,
-  MAX(confidence) as max_confidence
-FROM relationships 
-GROUP BY strftime('%Y-%m', recorded_at)
+-- Check average confidence over time (grouped by creation month)
+SELECT
+  strftime('%Y-%m', created_at) AS month,
+  COUNT(*)                       AS relationships,
+  AVG(confidence)                AS avg_confidence,
+  MIN(confidence)                AS min_confidence,
+  MAX(confidence)                AS max_confidence
+FROM relationships
+GROUP BY strftime('%Y-%m', created_at)
 ORDER BY month DESC
 LIMIT 12;
 ```
@@ -352,27 +323,17 @@ for memory in low_conf:
 ## Configuration Examples
 
 ### YAML Configuration
+
+The supported keys in `memento.yaml` are:
+
 ```yaml
-confidence_system:
-  # Base decay rate (5% per month)
-  base_decay_factor: 0.95
-  
-  # Minimum confidence before warning
-  warning_threshold: 0.3
-  
-  # Critical tags that get no decay
-  no_decay_tags:
-    - security
-    - auth
-    - api_key
-    - password
-    - critical
-    
-  # Boost amounts
-  usage_boost: 0.01
-  validation_boost: 0.1
-  manual_boost_range: [0.0, 0.5]
+db_path: /path/to/memento.db   # SQLite database path
+profile: default               # Active profile
+log_level: INFO                # Logging level
+allow_relationship_cycles: false
 ```
+
+Decay behavior is controlled per-relationship via the `decay_factor` column in the database and is not configurable at the YAML level.
 
 ### Environment Variables
 ```bash
@@ -422,10 +383,9 @@ graph LR
 
 ### Indexing Strategy
 ```sql
--- Essential indexes for performance
-CREATE INDEX idx_relationships_confidence ON relationships(confidence);
+-- Essential indexes for performance (already created by schema initialization)
+CREATE INDEX idx_relationships_confidence   ON relationships(confidence);
 CREATE INDEX idx_relationships_last_accessed ON relationships(last_accessed);
-CREATE INDEX idx_relationships_current ON relationships(valid_until) WHERE valid_until IS NULL;
 ```
 
 ### Batch Operations
@@ -437,24 +397,6 @@ CREATE INDEX idx_relationships_current ON relationships(valid_until) WHERE valid
 - Confidence fields add ~32 bytes per relationship
 - Decay calculation uses efficient date math
 - Search ordering adds minimal query overhead
-
-## Migration from Bi-Temporal Tracking
-
-### Why Confidence System is Better
-
-| Aspect | Bi-Temporal Tracking | Confidence System |
-|--------|---------------------|-------------------|
-| **Complexity** | High (dual timelines) | Low (single score) |
-| **Maintenance** | Manual invalidation | Automatic decay |
-| **LLM Understanding** | Confusing | Intuitive |
-| **Search Relevance** | Binary (valid/invalid) | Gradual (0.0-1.0) |
-| **Human Action Required** | Frequent | Minimal |
-
-### Migration Path
-1. **Phase 1**: Add confidence fields alongside bi-temporal
-2. **Phase 2**: Use confidence for search ordering
-3. **Phase 3**: Apply automatic decay
-4. **Phase 4**: Deprecate manual bi-temporal updates
 
 ## Troubleshooting
 
@@ -478,44 +420,27 @@ CREATE INDEX idx_relationships_current ON relationships(valid_until) WHERE valid
 ### Debug Queries
 ```sql
 -- Check confidence distribution
-SELECT 
-    CASE 
+SELECT
+    CASE
         WHEN confidence >= 0.9 THEN 'High'
         WHEN confidence >= 0.7 THEN 'Good'
         WHEN confidence >= 0.5 THEN 'Moderate'
         WHEN confidence >= 0.3 THEN 'Low'
         ELSE 'Very Low'
-    END as confidence_level,
-    COUNT(*) as count
+    END AS confidence_level,
+    COUNT(*) AS count
 FROM relationships
-WHERE valid_until IS NULL
 GROUP BY confidence_level
 ORDER BY confidence DESC;
 
--- Find memories needing review
-SELECT r.id, m.title, r.confidence, r.last_accessed
+-- Find relationships needing review
+SELECT r.id, n.label, r.confidence, r.last_accessed
 FROM relationships r
-JOIN nodes m ON r.from_id = m.id OR r.to_id = m.id
+JOIN nodes n ON r.from_id = n.id
 WHERE r.confidence < 0.3
-  AND r.valid_until IS NULL
 ORDER BY r.confidence ASC
 LIMIT 10;
 ```
-
-## Future Enhancements
-
-### Planned Features
-1. **Machine Learning**: Predict obsolescence based on usage patterns
-2. **Confidence Dashboard**: Visual representation of system health
-3. **Alert System**: Notifications for critically low confidence
-4. **Cross-System Sync**: Share confidence scores between systems
-5. **Temporal Analysis**: Confidence trends over time
-
-### Research Areas
-- Optimal decay rates for different domains
-- Confidence propagation in relationship graphs
-- Automated confidence adjustment based on external signals
-- Integration with version control systems
 
 ## Conclusion
 

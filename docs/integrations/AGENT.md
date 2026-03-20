@@ -2,6 +2,22 @@
 
 This guide covers how to integrate Memento with various AI agents and CLI tools that support the Model Context Protocol (MCP). Memento provides persistent memory capabilities to enhance your AI workflows across different platforms.
 
+## Table of Contents
+
+- [Installation](#installation)
+- [Gemini CLI](#gemini-cli)
+- [Claude CLI](#claude-cli)
+- [Custom CLI Agents](#custom-cli-agents)
+  - [Python-based Agent](#python-based-agent)
+  - [Shell Script Agent](#shell-script-agent)
+- [Troubleshooting Common Issues](#troubleshooting-common-issues)
+- [Best Practices](#best-practices)
+
+> **Claude Desktop** is an IDE-class integration and is documented in the
+> [IDE Integration Guide](./IDE.md).
+
+---
+
 ## Installation
 
 Before configuring any agent, install Memento:
@@ -23,7 +39,7 @@ Memento uses SQLite for local storage by default. The database is automatically 
 
 - [Gemini CLI](#gemini-cli) - Google's command-line interface for Gemini AI
 - [Claude CLI](#claude-cli) - Anthropic's command-line interface for Claude AI
-- [Claude Desktop](#claude-desktop) - Anthropic's desktop application (included here as it's agent-based)
+
 
 ## Gemini CLI
 
@@ -189,10 +205,17 @@ export MEMENTO_DB_PATH="~/.claude-memento/context.db"
 alias claude-memento='claude --mcp-servers memento'
 ```
 
-### Where to Save Configuration
-- **Shell profile**: `~/.bashrc`, `~/.zshrc`, etc. for environment variables
-- **Custom scripts**: `~/bin/` directory for wrapper scripts
-- Claude CLI doesn't have a persistent config file for MCP servers
+### Config File Locations
+
+Claude CLI does not have a persistent MCP config file; configuration is passed via
+CLI flags or environment variables. Persist them in your shell profile:
+
+| Platform | File |
+|---|---|
+| macOS / Linux (bash) | `~/.bashrc` or `~/.bash_profile` |
+| macOS / Linux (zsh) | `~/.zshrc` |
+| Windows (PowerShell) | `$PROFILE` (`~\Documents\PowerShell\Microsoft.PowerShell_profile.ps1`) |
+| Windows (cmd) | Set via System → Environment Variables |
 
 ### Usage Examples
 
@@ -219,113 +242,6 @@ chmod +x ~/bin/claude-memento
 export PATH="$HOME/bin:$PATH"
 ```
 
-## Claude Desktop
-
-### Prerequisites
-- **Claude Desktop** app installed ([Download](https://claude.ai/desktop))
-- Latest version with MCP support
-
-### Configuration
-
-Claude Desktop configuration varies by operating system:
-
-**macOS:**
-```bash
-# Open configuration file
-open ~/Library/Application\ Support/Claude/claude_desktop_config.json
-```
-
-**Linux:**
-```bash
-nano ~/.config/Claude/claude_desktop_config.json
-```
-
-**Windows:**
-```
-%APPDATA%\Claude\claude_desktop_config.json
-```
-
-**Configuration content:**
-```json
-{
-  "mcpServers": {
-    "memento": {
-      "command": "memento",
-      "args": []
-    }
-  }
-}
-```
-
-**Important**: Claude Desktop has a restricted PATH. You may need to use the full path to Memento:
-
-```bash
-# Find Memento installation path
-which memento
-# Returns: /Users/yourname/.local/bin/memento
-```
-
-Then use the full path in configuration:
-```json
-{
-  "mcpServers": {
-    "memento": {
-      "command": "/Users/yourname/.local/bin/memento",
-      "args": []
-    }
-  }
-}
-```
-
-### Where to Save Configuration
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Linux**: `~/.config/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-### Usage Examples
-
-Once configured, restart Claude Desktop completely (not just close the window). Then in a new conversation:
-
-```
-What memory tools do you have available?
-```
-
-```
-Store this for later: Our deployment script is in /scripts/deploy.sh
-```
-
-```
-What do you remember about deployment scripts?
-```
-
-### Troubleshooting
-
-**"spawn memento ENOENT" error:**
-This means Claude Desktop can't find the Memento command. Solutions:
-
-1. **Use full path** (recommended):
-   ```json
-   {
-     "command": "/Users/yourname/.local/bin/memento"
-   }
-   ```
-
-2. **Create symlink** (requires sudo):
-   ```bash
-   sudo ln -s ~/.local/bin/memento /usr/local/bin/memento
-   ```
-   Then use `"command": "memento"` in config.
-
-**Configuration not taking effect:**
-1. Completely quit Claude Desktop (Cmd+Q on macOS, not just close window)
-2. Wait a few seconds
-3. Reopen Claude Desktop
-
-**Tools not appearing:**
-1. Check Claude Desktop logs for MCP errors
-2. Test Memento manually: `memento --health`
-3. Verify JSON syntax in configuration file
-
 ## Custom CLI Agents
 
 ### Python-based Agent
@@ -335,304 +251,83 @@ This means Claude Desktop can't find the Memento command. Solutions:
 > programmatic access happens through an MCP client session using the `mcp` library.
 > See the full explanation in the [Python Integration Guide](./PYTHON.md).
 
-Create a custom Python agent with Memento integration via the MCP client pattern:
+Create a minimal Python agent using the MCP client pattern (see [PYTHON.md](./PYTHON.md) for the full reference):
 
 ```python
 #!/usr/bin/env python3
-"""
-custom-agent.py - Custom CLI agent with Memento integration via MCP client.
-
-Requires: pip install mcp
-"""
+"""agent.py - Minimal Memento agent via MCP client. Requires: pip install mcp"""
 
 import asyncio
 import json
-import sys
-from typing import List
-
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 
-class CustomAgent:
-    def __init__(self, profile: str = "extended"):
-        self.profile = profile
-        self._session: ClientSession | None = None
-        self._stack = None  # contextlib.AsyncExitStack, set in start()
-
-    async def start(self):
-        """Initialize the MCP client connection to a Memento server."""
-        from contextlib import AsyncExitStack
-
-        server_params = StdioServerParameters(
-            command="memento",
-            args=["--profile", self.profile],
-            env=None,
-        )
-
-        self._stack = AsyncExitStack()
-        read, write = await self._stack.enter_async_context(stdio_client(server_params))
-        self._session = await self._stack.enter_async_context(ClientSession(read, write))
-        await self._session.initialize()
-        print(f"Custom agent started with Memento ({self.profile} profile)")
-
-    async def process_command(self, command: str, args: List[str]) -> str:
-        """Process a CLI command."""
-
-        if command == "store":
-            return await self._store_memory(args)
-
-        elif command == "search":
-            return await self._search_memories(args)
-
-        elif command == "help":
-            return self._show_help()
-
-        else:
-            return f"Unknown command: {command}"
-
-    async def _store_memory(self, args: List[str]) -> str:
-        """Store a memory from CLI arguments."""
-        if len(args) < 3:
-            return "Usage: store <type> <title> <content> [tags...]"
-
-        memory_type = args[0]
-        title = args[1]
-        content = " ".join(args[2:])
-
-        try:
-            result = await self._session.call_tool(
-                "store_memento",
-                arguments={
-                    "type": memory_type,
-                    "title": title,
-                    "content": content,
-                    "tags": ["cli", "custom-agent"],
-                    "importance": 0.7,
-                },
-            )
-            data = json.loads(result.content[0].text)
-            return f"Memory stored with ID: {data.get('memory_id', '?')}"
-
-        except Exception as e:
-            return f"Error storing memory: {e}"
-
-    async def _search_memories(self, args: List[str]) -> str:
-        """Search memories from CLI arguments."""
-        if not args:
-            return "Usage: search <query>"
-
-        query = " ".join(args)
-
-        try:
-            result = await self._session.call_tool(
-                "recall_mementos",
-                arguments={"query": query, "limit": 5},
-            )
-            memories = json.loads(result.content[0].text)
-
-            if not memories:
-                return "No memories found"
-
-            lines = []
-
-            for i, memory in enumerate(memories, 1):
-                lines.append(f"{i}. {memory['title']}")
-                lines.append(f"   {memory.get('content', '')[:100]}...")
-                lines.append(f"   Tags: {', '.join(memory.get('tags', []))}")
-                lines.append("")
-
-            return "\n".join(lines)
-
-        except Exception as e:
-            return f"Error searching memories: {e}"
-
-    def _show_help(self) -> str:
-        """Show help information."""
-        return (
-            "Available commands:\n"
-            "  store <type> <title> <content>  Store a new memory\n"
-            "  search <query>                  Search memories\n"
-            "  help                            Show this help\n"
-        )
-
-    async def stop(self):
-        """Clean up the MCP client connection."""
-        if self._stack is not None:
-            await self._stack.aclose()
-            self._stack = None
-            self._session = None
-
-
 async def main():
-    """Main entry point."""
-    agent = CustomAgent(profile="extended")
+    server_params = StdioServerParameters(command="memento", args=["--profile", "extended"])
 
-    try:
-        await agent.start()
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
 
-        if len(sys.argv) > 1:
-            command = sys.argv[1]
-            args = sys.argv[2:] if len(sys.argv) > 2 else []
-            result = await agent.process_command(command, args)
-            print(result)
+            # Store a memory
+            result = await session.call_tool(
+                "store_memento",
+                arguments={"type": "solution", "title": "API timeout fix",
+                           "content": "Increased timeout to 30 s and added retry logic.",
+                           "tags": ["api", "timeout"], "importance": 0.8},
+            )
+            print(json.loads(result.content[0].text))
 
-        else:
-            print("Custom Memento Agent (type 'exit' to quit)")
-
-            while True:
-                try:
-                    user_input = input("> ").strip()
-
-                    if not user_input:
-                        continue
-
-                    if user_input.lower() in ["exit", "quit", "q"]:
-                        break
-
-                    parts = user_input.split()
-                    command = parts[0]
-                    args = parts[1:] if len(parts) > 1 else []
-                    result = await agent.process_command(command, args)
-                    print(result)
-
-                except KeyboardInterrupt:
-                    print("\nExiting...")
-                    break
-
-                except EOFError:
-                    print("\nExiting...")
-                    break
-
-    finally:
-        await agent.stop()
+            # Recall memories
+            result = await session.call_tool(
+                "recall_mementos",
+                arguments={"query": "API timeout", "limit": 5},
+            )
+            for m in json.loads(result.content[0].text):
+                print(f"- {m['title']}: {m.get('content', '')[:80]}")
 
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+For a more complete implementation (interactive REPL, error handling, multiple commands)
+see the [Python Integration Guide](./PYTHON.md).
+
 ### Shell Script Agent
-For simpler integration, create a shell script wrapper:
+For simple shell-based workflows, pipe JSON-RPC directly to `memento`:
 
 ```bash
-#!/bin/bash
-# memento-agent.sh - Shell script agent with Memento integration
+#!/usr/bin/env bash
+# memento-agent.sh - Minimal shell wrapper for Memento MCP server
 
-set -e
-
-MEMENTO_DB="${MEMENTO_DB_PATH:-~/.mcp-memento/agent.db}"
-MEMENTO_PROFILE="${MEMENTO_PROFILE:-extended}"
-
-# Ensure database directory exists
-mkdir -p "$(dirname "$MEMENTO_DB")"
-
-# Function to store memory
 store_memory() {
-    local type="$1"
-    local title="$2"
-    shift 2
-    local content="$*"
-    
-    echo "Storing memory: $title"
-    
-        # Use the Memento CLI to store via JSON-RPC
-    printf '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"store_memento","arguments":{"type":"%s","title":"%s","content":"%s","tags":["shell-agent"],"importance":0.7}}}' \
-        "$type" "$title" "$content" | memento --profile extended | python3 -m json.tool || echo "Error: Make sure memento is installed"
+    printf '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"store_memento","arguments":{"type":"%s","title":"%s","content":"%s","tags":["shell"],"importance":0.7}}}' \
+        "$1" "$2" "$3" | memento --profile extended
 }
 
-# Function to search memories
 search_memories() {
-    local query="$*"
-    
-    echo "Searching for: $query"
-    
-    printf '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"recall_mementos","arguments":{"query":"%s","limit":10}}}' \
-        "$query" | memento --profile extended | python3 -c "
+    printf '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"recall_mementos","arguments":{"query":"%s","limit":5}}}' \
+        "$*" | memento --profile extended | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
-memories = json.loads(data.get('result', {}).get('content', [{}])[0].get('text', '[]'))
-for i, m in enumerate(memories, 1):
-    print(f'{i}. {m[\"title\"]}')
-    print(f'   {m.get(\"content\",\"\")[:80]}...')
-    print()
-" || echo "Error: Make sure memento is installed"
+for m in json.loads(data['result']['content'][0]['text']):
+    print(f'- {m[\"title\"]}: {m.get(\"content\",\"\")[:80]}')
+"
 }
 
-# Function to show statistics
-show_stats() {
-    echo "Memory Statistics:"
-    echo "Database: $MEMENTO_DB"
-    
-    if [ -f "$MEMENTO_DB" ]; then
-        db_size=$(du -h "$MEMENTO_DB" | cut -f1)
-        echo "Size: $db_size"
-        
-        # Count memories using sqlite3 if available
-        if command -v sqlite3 >/dev/null 2>&1; then
-            memory_count=$(sqlite3 "$MEMENTO_DB" "SELECT COUNT(*) FROM nodes;" 2>/dev/null || echo "N/A")
-            echo "Total memories: $memory_count"
-        fi
-    else
-        echo "Database file not found"
-    fi
-}
-
-# Main command processing
 case "$1" in
-    store)
-        if [ $# -lt 4 ]; then
-            echo "Usage: $0 store <type> <title> <content>"
-            exit 1
-        fi
-        store_memory "$2" "$3" "${@:4}"
-        ;;
-    search)
-        if [ $# -lt 2 ]; then
-            echo "Usage: $0 search <query>"
-            exit 1
-        fi
-        search_memories "${@:2}"
-        ;;
-    stats)
-        show_stats
-        ;;
-    help|--help|-h)
-        echo "Memento Shell Agent"
-        echo ""
-        echo "Usage:"
-        echo "  $0 store <type> <title> <content>  Store a new memory"
-        echo "  $0 search <query>                  Search memories"
-        echo "  $0 stats                           Show statistics"
-        echo "  $0 help                            Show this help"
-        echo ""
-        echo "Environment variables:"
-        echo "  MEMENTO_DB_PATH    Database location (default: ~/.mcp-memento/agent.db)"
-        echo "  MEMENTO_PROFILE   Tool profile (default: extended)"
-        ;;
-    *)
-        echo "Unknown command: $1"
-        echo "Use '$0 help' for usage information"
-        exit 1
-        ;;
+    store)  store_memory "$2" "$3" "${*:4}" ;;
+    search) shift; search_memories "$@" ;;
+    *)      echo "Usage: $0 store <type> <title> <content>"; echo "       $0 search <query>" ;;
 esac
 ```
 
-Make it executable:
 ```bash
 chmod +x memento-agent.sh
-```
-
-Usage:
-```bash
-# Store a memory
-./memento-agent.sh store solution "Fixed API timeout" "Increased timeout to 30 seconds and added retry logic"
-
-# Search memories
+./memento-agent.sh store solution "API timeout fix" "Increased timeout to 30 s"
 ./memento-agent.sh search "API timeout"
-
-# Show statistics
-./memento-agent.sh stats
 ```
 
 ## Troubleshooting Common Issues
@@ -664,7 +359,7 @@ Usage:
 
 2. **File location incorrect**:
    - Gemini CLI: `~/.gemini/config.json`
-   - Claude Desktop: OS-specific location (see above)
+   - Claude Desktop: see [IDE Integration Guide](./IDE.md)
    - Verify file exists and is readable
 
 ### Path Issues

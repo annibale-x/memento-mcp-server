@@ -1,171 +1,180 @@
 # Contributing to MCP Memento
 
-Thank you for your interest in contributing to MCP Memento! This document provides guidelines and instructions for contributing to the project.
-
 ## Table of Contents
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
+
 - [Development Setup](#development-setup)
+- [Project Structure](#project-structure)
 - [Code Style](#code-style)
 - [Testing](#testing)
 - [Documentation](#documentation)
 - [Pull Request Process](#pull-request-process)
+- [Conventional Commits](#conventional-commits)
 - [Release Process](#release-process)
 
-## Code of Conduct
+---
 
-Please be respectful and considerate of others when contributing to this project. We aim to foster an inclusive and welcoming community.
+## Development Setup
 
-## Getting Started
+1. **Clone the repository**:
 
-### Finding Issues to Work On
-- Check the [GitHub Issues](https://github.com/annibale-x/mcp-memento/issues) for bugs and feature requests
-- Look for issues tagged with `good-first-issue` or `help-wanted`
-- Discuss proposed changes in an issue before starting work
-
-### Development Setup
-
-1. **Fork and clone the repository**:
    ```bash
    git clone https://github.com/annibale-x/mcp-memento.git
    cd mcp-memento
    ```
 
 2. **Install in development mode**:
+
    ```bash
    pip install -e ".[dev]"
    ```
 
-3. **Run tests to ensure everything works**:
+3. **Verify the setup**:
+
    ```bash
    pytest
    ```
 
-### Project Structure
+4. **Run the server locally**:
+
+   ```bash
+   memento
+   ```
+
+   > The only valid entry point is `memento`. There is no `mcp-memento` command.
+
+---
+
+## Project Structure
+
 ```
 mcp-memento/
-├── src/                          # Source code
-│   └── memento/          # Main package
-├── docs/                        # Documentation
-├── tests/                       # Test suite
-├── pyproject.toml              # Package configuration
-└── README.md                   # Main documentation
+├── src/
+│   └── memento/               # Main Python package
+│       ├── server.py          # MCP server (tool handlers)
+│       ├── config.py          # TOOL_PROFILES, Config, DB path defaults
+│       ├── backend.py         # SQLiteBackend
+│       └── ...
+├── tests/                     # pytest test suite (~167 tests)
+├── docs/
+│   ├── TOOLS.md               # MCP tools reference
+│   ├── DECAY_SYSTEM.md        # Confidence & decay system
+│   ├── RULES.md               # Usage rules and best practices
+│   ├── RELATIONSHIPS.md       # Relationship types reference
+│   ├── AGENT_CONFIGURATION.md # Agent prompt templates
+│   ├── INTEGRATION.md         # Integration overview
+│   ├── integrations/
+│   │   ├── IDE.md             # Zed, Cursor, Windsurf, VSCode
+│   │   ├── PYTHON.md          # Python MCP client
+│   │   ├── AGENT.md           # CLI agents (Gemini, Claude, etc.)
+│   │   └── API.md             # HTTP REST, Node.js SDK, Docker
+│   ├── extensions/
+│   │   └── ZED.md             # Zed extension specifics
+│   └── dev/
+│       ├── README.md          # Development workflow & release process
+│       └── SCHEMA.md          # Database schema
+├── scripts/
+│   ├── deploy.py              # Automated release script
+│   └── README.md              # Deploy commands reference
+├── integrations/
+│   └── zed/                   # Zed WASM extension
+├── pyproject.toml
+├── CHANGELOG.md
+└── README.md
 ```
+
+---
 
 ## Code Style
 
-### Python Code
-- Follow [PEP 8](https://pep8.org/) guidelines
-- Use type hints for all function signatures
-- Write descriptive docstrings using Google style
-- Maximum line length: 88 characters (Black formatting)
+### Python
+
+- Follow [PEP 8](https://pep8.org/).
+- Use type hints for all function signatures.
+- Write docstrings in Google style.
+- Maximum line length: 88 characters.
+- Airy formatting rules:
+  - 1 empty line before `if`, `else`, `elif`, `try`, `except`.
+  - 2 empty lines before every `class` or `def`.
+  - 1 empty line after a method docstring before the first line of code.
 
 ### Import Order
+
 ```python
-# Standard library imports
+# Standard library
 import os
-import sys
-from typing import Dict, List
+from typing import Optional, List
 
-# Third-party imports
-import sqlite3
-from mcp import Client
+# Third-party
+from mcp.server import Server
 
-# Local imports
+# Local
 from .config import Config
-from .models import Memory
+from .backend import SQLiteBackend
 ```
 
 ### Naming Conventions
-- **Classes**: `CamelCase`
-- **Functions/Methods**: `snake_case`
-- **Variables**: `snake_case`
-- **Constants**: `UPPER_SNAKE_CASE`
-- **Private**: `_private` (single underscore)
-- **Very Private**: `__very_private` (double underscore)
 
-### Code Formatting
-We use:
-- **Black** for code formatting
-- **isort** for import sorting
-- **mypy** for type checking
+| Kind | Style |
+|---|---|
+| Classes | `CamelCase` |
+| Functions / Methods | `snake_case` |
+| Variables | `snake_case` |
+| Constants | `UPPER_SNAKE_CASE` |
+| Internal | `_single_underscore` |
 
-Format your code before submitting:
+### Formatting Tools
+
+Black, isort, and mypy are aspirational guidelines — they are not enforced by CI.
+Running them before a PR is appreciated but not required:
+
 ```bash
 black src/ tests/
 isort src/ tests/
 mypy src/
 ```
 
+---
+
 ## Testing
 
-### Test Structure
-- Write tests for all new functionality
-- Follow the existing test patterns
-- Use descriptive test names
-- Group related tests in classes
-
 ### Running Tests
+
 ```bash
-# Run all tests
+# Run the full test suite
 pytest
 
-# Run specific test file
-pytest tests/test_memory_operations.py
+# Run a specific file
+pytest tests/test_tools.py
 
-# Run with coverage
-pytest --cov=src tests/
-
-# Run with verbose output
+# Verbose output
 pytest -v
 
-# Run a specific test
-pytest tests/test_memory_operations.py::test_store_memory -v
+# Single test
+pytest tests/test_tools.py::test_store_memory -v
+
+# With coverage
+pytest --cov=src tests/
 ```
 
-### Test Guidelines
-1. **Isolation**: Tests should not depend on each other
-2. **Speed**: Keep tests fast
-3. **Clarity**: Test names should describe what they test
-4. **Coverage**: Aim for high test coverage
-5. **Mocking**: Use mocks for external dependencies
+### Guidelines
 
-### Test Database
-- Tests use in-memory SQLite databases
-- Each test creates its own database
-- Clean up resources in teardown methods
+- Tests must be isolated — no shared state between tests.
+- Each test creates its own in-memory SQLite database.
+- Test names must describe what they test.
+- Use mocks for external dependencies.
+
+---
 
 ## Documentation
 
-### Documentation Structure
-```
-docs/
-├── TOOLS.md              # MCP tools reference
-├── DECAY_SYSTEM.md       # Confidence system documentation
-├── RULES.md              # Usage rules and best practices
-├── RELATIONSHIPS.md      # Relationship types reference
-├── AGENT_CONFIGURATION.md # Agent prompt templates and configuration
-├── INTEGRATION.md        # Integration overview
-├── integrations/         # Detailed integration guides
-│   ├── IDE.md            # IDE integration (Zed, Cursor, Windsurf, etc.)
-│   ├── PYTHON.md         # Python MCP client and programmatic usage
-│   ├── AGENT.md          # CLI agent integration (Gemini, Claude, etc.)
-│   └── API.md            # HTTP REST API, Node.js SDK, Docker deployment
-└── dev/                  # Development documentation
-    ├── DEV.md            # Development workflow and release process
-    └── SCHEMA.md         # Database schema documentation
-```
+Technical documentation lives under `docs/`. The development workflow and release
+process are documented in [`docs/dev/README.md`](docs/dev/README.md).
 
-**Note**: This file (`CONTRIBUTING.md`) is located in the project root, following GitHub conventions for contributor guidelines. For detailed technical documentation, see the `docs/` directory.
-
-### Writing Documentation
-- Use clear, concise language
-- Include code examples
-- Update documentation when changing APIs
-- Use Markdown formatting
-- Include table of contents for long documents
+When changing a public tool, API surface, or configuration key, update the relevant
+file in `docs/` in the same PR.
 
 ### Docstring Format
+
 ```python
 def store_memento(
     type: str,
@@ -178,178 +187,120 @@ def store_memento(
 
     Args:
         type: Memory type (solution, problem, code_pattern, fix, error, etc.)
-        title: Descriptive title for the memento
-        content: Detailed content of the memento
-        tags: Optional list of tags for categorization
-        importance: Importance score 0.0-1.0 (default 0.5)
+        title: Descriptive title for the memento.
+        content: Detailed content of the memento.
+        tags: Optional list of tags for categorization.
+        importance: Importance score 0.0–1.0 (default 0.5).
 
     Returns:
-        The ID of the newly created memento
+        The ID of the newly created memento.
 
     Raises:
-        ValueError: If required parameters are missing
-        DatabaseError: If database operation fails
-
-    Examples:
-        >>> memory_id = store_memento(
-        ...     type="solution",
-        ...     title="Fixed Redis timeout",
-        ...     content="Increased timeout to 30s...",
-        ...     tags=["redis", "timeout"],
-        ...     importance=0.8,
-        ... )
+        ValueError: If required parameters are missing.
     """
 ```
 
+---
+
 ## Pull Request Process
 
-### Before Submitting
-1. **Discuss changes**: Open an issue to discuss major changes
-2. **Update documentation**: Ensure docs reflect your changes
-3. **Add tests**: Include tests for new functionality
-4. **Run tests**: Ensure all tests pass
-5. **Format code**: Run Black and isort
+1. Open an issue to discuss any significant change before starting work.
+2. Create a feature branch from `dev`:
 
-### Creating a Pull Request
-1. **Fork the repository**
-2. **Create a feature branch**:
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b feat/your-feature-name
    ```
-3. **Make your changes**
-4. **Commit with Conventional Commits**:
-   ```bash
-   git commit -m "feat(memory): add bulk import functionality"
-   ```
-5. **Push to your fork**:
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-6. **Open a Pull Request**
 
-### Pull Request Guidelines
-- **Title**: Use Conventional Commits format
-- **Description**: Clearly describe what the PR does and why
-- **Linked issues**: Reference related issues
-- **Small PRs**: Keep changes focused and manageable
-- **Review ready**: Ensure CI passes and code is formatted
+3. Make changes, add tests, update docs as needed.
+4. Ensure the test suite passes:
 
-### Conventional Commits
-Use the following commit message format:
+   ```bash
+   pytest
+   ```
+
+5. Commit using [Conventional Commits](#conventional-commits).
+6. Push and open a PR targeting `dev` (not `main`).
+
+### PR Guidelines
+
+- Title must follow Conventional Commits format.
+- Description must explain what changes and why.
+- Reference related issues (`Closes #N`).
+- Keep PRs focused — one concern per PR.
+
+---
+
+## Conventional Commits
+
 ```
 <type>(<scope>): <description>
 ```
 
 **Types**:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, etc.)
-- `refactor`: Code refactoring
-- `test`: Test additions or changes
-- `chore`: Maintenance tasks
+
+| Type | Use for |
+|---|---|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `style` | Formatting, no logic change |
+| `refactor` | Code restructure, no feature/fix |
+| `test` | Tests added or changed |
+| `chore` | Maintenance, tooling, dependencies |
 
 **Examples**:
-- `feat(confidence): add automatic decay scheduling`
-- `fix(search): resolve memory leak in full-text search`
-- `docs(api): update Python API examples`
-- `test(memory): add tests for relationship validation`
 
-## Release Process
-
-> **Note**: For the complete automated release workflow (tag conventions, deploy script, CI/CD), see [docs/dev/README.md](docs/dev/README.md).
-
-### Versioning
-We follow [Semantic Versioning](https://semver.org/):
-- **MAJOR**: Breaking changes
-- **MINOR**: New features (backward compatible)
-- **PATCH**: Bug fixes (backward compatible)
-
-### Release Checklist
-1. **Update version** in `pyproject.toml`
-2. **Update CHANGELOG.md** with release notes
-3. **Run full test suite**
-4. **Build distribution packages**:
-   ```bash
-   python -m build
-   ```
-5. **Test installation** from built packages
-6. **Create GitHub release** with tag
-7. **Publish to PyPI** (maintainers only)
-
-### Changelog Format
-```markdown
-## [Version] - YYYY-MM-DD
-
-### Added
-- New feature description
-
-### Changed
-- Changes to existing functionality
-
-### Fixed
-- Bug fixes
-
-### Deprecated
-- Soon-to-be removed features
-
-### Removed
-- Removed features
-
-### Security
-- Security-related changes
 ```
-
-## Development Workflow
-
-### Daily Development
-```bash
-# 1. Sync with upstream
-git fetch upstream
-git merge upstream/main
-
-# 2. Create feature branch
-git checkout -b feature/your-feature
-
-# 3. Make changes and test
-# ... make changes ...
-pytest
-
-# 4. Format code
-black src/ tests/
-isort src/ tests/
-
-# 5. Commit changes
-git add .
-git commit -m "feat: your feature description"
-
-# 6. Push and create PR
-git push origin feature/your-feature
+feat(confidence): add automatic decay scheduling
+fix(search): resolve off-by-one in FTS pagination
+docs(tools): update store_memento parameter table
+test(relationships): add validation edge cases
+chore(deps): bump mcp to 1.3.0
 ```
-
-### Debugging
-```bash
-# Run with debug logging
-MEMENTO_LOG_LEVEL=DEBUG python -m memento
-
-# Use pdb for debugging
-import pdb; pdb.set_trace()
-
-# Profile performance
-python -m cProfile -o profile.stats run_mcp_memento.py
-```
-
-## Getting Help
-
-- **GitHub Issues**: For bug reports and feature requests
-- **Discussions**: For questions and general discussion
-- **Documentation**: Check the `docs/` directory for detailed guides
-- **Development Docs**: See `docs/dev/` for technical development information
-
-## License
-
-By contributing to MCP Memento, you agree that your contributions will be licensed under the project's MIT License.
 
 ---
 
-Thank you for contributing to MCP Memento! Your help makes this project better for everyone.
+## Release Process
+
+All releases are managed by `scripts/deploy.py`. The full workflow is documented in:
+
+- [`docs/dev/README.md`](docs/dev/README.md) — process overview, branching strategy, CI/CD
+- [`scripts/README.md`](scripts/README.md) — deploy command reference
+
+### Versioning
+
+[Semantic Versioning](https://semver.org/) is used:
+
+| Bump | When |
+|---|---|
+| `MAJOR` | Breaking changes |
+| `MINOR` | New backward-compatible features |
+| `PATCH` | Backward-compatible bug fixes |
+
+### Changelog Format
+
+Entries follow this format (Keep-a-Changelog is **not** used):
+
+```
+* YYYY-MM-DD: vX.Y.Z - <Title> (Hannibal)
+  * Change description one
+  * Change description two
+  * Fix description
+```
+
+The deploy script verifies that a correctly formatted entry exists in `CHANGELOG.md`
+before running a production bump. Write the entry manually before invoking the script.
+
+---
+
+## Getting Help
+
+- **Bug reports / feature requests**: [GitHub Issues](https://github.com/annibale-x/mcp-memento/issues)
+- **Documentation**: `docs/` directory
+- **Development docs**: `docs/dev/README.md`
+
+---
+
+## License
+
+Contributions are licensed under the project's [MIT License](LICENSE).

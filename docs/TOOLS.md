@@ -1,5 +1,30 @@
 # Memento Tools Reference
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Tool Categories](#tool-categories)
+  - [1. Core Memory Tools](#1-core-memory-tools-essential-operations)
+  - [1b. Extended-Only Memory Tools](#1b-extended-only-memory-tools)
+  - [2. Confidence System Tools](#2-confidence-system-tools-knowledge-quality)
+  - [3. Advanced Relationship Tools](#3-advanced-relationship-tools-graph-analytics)
+- [Tool Profiles](#tool-profiles)
+- [Usage Examples](#usage-examples)
+- [Best Practices](#best-practices)
+- [Performance Considerations](#performance-considerations)
+- [Error Handling](#error-handling)
+- [Integration Patterns](#integration-patterns)
+- [Parameter Requirements](#parameter-requirements)
+
+---
+
+> **📌 Note**: All code snippets in this document are **MCP tool call pseudocode** — they
+> illustrate which tools an AI agent should invoke and with what arguments. They are
+> **not** importable Python functions. For programmatic Python access, use the MCP
+> client pattern described in [PYTHON.md](integrations/PYTHON.md).
+
+---
+
 ## Overview
 
 Memento provides a comprehensive set of tools for persistent memory management in MCP clients. These tools enable AI assistants to store, retrieve, and analyze knowledge across sessions, building a personal knowledge base that grows smarter over time.
@@ -180,11 +205,6 @@ Common error scenarios:
 
 ## Integration Patterns
 
-> **📌 Note**: The code snippets below are **MCP tool call pseudocode** — they
-> illustrate which tools an AI agent should invoke and with what arguments. They are
-> **not** importable Python functions. For programmatic Python access, use the MCP
-> client pattern described in [PYTHON.md](integrations/PYTHON.md).
-
 ### With AI Assistants
 ```python
 async def process_with_context(query: str):
@@ -268,31 +288,3 @@ async def store_test_results(test_name: str, results: dict):
 **Note**: Parameters marked as required must be provided for the tool to function. Optional parameters have default values or can be omitted.
 
 ---
-
-## IMPORTANT: Memento vs Session Memory
-
-All tools in Memento are designed for persistent memory management and distinguish them from session memory tools in Serena Context Server:
-
-### Memento Memory Tools:
-- **Scope**: Global - accessible from ANY project or session
-- **Persistence**: Long-term - survives across ALL sessions
-- **Purpose**: Store reusable knowledge, solutions, patterns
-- **Examples**: `store_memento`, `get_memento`, `search_mementos`
-
-### Session Memory Tools (no suffix in Serena):
-- **Scope**: Project-specific - only accessible within current project
-- **Persistence**: Temporary - cleared at session end
-- **Purpose**: Current file context, temporary variables
-- **Examples**: `store_memory`, `get_memory`, `search_memories`
-
-### When to Use Which:
-| Scenario | Use Memento | Use Session |
-|----------|-------------|-------------|
-| Bug fix solution | ✅ `store_memento` | ❌ |
-| Current file context | ❌ | ✅ `store_memory` |
-| Architecture decision | ✅ `store_memento` | ❌ |
-| Temporary calculation | ❌ | ✅ `store_memory` |
-| Reusable code pattern | ✅ `store_memento` | ❌ |
-| Project-specific variable | ❌ | ✅ `store_memory` |
-
-**Note**: You can always use `search_mementos` or `recall_mementos` to find past knowledge from any project or session.

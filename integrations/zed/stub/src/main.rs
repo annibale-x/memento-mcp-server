@@ -26,7 +26,7 @@ use std::process::Command;
 
 /// Injected by scripts/deploy.py during a version bump.  Matches the PyPI
 /// package version and the Zed extension marketplace version.
-const STUB_VERSION: &str = "v0.2.18";
+const STUB_VERSION: &str = "v0.2.19";
 
 // ---------------------------------------------------------------------------
 // Logging — stderr + persistent file (stderr not visible inside Zed sandbox)

@@ -1,5 +1,27 @@
 # Relationship Types Reference - MCP Memento
 
+## Table of Contents
+
+- [Introduction to Relationships in Memento](#introduction-to-relationships-in-memento)
+- [Relationship Categories](#relationship-categories)
+- [Complete List of Relationship Types](#complete-list-of-relationship-types)
+  - [1. Causal Relationships](#1-causal-relationships-5-types)
+  - [2. Solution Relationships](#2-solution-relationships-5-types)
+  - [3. Context Relationships](#3-context-relationships-5-types)
+  - [4. Learning Relationships](#4-learning-relationships-5-types)
+  - [5. Similarity Relationships](#5-similarity-relationships-5-types)
+  - [6. Workflow Relationships](#6-workflow-relationships-5-types)
+  - [7. Quality Relationships](#7-quality-relationships-5-types)
+- [Practical Usage Examples](#practical-usage-examples)
+- [Best Practices for Relationship Usage](#best-practices-for-relationship-usage)
+- [Common Relationship Patterns](#common-relationship-patterns)
+- [Relationship Search Examples](#relationship-search-examples)
+- [Troubleshooting](#troubleshooting)
+- [Quick Reference Cheat Sheet](#quick-reference-cheat-sheet)
+- [Additional Resources](#additional-resources)
+
+---
+
 ## Introduction to Relationships in Memento
 
 Relationships are the core of the Memento system. They allow connecting memories together to create a structured knowledge network. Each relationship has:
@@ -274,7 +296,7 @@ Link memories when you create them, not later. This ensures:
 ### Learning Progression
 1. Basic → (`BUILDS_ON`) → Foundation
 2. Advanced → (`GENERALIZES`) → Concepts
-3. Example → (`EXEMPLIFIES`) → Pattern
+3. Example → (`CONFIRMS`) → Pattern
 4. Finding → (`CONFIRMS`/`CONTRADICTS`) → Hypothesis
 
 ### System Architecture
