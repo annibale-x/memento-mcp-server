@@ -194,9 +194,7 @@ fn marker_path(venv: &Path) -> PathBuf {
 }
 
 fn lock_path(venv: &Path) -> PathBuf {
-    venv.parent()
-        .unwrap_or(venv)
-        .join("memento_setup.lock")
+    venv.parent().unwrap_or(venv).join("memento_setup.lock")
 }
 
 fn release_setup_lock(venv: &Path) {
@@ -226,8 +224,7 @@ fn venv_is_valid(venv: &Path) -> bool {
 fn setup_venv(system_python: &Path, venv: &Path) -> Result<(), String> {
     if venv.exists() {
         log!("Removing stale venv at: {}", venv.display());
-        fs::remove_dir_all(venv)
-            .map_err(|e| format!("Failed to remove stale venv: {e}"))?;
+        fs::remove_dir_all(venv).map_err(|e| format!("Failed to remove stale venv: {e}"))?;
     }
 
     log!("Creating venv at: {}", venv.display());
@@ -257,7 +254,15 @@ fn install_memento(python: &Path) -> Result<(), String> {
     log!("pip install --upgrade mcp-memento (standard)");
 
     let status = Command::new(python)
-        .args(["-m", "pip", "install", "--upgrade", "--timeout", "120", "mcp-memento"])
+        .args([
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "--timeout",
+            "120",
+            "mcp-memento",
+        ])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
@@ -272,8 +277,12 @@ fn install_memento(python: &Path) -> Result<(), String> {
 
     let status = Command::new(python)
         .args([
-            "-m", "pip", "install", "--upgrade",
-            "--timeout", "120",
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            "--timeout",
+            "120",
             "--break-system-packages",
             "mcp-memento",
         ])
@@ -287,11 +296,9 @@ fn install_memento(python: &Path) -> Result<(), String> {
         return Ok(());
     }
 
-    Err(
-        "All install strategies failed. \
+    Err("All install strategies failed. \
          Run: pip install mcp-memento  (or pip install --break-system-packages mcp-memento)"
-            .to_string(),
-    )
+        .to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -350,7 +357,10 @@ fn send(obj: serde_json_lite::Value) {
 }
 
 /// Build a JSON-RPC success response.
-fn ok_response(id: &serde_json_lite::Value, result: serde_json_lite::Value) -> serde_json_lite::Value {
+fn ok_response(
+    id: &serde_json_lite::Value,
+    result: serde_json_lite::Value,
+) -> serde_json_lite::Value {
     serde_json_lite::json!({
         "jsonrpc": "2.0",
         "id": id,
@@ -359,11 +369,7 @@ fn ok_response(id: &serde_json_lite::Value, result: serde_json_lite::Value) -> s
 }
 
 /// Build a JSON-RPC error response.
-fn err_response(
-    id: &serde_json_lite::Value,
-    code: i64,
-    message: &str,
-) -> serde_json_lite::Value {
+fn err_response(id: &serde_json_lite::Value, code: i64, message: &str) -> serde_json_lite::Value {
     serde_json_lite::json!({
         "jsonrpc": "2.0",
         "id": id,
@@ -748,16 +754,19 @@ fn run_bootstrap_server(state: Arc<Mutex<SetupState>>, venv_py: PathBuf) -> ! {
         match method.as_str() {
             "initialize" => {
                 initialized = true;
-                send(ok_response(&id, json!({
-                    "protocolVersion": "2024-11-05",
-                    "serverInfo": {
-                        "name": "mcp-memento-bootstrap",
-                        "version": STUB_VERSION
-                    },
-                    "capabilities": {
-                        "tools": {}
-                    }
-                })));
+                send(ok_response(
+                    &id,
+                    json!({
+                        "protocolVersion": "2024-11-05",
+                        "serverInfo": {
+                            "name": "mcp-memento-bootstrap",
+                            "version": STUB_VERSION
+                        },
+                        "capabilities": {
+                            "tools": {}
+                        }
+                    }),
+                ));
             }
 
             "notifications/initialized" | "initialized" => {
@@ -765,24 +774,31 @@ fn run_bootstrap_server(state: Arc<Mutex<SetupState>>, venv_py: PathBuf) -> ! {
             }
 
             "tools/list" => {
-                if is_notification { continue; }
-                send(ok_response(&id, json!({
-                    "tools": [
-                        {
-                            "name": "memento_status",
-                            "description": "Returns the current setup status of mcp-memento.",
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": {},
-                                "required": []
+                if is_notification {
+                    continue;
+                }
+                send(ok_response(
+                    &id,
+                    json!({
+                        "tools": [
+                            {
+                                "name": "memento_status",
+                                "description": "Returns the current setup status of mcp-memento.",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "required": []
+                                }
                             }
-                        }
-                    ]
-                })));
+                        ]
+                    }),
+                ));
             }
 
             "tools/call" => {
-                if is_notification { continue; }
+                if is_notification {
+                    continue;
+                }
 
                 let elapsed = {
                     // We don't track start time here precisely, so just say "in progress".
@@ -791,18 +807,23 @@ fn run_bootstrap_server(state: Arc<Mutex<SetupState>>, venv_py: PathBuf) -> ! {
                      Please wait — the server will restart automatically when ready."
                 };
 
-                send(ok_response(&id, json!({
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": elapsed
-                        }
-                    ]
-                })));
+                send(ok_response(
+                    &id,
+                    json!({
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": elapsed
+                            }
+                        ]
+                    }),
+                ));
             }
 
             "ping" => {
-                if is_notification { continue; }
+                if is_notification {
+                    continue;
+                }
                 send(ok_response(&id, json!({})));
             }
 
@@ -818,7 +839,11 @@ fn run_bootstrap_server(state: Arc<Mutex<SetupState>>, venv_py: PathBuf) -> ! {
                     continue;
                 }
 
-                send(err_response(&id, -32601, &format!("Method not found: {method}")));
+                send(err_response(
+                    &id,
+                    -32601,
+                    &format!("Method not found: {method}"),
+                ));
             }
         }
     }
@@ -874,10 +899,7 @@ fn init_reader_thread() {
 ///   None           — timeout (no data yet)
 ///   Some(Ok(line)) — got a line (may be empty for blank lines)
 ///   Some(Err(()))  — EOF or read error
-fn read_line_timeout(
-    _reader: &mut impl BufRead,
-    timeout: Duration,
-) -> Option<Result<String, ()>> {
+fn read_line_timeout(_reader: &mut impl BufRead, timeout: Duration) -> Option<Result<String, ()>> {
     let rx_lock = LINE_RX.get()?;
     let rx = rx_lock.lock().unwrap();
 
@@ -940,7 +962,10 @@ fn main() {
     if we_own_lock {
         log!("Acquired setup lock (pid={}).", std::process::id());
     } else {
-        log!("Setup lock busy — another process is installing (pid={}).", std::process::id());
+        log!(
+            "Setup lock busy — another process is installing (pid={}).",
+            std::process::id()
+        );
     }
 
     let state = Arc::new(Mutex::new(SetupState::Running));
@@ -949,32 +974,59 @@ fn main() {
     let python_for_thread = system_python.clone();
 
     thread::spawn(move || {
+        // If we don't own the lock, poll — but if the lock disappears without
+        // the venv becoming valid, the owner was killed mid-install (Zed kills
+        // it on "reconfigure"). Take over the lock and redo setup.
+        let mut need_setup = we_own_lock;
+
         if !we_own_lock {
-            // Not the setup owner — just poll until venv is valid.
             loop {
                 thread::sleep(Duration::from_millis(500));
 
                 if venv_is_valid(&venv_for_thread) {
-                    log!("Other process finished setup — venv valid (pid={}).", std::process::id());
+                    log!(
+                        "Other process finished — venv valid (pid={}).",
+                        std::process::id()
+                    );
                     *state_for_thread.lock().unwrap() = SetupState::Done;
                     return;
                 }
 
-                log!("Still waiting for setup to finish…");
+                if !lock_path(&venv_for_thread).exists() {
+                    // Lock gone but venv still invalid: owner was killed.
+                    // Try to grab the lock and take over.
+                    let grabbed = fs::OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .open(lock_path(&venv_for_thread))
+                        .is_ok();
+
+                    if grabbed {
+                        log!(
+                            "Previous owner died — taking over setup (pid={}).",
+                            std::process::id()
+                        );
+                        need_setup = true;
+                        break;
+                    }
+                    // Another process got the lock first — keep polling.
+                    log!("Lock re-acquired by another process — still waiting…");
+                }
             }
         }
 
-        // We own the lock — run setup.
-        match setup_venv(&python_for_thread, &venv_for_thread) {
-            Ok(()) => {
-                release_setup_lock(&venv_for_thread);
-                log!("Setup complete (pid={}).", std::process::id());
-                *state_for_thread.lock().unwrap() = SetupState::Done;
-            }
-            Err(e) => {
-                release_setup_lock(&venv_for_thread);
-                log!("Setup failed: {e}");
-                *state_for_thread.lock().unwrap() = SetupState::Failed(e);
+        if need_setup {
+            match setup_venv(&python_for_thread, &venv_for_thread) {
+                Ok(()) => {
+                    release_setup_lock(&venv_for_thread);
+                    log!("Setup complete (pid={}).", std::process::id());
+                    *state_for_thread.lock().unwrap() = SetupState::Done;
+                }
+                Err(e) => {
+                    release_setup_lock(&venv_for_thread);
+                    log!("Setup failed: {e}");
+                    *state_for_thread.lock().unwrap() = SetupState::Failed(e);
+                }
             }
         }
     });
