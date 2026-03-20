@@ -197,6 +197,37 @@ fn lock_path(venv: &Path) -> PathBuf {
     venv.parent().unwrap_or(venv).join("memento_setup.lock")
 }
 
+fn acquire_setup_lock(venv: &Path) -> bool {
+    let lock = lock_path(venv);
+
+    // If a lockfile exists, check if the owner PID is still alive.
+    // If not, it's a stale lock from a process killed by Zed — remove it.
+    if let Ok(content) = fs::read_to_string(&lock) {
+        let owner_pid: u32 = content.trim().parse().unwrap_or(0);
+
+        if owner_pid > 0 {
+            let alive = std::path::Path::new(&format!("/proc/{}", owner_pid)).exists();
+
+            if !alive {
+                log!("Stale lock from dead pid={} — removing.", owner_pid);
+                let _ = fs::remove_file(&lock);
+            }
+        }
+    }
+
+    match fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&lock)
+    {
+        Ok(mut f) => {
+            let _ = writeln!(f, "{}", std::process::id());
+            true
+        }
+        Err(_) => false,
+    }
+}
+
 fn release_setup_lock(venv: &Path) {
     let _ = fs::remove_file(lock_path(venv));
     log!("Setup lock released (pid={}).", std::process::id());
@@ -953,11 +984,7 @@ fn main() {
         let _ = fs::create_dir_all(parent);
     }
 
-    let we_own_lock = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&lock)
-        .is_ok();
+    let we_own_lock = acquire_setup_lock(&venv);
 
     if we_own_lock {
         log!("Acquired setup lock (pid={}).", std::process::id());
@@ -992,14 +1019,25 @@ fn main() {
                     return;
                 }
 
-                if !lock_path(&venv_for_thread).exists() {
-                    // Lock gone but venv still invalid: owner was killed.
-                    // Try to grab the lock and take over.
-                    let grabbed = fs::OpenOptions::new()
-                        .write(true)
-                        .create_new(true)
-                        .open(lock_path(&venv_for_thread))
-                        .is_ok();
+                // Check if the lock is stale (owner process dead) even if
+                // the file still exists — Zed kills with SIGKILL so the
+                // lockfile is never cleaned up by the owner.
+                let lock_stale = if let Ok(content) =
+                    fs::read_to_string(lock_path(&venv_for_thread))
+                {
+                    let owner_pid: u32 = content.trim().parse().unwrap_or(0);
+                    owner_pid > 0 && !std::path::Path::new(&format!("/proc/{}", owner_pid)).exists()
+                } else {
+                    false
+                };
+
+                if !lock_path(&venv_for_thread).exists() || lock_stale {
+                    if lock_stale {
+                        log!("Lock owner is dead — removing stale lock.");
+                        let _ = fs::remove_file(lock_path(&venv_for_thread));
+                    }
+                    // Lock gone or stale: try to grab it and take over.
+                    let grabbed = acquire_setup_lock(&venv_for_thread);
 
                     if grabbed {
                         log!(
