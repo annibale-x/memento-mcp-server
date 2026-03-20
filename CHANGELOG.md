@@ -1,7 +1,13 @@
 # Changelog
 
-* 2026-03-20: v0.2.22 - <TITLE> (Hannibal)
-  * <release notes here>
+* 2026-03-20: v0.2.22 - MCP bootstrap proxy: fix "Context Server Stopped" on Linux (Hannibal)
+  * Stub: MCP bootstrap proxy for slow-path (venv not ready on first install/upgrade)
+  * Bootstrap serves a minimal JSON-RPC 2.0 MCP server on stdio while pip runs in background thread
+  * Zed initialize answered within milliseconds — no more 60s timeout crash on first install
+  * Exposes memento_status tool returning human-readable setup progress
+  * On Unix: re-exec after setup for zero-overhead hand-off with fully inherited stdio
+  * On Windows: bidirectional pipe proxy after setup completes
+  * Pip install timeout raised from 60s to 120s
 
 
 * 2026-03-20: v0.2.21 - README TOC PyPI fix + stub pip timeout (Hannibal)
