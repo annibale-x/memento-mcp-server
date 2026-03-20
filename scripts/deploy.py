@@ -4,10 +4,10 @@ deploy.py — MCP Memento unified release & deploy script.
 
 Workflow
 --------
-  sviluppo → bump → test & fix → bump → promote → publish
+  bump [X.Y.Z]  →  fix / test  →  bump  →  ...  →  promote  →  publish
 
 Usage:
-    python scripts/deploy.py bump X.Y.Z
+    python scripts/deploy.py bump [X.Y.Z]
     python scripts/deploy.py promote [--yes]
     python scripts/deploy.py publish [-t]
     python scripts/deploy.py build
@@ -19,10 +19,13 @@ Usage:
 
 Commands
 --------
-  bump X.Y.Z        Dev bump: update versions in all manifests, build stub for
-                    current platform, upload to dev-latest pre-release on GitHub.
+  bump [X.Y.Z]      Dev bump: update versions in all manifests, build stub for
+                    current platform, upload to the dev-latest pre-release on
+                    GitHub, build the Python wheel, and install it into the Zed
+                    extension venv (MEMENTO_LOCAL_WHEEL).
+                    Version is optional — omitting it re-runs on the current
+                    version (useful to rebuild stub/wheel without a version change).
                     Tag is local only — CI is NOT triggered. Always non-interactive.
-                    Use --dry-run to preview without making changes.
 
   promote           Promote the current dev version to an official release:
                     verify CHANGELOG, merge dev→main, push tag vX.Y.Z (triggers
@@ -37,23 +40,20 @@ Commands
   build-zed-stub    Build the native stub binary for the current platform, copy
                     it into integrations/zed/stub/bin/ and into the Zed extension
                     work directory, then commit and push.
-                    Use during active Zed extension development after editing
-                    stub/src/main.rs.
+                    Use when you modify stub/src/main.rs without a full bump.
 
-  dev-install       Install the local wheel (from dist/) into the Zed extension
-                    venv without publishing to PyPI. Deletes the venv marker so
-                    the stub rebuilds the venv on next Zed reload, and prints
-                    the MEMENTO_LOCAL_WHEEL JSON snippet to paste into settings.
-                    Use this during active Python development to test the Zed
-                    extension against local code changes.
+  dev-install       Build the local wheel and configure the Zed extension venv
+                    to use it instead of PyPI. Prints the MEMENTO_LOCAL_WHEEL
+                    snippet to paste into Zed settings if needed.
+                    Called automatically by bump — only run manually if needed.
 
   ext-binaries      Download CI-built stub binaries from the GitHub Release
                     vX.Y.Z into stub/bin/ and commit them to the repo.
-                    Run after the CI workflow has completed successfully.
+                    Run after CI has finished following a promote.
 
   upload-stubs      Create the GitHub Release vX.Y.Z (if it does not exist) and
                     upload the local stub binaries from stub/bin/ as release assets.
-                    Use as a manual fallback if the CI upload step failed.
+                    Manual fallback if the CI upload step failed.
 
   status            Print current versions across all manifests.
 
@@ -67,8 +67,11 @@ Options
 
 Examples
 --------
-  # Bump to 0.3.0 (dev only, non-interactive)
+  # Start a new version
   python scripts/deploy.py bump 0.3.0
+
+  # Rebuild stub + wheel on the current version (no version change)
+  python scripts/deploy.py bump
 
   # Preview bump without executing
   python scripts/deploy.py bump 0.3.0 --dry-run
@@ -76,26 +79,11 @@ Examples
   # Promote current dev version to official release
   python scripts/deploy.py promote --yes
 
-  # Build wheel only
-  python scripts/deploy.py build
-
   # Publish to PyPI
   python scripts/deploy.py publish
 
   # Publish to TestPyPI
   python scripts/deploy.py publish --test
-
-  # Rebuild stub for current platform and update stub/bin/
-  python scripts/deploy.py build-zed-stub
-
-  # Dev: install local wheel into Zed venv without publishing to PyPI
-  python scripts/deploy.py dev-install
-
-  # Download CI-built binaries after CI completes and commit to repo
-  python scripts/deploy.py ext-binaries --version 0.3.0
-
-  # Manually create release and upload local binaries (CI upload fallback)
-  python scripts/deploy.py upload-stubs --version 0.3.0
 
   # Show current version state
   python scripts/deploy.py status
@@ -1305,12 +1293,18 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     # ── bump ──────────────────────────────────────────────────────────────
-    # Always a dev-only bump: local tag, no merge to main, no CI trigger.
+    # Dev-only bump: local tag, no merge to main, no CI trigger.
+    # Also builds the wheel and configures the Zed venv (dev-install).
     p_bump = sub.add_parser(
         "bump",
-        help="Dev bump: update versions locally, build stub, upload to dev-latest.",
+        help="Dev bump: update versions, build stub+wheel, install into Zed venv.",
     )
-    p_bump.add_argument("version", help="New version string (e.g. 0.3.0)")
+    p_bump.add_argument(
+        "version",
+        nargs="?",
+        default=None,
+        help="New version string (e.g. 0.3.0). Defaults to current version in pyproject.toml.",
+    )
     p_bump.add_argument(
         "--dry-run", action="store_true", help="Preview actions without executing."
     )
@@ -1406,15 +1400,19 @@ def main() -> None:
         cmd_status()
 
     elif args.command == "bump":
-        if not re.fullmatch(r"\d+\.\d+\.\d+", args.version):
-            die(f"Invalid version format: {args.version!r}. Expected X.Y.Z")
+        new_ver = args.version or read_pyproject_version()
+
+        if not re.fullmatch(r"\d+\.\d+\.\d+", new_ver):
+            die(f"Invalid version format: {new_ver!r}. Expected X.Y.Z")
+
         cmd_bump(
-            new_ver=args.version,
+            new_ver=new_ver,
             skip_tests=args.skip_tests,
             dev_only=True,
             dry=args.dry_run,
             yes=True,
         )
+        cmd_dev_install(dry=args.dry_run)
 
     elif args.command == "promote":
         new_ver = read_pyproject_version()
