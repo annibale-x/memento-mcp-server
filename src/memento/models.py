@@ -177,9 +177,9 @@ class Memory(BaseModel):
     # Core fields
     id: Optional[str] = None
     type: MemoryType
-    title: str = Field(..., min_length=1, max_length=200)
+    title: str = Field(..., min_length=1, max_length=500)
     content: str = Field(..., min_length=1)
-    summary: Optional[str] = Field(None, max_length=500)
+    summary: Optional[str] = Field(None, max_length=200)
     tags: List[str] = Field(default_factory=list)
     context: Optional[MemoryContext] = None
 
@@ -224,7 +224,6 @@ class RelationshipProperties(BaseModel):
     """Properties for relationships between memories."""
 
     strength: float = Field(default=0.5, ge=0.0, le=1.0)
-    confidence: float = Field(default=0.8, ge=0.0, le=1.0)
     context: Optional[str] = None
     evidence_count: int = Field(default=1, ge=0)
     success_rate: Optional[float] = Field(None, ge=0.0, le=1.0)

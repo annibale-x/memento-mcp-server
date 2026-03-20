@@ -403,12 +403,20 @@ Create `memento.yaml` in the current working directory or at
 `~/.mcp-memento/config.yaml`:
 
 ```yaml
-# memento.yaml
+# memento.yaml — actively read keys only
 db_path: ~/.mcp-memento/context.db
 profile: extended           # core | extended | advanced
-log_level: INFO             # DEBUG | INFO | WARNING | ERROR
-allow_relationship_cycles: false
+logging:
+  level: INFO               # DEBUG | INFO | WARNING | ERROR
+features:
+  allow_relationship_cycles: false
 ```
+
+> **Note**: Only the four keys above are read by the configuration loader.
+> `log_level` as a flat top-level key is **not** supported — use `logging.level` (nested).
+> Additional sections present in the project's `memento.yaml` template (`confidence`,
+> `search`, `performance`, `memory`, `fts`, `project`) are reserved for future use
+> and are silently ignored by the current version.
 
 ### Checking the Active Configuration
 

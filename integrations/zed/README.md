@@ -137,6 +137,12 @@ Zed uses that work directory as the WASM sandbox CWD, so the stub is found at
 3. Run `zed: extensions`.
 4. Click **Install Dev Extension** and select `integrations/zed/`.
 
+> ⚠️ **Testing on a platform different from your dev machine requires `promote` first.**
+> `build-zed-stub` only updates the bundled binary for the current platform.
+> Binaries for the other 4 targets are produced by CI and are only available after
+> `promote` (which pushes the tag and triggers the CI workflow).
+> To test on a different platform, run `promote` first, then pull `main` on the target machine.
+
 Zed compiles the WASM and loads the extension. No rebuild needed after editing
 `lib.rs` — Zed recompiles automatically on reload.
 

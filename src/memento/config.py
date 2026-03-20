@@ -225,18 +225,46 @@ class YAMLConfig:
 
     @classmethod
     def _load_yaml_file(cls, path: Path) -> Dict[str, Any]:
-        """Load YAML configuration from a file."""
+        """Load YAML configuration from a file.
+
+        Accepts both the user-facing keys documented in README/INTEGRATION
+        (``db_path``, ``profile``) and the internal legacy keys
+        (``sqlite_path``, ``tool_profile``).  User-facing keys take precedence
+        when both are present in the same file.
+        """
         if path in cls._config_cache:
             return cls._config_cache[path]
 
         try:
             with open(path, "r", encoding="utf-8") as f:
-                config = yaml.safe_load(f) or {}
+                raw = yaml.safe_load(f) or {}
+                config = cls._normalize_yaml_keys(raw)
                 cls._config_cache[path] = config
                 return config
         except Exception as e:
             print(f"Warning: Failed to load config from {path}: {e}")
             return {}
+
+    @classmethod
+    def _normalize_yaml_keys(cls, raw: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize user-facing YAML keys to internal keys.
+
+        Documented key  →  Internal key
+        ``db_path``     →  ``sqlite_path``
+        ``profile``     →  ``tool_profile``
+
+        Legacy internal keys (``sqlite_path``, ``tool_profile``) are still
+        accepted so that existing configs continue to work.  When both forms
+        are present the user-facing key wins.
+        """
+        config = dict(raw)
+
+        if "db_path" in config:
+            config["sqlite_path"] = config.pop("db_path")
+        if "profile" in config:
+            config["tool_profile"] = config.pop("profile")
+
+        return config
 
     @classmethod
     def _apply_env_overrides(cls, config: Dict[str, Any]) -> Dict[str, Any]:

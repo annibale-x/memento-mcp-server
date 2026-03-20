@@ -19,16 +19,18 @@ This means **zero manual setup**: install the extension, open Zed, done.
 
 ## Installation
 
-### From the Zed Marketplace (recommended)
+### From the Zed Marketplace
+
+> **Note**: The extension is not yet published to the Zed Marketplace. Use the dev install below while the marketplace submission is pending.
 
 1. Open Zed
 2. Command Palette → `zed: extensions`
 3. Search for **Memento MCP Server**
 4. Click **Install**
 
-### Dev / manual install
+### Dev / manual install (current method)
 
-1. Clone the repository
+1. Clone the repository: `git clone https://github.com/annibale-x/mcp-memento.git`
 2. Command Palette → `zed: extensions` → **Install Dev Extension**
 3. Select the `integrations/zed/` folder
 
@@ -81,9 +83,9 @@ The directory is created automatically on first run.
 
 | Profile | Tools included |
 |---|---|
-| `core` | Basic memory operations (store, recall, search, relationships) |
-| `extended` | `core` + statistics, confidence decay, contextual search |
-| `advanced` | `extended` + graph analytics, activity summaries |
+| `core` | 13 tools — store, recall, search, relationships, confidence basics, onboarding |
+| `extended` | `core` + 4 tools: statistics, contextual search, relationship context search, confidence decay |
+| `advanced` | `extended` + 8 tools: graph analytics (clusters, paths, patterns, network, central nodes, suggestions, analysis, decay factor) |
 
 ### Custom Python executable
 

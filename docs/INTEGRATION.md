@@ -48,15 +48,14 @@ For CLI tools and custom applications.
 - **Claude CLI** - Anthropic's Claude command-line interface
 - **Custom CLI Agents** - Your own command-line tools
 
-**API & Programmatic Access:**
-- **HTTP REST API** - RESTful API for remote access
-- **Node.js SDK** - JavaScript/TypeScript integration
-- **Docker Deployment** - Containerized deployment
-- **Python API** - Programmatic Python integration
+**Programmatic & Deployment Access:**
+- **MCP Client (Python)** - Programmatic access via the `mcp` library
+- **Docker Deployment** - Containerized deployment (stdio transport)
+- **CLI Export / Import** - Backup and migration scripting
 
 **📖 Detailed Guides:**
 - [Agent Integration Guide](./integrations/AGENT.md) - CLI agents
-- [API & Programmatic Integration Guide](./integrations/API.md) - REST API, Node.js, Docker
+- [API & Programmatic Integration Guide](./integrations/API.md) - MCP client, Docker, CLI
 
 ## Quick Start Examples
 
@@ -134,12 +133,12 @@ For full details see [Python Integration Guide](./integrations/PYTHON.md).
 
 ### For AI Agent Developers
 - **Primary Use**: MCP client (Python `mcp` library) for custom agents
-- **Secondary Use**: HTTP REST API for multi-language support
+- **Secondary Use**: MCP client (Python `mcp` library) for automation and scripting
 - **Best Profile**: Advanced (25 tools)
 
 ### For System Administrators
 - **Primary Use**: CLI tools and automation
-- **Secondary Use**: HTTP REST API for monitoring
+- **Secondary Use**: MCP client or Docker for monitoring and automation
 - **Best Profile**: Advanced with custom configuration
 
 ## Configuration Hierarchy
@@ -155,19 +154,29 @@ Memento supports multiple configuration sources. Order of precedence (highest fi
    ```bash
    export MEMENTO_DB_PATH="~/custom/path/memento.db"
    export MEMENTO_PROFILE="advanced"
+   export MEMENTO_LOG_LEVEL="DEBUG"
+   export MEMENTO_ALLOW_CYCLES="false"   # Allow cycles in relationship graph
    ```
 
 3. **YAML configuration files** (lowest explicit priority)
    ```yaml
-   # memento.yaml
+   # memento.yaml — supported keys
    db_path: ~/.mcp-memento/context.db
    profile: extended
-   log_level: INFO
+   logging:
+     level: INFO
+   features:
+     allow_relationship_cycles: false
    ```
 
-   The `memento.yaml` file is searched in this order (first found wins):
-   - Current working directory (`./memento.yaml`)
-   - User home directory (`~/.mcp-memento/config.yaml`)
+   > **Note**: Only the four keys above (`db_path`, `profile`, `logging.level`,
+   > `features.allow_relationship_cycles`) are actively read. Any other keys present
+   > in the YAML file (e.g. `confidence`, `search`, `performance`) are silently ignored.
+   > See [README — Supported YAML Keys](../README.md#supported-yaml-keys) for the full table.
+
+   YAML files are loaded in this order, with later files overriding earlier ones:
+   - Global config: `~/.mcp-memento/config.yaml` (loaded first)
+   - Project config: `./memento.yaml` in current directory (overrides global)
 
 4. **Built-in defaults** (lowest priority)
 
@@ -219,9 +228,9 @@ Memento uses SQLite with Write-Ahead Logging (WAL) mode enabled by default to su
 
 ### Key Features:
 - **WAL Mode**: Enables concurrent reads and writes without locking conflicts
-- **Optimistic Locking**: Memory version tracking prevents overwrite conflicts
-- **Automatic Retry**: Built-in retry logic for transient lock conflicts
-- **Connection Pooling**: Efficient handling of multiple concurrent connections
+- **Optimistic Locking**: A `version` field is stored in each memory's JSON properties and incremented on every update, allowing the database layer to detect and reject stale writes
+- **Busy Timeout**: SQLite is configured with a 5-second busy timeout before reporting a lock error, reducing transient failures under concurrent load
+- **WAL Mode**: Enables concurrent reads and writes without locking conflicts (single connection per server instance; no internal connection pool)
 
 ### Best Practices for Team Usage:
 1. **Shared Network Storage**: When using a shared database on network storage, ensure filesystem supports locking

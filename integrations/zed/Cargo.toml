@@ -11,7 +11,7 @@ panic = "abort"
 
 [package]
 name = "memento-mcp-server"
-version = "0.2.24"
+version = "0.2.25"
 edition = "2024"
 authors = ["Hannibal <annibale.x@gmail.com>"]
 description = "Persistent memory for AI agents via MCP."

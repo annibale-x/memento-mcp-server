@@ -3,14 +3,14 @@
 [![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-blueviolet)](https://spec.modelcontextprotocol.io/)
-[![Latest Release](https://img.shields.io/badge/release-v0.2.24-purple.svg)](https://github.com/annibale-x/mcp-memento/releases/tag/v0.2.24)
+[![Latest Release](https://img.shields.io/badge/release-v0.2.25-purple.svg)](https://github.com/annibale-x/mcp-memento/releases/tag/v0.2.25)
 
 Intelligent memory management for MCP clients with confidence tracking, relationship mapping, and knowledge quality maintenance.
 
 Memento is an MCP server that provides persistent memory capabilities across multiple platforms:
 - **IDEs**: Zed, Cursor, Windsurf, VSCode, Claude Desktop
 - **CLI Agents**: Gemini CLI, Claude CLI, custom agents
-- **Programmatic Usage**: MCP client (Python/Node.js), REST API, custom integrations
+- **Programmatic Usage**: MCP client (Python), Docker deployment, CLI export/import
 - **Applications**: Any MCP-compatible application
 
 Build a personal or team knowledge base that grows smarter over time, accessible from all your development tools.
@@ -57,7 +57,7 @@ Alternatively, you can add custom instructions to your AI (see our [Agent Config
 - **Smart ordering**: Search results ranked by `confidence × importance`
 
 ### 🔗 Relationship Mapping
-- **35+ relationship types**: SOLVES, CAUSES, IMPROVES, USED_IN, etc. (see [Relationship Types Reference](docs/RELATIONSHIPS.md))
+- **35 relationship types**: SOLVES, CAUSES, IMPROVES, USED_IN, etc. across 7 semantic categories (see [Relationship Types Reference](docs/RELATIONSHIPS.md))
 - **Graph navigation**: Find connections between concepts
 - **Pattern detection**: Identify recurring solution patterns
 
@@ -189,7 +189,7 @@ Memento works with all major development tools:
 | **Gemini CLI** | [Agent Integration](docs/integrations/AGENT.md#gemini-cli) | Google's CLI agent |
 | **Claude CLI** | [Agent Integration](docs/integrations/AGENT.md#claude-cli) | Anthropic's CLI agent |
 | **Python / MCP Client** | [Python Integration](docs/integrations/PYTHON.md) | Embed server or call via MCP client |
-| **REST API** | [API Integration](docs/integrations/API.md) | HTTP access |
+| **Docker / CLI** | [API & Programmatic](docs/integrations/API.md) | MCP client, Docker, export/import |
 
 **See also**: [Integration Overview](docs/INTEGRATION.md) for guidance on choosing the right integration.
 
@@ -296,15 +296,32 @@ Memento supports multiple configuration sources (in order of precedence):
    export MEMENTO_PROFILE="advanced"
    export MEMENTO_DB_PATH="~/custom/path/memento.db"
    export MEMENTO_LOG_LEVEL="DEBUG"
+   export MEMENTO_ALLOW_CYCLES="false"   # Allow cycles in relationship graph
    ```
 
 3. **YAML Configuration Files**
-   - Project config: `./memento.yaml` in current directory
+   - Project config: `./memento.yaml` in current directory (overrides global)
    - Global config: `~/.mcp-memento/config.yaml`
 
-**Priority Order**: CLI Arguments > Environment Variables > YAML Files > Defaults
+**Priority Order**: CLI Arguments > Environment Variables > Project YAML > Global YAML > Defaults
 
 4. **Default Values** (lowest priority)
+
+### Supported YAML Keys
+
+The following keys are **read and applied** by the configuration loader. Any other keys present in the YAML file are silently ignored.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `db_path` | string | `~/.mcp-memento/context.db` | SQLite database file path |
+| `profile` | string | `core` | Tool profile (`core`, `extended`, `advanced`) |
+| `logging.level` | string | `INFO` | Log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `features.allow_relationship_cycles` | bool | `false` | Allow cyclic relationships in the graph |
+
+> **Note**: The `memento.yaml` template shipped with the project contains additional
+> commented sections (`confidence`, `search`, `performance`, `memory`, `fts`, `project`).
+> These are **not yet implemented** — they are aspirational placeholders for future
+> releases and have no effect on the current server behaviour.
 
 ### Example Configuration Files
 
@@ -312,14 +329,18 @@ Memento supports multiple configuration sources (in order of precedence):
 ```yaml
 db_path: ~/.mcp-memento/context.db
 profile: extended
-log_level: INFO
+logging:
+  level: INFO
+features:
+  allow_relationship_cycles: false
 ```
 
 **Global configuration** (`~/.mcp-memento/config.yaml`):
 ```yaml
 db_path: ~/.mcp-memento/global.db
 profile: extended
-log_level: INFO
+logging:
+  level: INFO
 ```
 
 <a name="documentation-structure"></a>
@@ -337,7 +358,7 @@ log_level: INFO
 - **[IDE Integration](docs/integrations/IDE.md)** - Zed, Cursor, Windsurf, VSCode, Claude Desktop
 - **[Python Integration](docs/integrations/PYTHON.md)** - MCP client usage, server embedding, CLI export/import
 - **[Agent Integration](docs/integrations/AGENT.md)** - CLI agents and custom applications
-- **[API & Programmatic Integration](docs/integrations/API.md)** - HTTP REST API, Node.js SDK, Docker
+- **[API & Programmatic Integration](docs/integrations/API.md)** - MCP client (Python), Docker deployment, CLI export/import
 
 ### Development & Advanced Topics
 - **[Database Schema](docs/dev/SCHEMA.md)** - Technical database structure
@@ -349,7 +370,7 @@ log_level: INFO
 ### Database Schema
 Memento uses a unified SQLite schema accessible from all integrations:
 - **Core tables**: `nodes` (memory storage), `relationships` (directed graph)
-- **Full-text search**: FTS5 virtual table for fast searching
+- **Full-text search**: `nodes_fts` — FTS5 virtual table for fast searching (falls back to LIKE-based search if FTS5 is unavailable)
 - **Confidence tracking**: Automatic decay with protection for critical memories
 
 ### Consistent Behavior

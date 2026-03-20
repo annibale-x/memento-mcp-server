@@ -112,18 +112,21 @@ This index supports optimistic locking for memory updates.
   "evidence": ["integration_tests", "unit_tests", ...],
   "components": ["component1", "component2", ...],
   "strength": 0.0-1.0,
-  "confidence": 0.0-1.0,
   "context": "Relationship description",
   "success_rate": 0.0-1.0,
   "created_at": "ISO timestamp",
   "last_validated": "ISO timestamp",
   "validation_count": 0,
-  "counter_evidence_count": 0,
-  "last_accessed": "ISO timestamp",
-  "access_count": 0,
-  "decay_factor": 0.95
+  "counter_evidence_count": 0
 }
 ```
+
+> **Dual-column note**: The fields `confidence`, `last_accessed`, `access_count`, and
+> `decay_factor` exist as **dedicated columns** in the `relationships` table (see
+> section 2 above) and are the **authoritative source** for those values. They may
+> also appear inside the `properties` JSON blob as legacy artifacts from earlier
+> versions, but the JSON copies are not read by the application — all reads and
+> writes go through the dedicated columns. Do not rely on the JSON copies.
 
 ## Common Query Patterns
 
@@ -177,7 +180,31 @@ Schema management is handled exclusively by `SQLiteBackend.initialize_schema()` 
 - Every DDL statement uses `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`, so re-running on an existing database is a no-op.
 - New columns or tables introduced in future versions must be added as separate `ALTER TABLE … ADD COLUMN` statements inside `initialize_schema()`, guarded by appropriate checks (e.g. catching `OperationalError` when the column already exists), to preserve backwards compatibility.
 - There is currently no versioned migration framework (e.g. Alembic). If a breaking schema change is ever required, a manual migration script must be written and documented here.
-- The FTS virtual table (`nodes_fts`) is populated imperatively at write time by `SQLiteMemoryDatabase`; it is **not** auto-synced from `nodes`. If the table is dropped and recreated, it must be re-populated from the existing `nodes` rows.
+- The FTS virtual table (`nodes_fts`) is populated imperatively at write time by `SQLiteMemoryDatabase`; it is **not** auto-synced from `nodes`. If the table is dropped and recreated, it must be re-populated from the existing `nodes` rows using the query below.
+
+### FTS Re-population Query
+
+If `nodes_fts` is ever dropped and needs to be rebuilt from scratch:
+
+```sql
+-- Step 1: recreate the virtual table (if missing)
+CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts
+USING fts5(id UNINDEXED, title, content, summary, content='', tokenize='porter ascii');
+
+-- Step 2: populate from existing nodes
+INSERT INTO nodes_fts (id, title, content, summary)
+SELECT
+    n.id,
+    json_extract(n.properties, '$.title')   AS title,
+    json_extract(n.properties, '$.content') AS content,
+    json_extract(n.properties, '$.summary') AS summary
+FROM nodes n
+WHERE n.label = 'Memory';
+```
+
+> **Warning**: Run these statements while no other process is writing to the database.
+> After re-population, verify with `SELECT COUNT(*) FROM nodes_fts;` and compare
+> against `SELECT COUNT(*) FROM nodes WHERE label = 'Memory';`.
 
 ## Notes
 

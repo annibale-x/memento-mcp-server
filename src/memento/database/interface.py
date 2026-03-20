@@ -158,15 +158,21 @@ class SQLiteMemoryDatabase:
         """
         Store a memory in SQLite database.
 
+        **Upsert semantics**: if a memory with the same ``id`` already exists,
+        this method silently calls ``update_memory()`` instead of raising an
+        error.  Pass a freshly-generated ID (or leave ``id=None`` and let the
+        caller assign one) when you intend to create a new entry.
+
         Args:
-            memory: Memory object to store
+            memory: Memory object to store.  ``memory.id`` must be set before
+                calling this method.
 
         Returns:
-            Stored memory with updated metadata
+            Stored (or updated) memory with refreshed metadata.
 
         Raises:
-            ValidationError: If memory validation fails
-            BackendError: If database operation fails
+            ValidationError: If memory validation fails (e.g. missing id).
+            BackendError: If database operation fails.
         """
         try:
             # Validate memory
@@ -521,14 +527,19 @@ class SQLiteMemoryDatabase:
         params = []
 
         if query.query:
-            # Simple pattern matching on title and content
-            where_clauses.append("""
-                (json_extract(properties, '$.title') LIKE ?
-                 OR json_extract(properties, '$.content') LIKE ?
-                 OR json_extract(properties, '$.summary') LIKE ?)
-            """)
-            pattern = f"%{query.query}%"
-            params.extend([pattern, pattern, pattern])
+            # AND-match every whitespace-separated word independently so that
+            # "connection timeout" finds documents containing both words even
+            # when they are not adjacent (mirrors the FTS AND behaviour).
+            words = query.query.split()
+
+            for word in words:
+                pattern = f"%{word}%"
+                where_clauses.append("""
+                    (json_extract(properties, '$.title') LIKE ?
+                     OR json_extract(properties, '$.content') LIKE ?
+                     OR json_extract(properties, '$.summary') LIKE ?)
+                """)
+                params.extend([pattern, pattern, pattern])
 
         # Filter by tags if specified
         if query.tags:
@@ -585,25 +596,29 @@ class SQLiteMemoryDatabase:
         """
         Prepare query string for SQLite FTS5.
 
+        Single terms use prefix matching (token*).
+        Multi-word queries use AND logic so all terms must appear anywhere
+        in the document (not necessarily adjacent), which is far more useful
+        than phrase search for exploratory queries.
+
         Args:
             query: Raw search query
 
         Returns:
             FTS5-compatible query string
         """
-        # Remove special characters and split into terms
+        # Extract word tokens, strip FTS5 special chars
         terms = re.findall(r"\b\w+\b", query.lower())
 
-        # Join with AND operator for FTS5
         if not terms:
             return "*"  # Match all
 
-        # Use phrase search for multi-word queries
-        if len(terms) > 1:
-            return f'"{query}"'
+        if len(terms) == 1:
+            # Single term: prefix matching for partial words
+            return f"{terms[0]}*"
 
-        # Single term with prefix matching
-        return f"{terms[0]}*"
+        # Multi-word: AND of prefix-matched terms so every word must appear
+        return " ".join(f"{t}*" for t in terms)
 
     # Relationship operations
 
@@ -1452,9 +1467,16 @@ class SQLiteMemoryDatabase:
                 }
                 has_critical_tag = any(tag in critical_tags for tag in memory.tags)
 
+                # Check for temporary tags that should decay faster
+                temporary_tags = {"temporary", "session", "debug"}
+                has_temporary_tag = any(tag in temporary_tags for tag in memory.tags)
+
                 if has_critical_tag:
                     # No decay for critical memories
                     decay_factor = 1.0
+                elif has_temporary_tag:
+                    # Faster decay for temporary context: 20% monthly (decay_factor = 0.80)
+                    decay_factor = 0.80
                 else:
                     decay_factor = base_decay * importance_factor
 
@@ -1542,6 +1564,58 @@ class SQLiteMemoryDatabase:
         except Exception as e:
             await self.conn.rollback()
             raise BackendError(f"Failed to adjust confidence: {str(e)}")
+
+    async def set_decay_factor(
+        self, memory_id: str, decay_factor: float, reason: str = ""
+    ) -> int:
+        """
+        Set a custom decay factor for all relationships of a memory.
+
+        Unlike apply_confidence_decay(), this method sets the stored
+        decay_factor column directly without recalculating it from tags or
+        importance.  The new value will be used by future decay runs.
+
+        Args:
+            memory_id: ID of the memory whose relationships are updated
+            decay_factor: New decay factor (0.0-1.0; 1.0 = no decay)
+            reason: Optional reason for audit logging
+
+        Returns:
+            Number of relationships updated
+
+        Raises:
+            ValidationError: If decay_factor is out of range
+            BackendError: If database operation fails
+        """
+        if decay_factor < 0.0 or decay_factor > 1.0:
+            raise ValidationError(
+                f"Decay factor must be between 0.0 and 1.0, got {decay_factor}"
+            )
+
+        try:
+            update_query = """
+                UPDATE relationships
+                SET decay_factor = ?
+                WHERE from_id = ? OR to_id = ?
+            """
+            await self._execute_write(update_query, (decay_factor, memory_id, memory_id))
+            await self.conn.commit()
+
+            count_result = await self._execute_sql("SELECT changes() as n")
+            updated = count_result[0]["n"] if count_result else 0
+            logger.info(
+                f"Set decay_factor={decay_factor} for {updated} relationships "
+                f"of memory {memory_id}: {reason}"
+            )
+            return updated
+
+        except aiosqlite.Error as e:
+            await self.conn.rollback()
+            raise BackendError(f"Failed to set decay factor: {e}")
+        except Exception as e:
+            await self.conn.rollback()
+            raise BackendError(f"Failed to set decay factor: {str(e)}")
+
 
     async def get_low_confidence_relationships(
         self, threshold: float = 0.3, limit: int = 50

@@ -1,6 +1,6 @@
 id = "mcp-memento"
 name = "Memento MCP Server"
-version = "0.2.24"
+version = "0.2.25"
 schema_version = 1
 authors = ["Hannibal <annibale.x@gmail.com>"]
 description = "Persistent memory for AI agents via MCP."

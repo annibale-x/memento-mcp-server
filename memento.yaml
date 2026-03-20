@@ -2,12 +2,26 @@
 # ==============================
 # This file configures the MCP Memento server for your project.
 #
-# Configuration Hierarchy (highest priority last):
-# 1. Default values (hardcoded in code)
-# 2. Global config: ~/.mcp-memento/config.yaml
-# 3. Project config: ./memento.yaml (this file)
-# 4. Environment variables: MEMENTO_* (override everything)
-# 5. CLI arguments: --profile, --log-level, etc. (highest priority)
+# Configuration Hierarchy (highest priority first):
+# 1. CLI arguments: --profile, --db, --log-level, etc.       (highest priority)
+# 2. Environment variables: MEMENTO_*
+# 3. Project config: ./memento.yaml (this file)              (overrides global)
+# 4. Global config: ~/.mcp-memento/config.yaml
+# 5. Default values (hardcoded in code)                      (lowest priority)
+#
+# ┌─────────────────────────────────────────────────────────────────────┐
+# │  IMPLEMENTED vs PLACEHOLDER sections                                │
+# │                                                                     │
+# │  ACTIVE (read by the configuration loader):                         │
+# │    db_path, profile, logging.level,                                 │
+# │    features.allow_relationship_cycles                               │
+# │                                                                     │
+# │  PLACEHOLDER (reserved for future use — currently ignored):         │
+# │    confidence, search, performance, memory, fts, project,           │
+# │    enable_advanced_tools                                            │
+# │                                                                     │
+# │  Changes to placeholder sections have NO effect on the server.      │
+# └─────────────────────────────────────────────────────────────────────┘
 
 # Database Configuration
 # ----------------------
@@ -21,14 +35,12 @@ db_path: ".data/memento.db"
 # - core: 13 essential tools for all users
 # - extended: 17 tools including analytics (recommended)
 # - advanced: 25 tools with graph analysis
+# Legacy aliases accepted for backwards compatibility:
+#   lite → core, standard → extended, full → advanced
 profile: "extended"
 
-# Enable advanced tools even with core/extended profile
-# Default: false
-enable_advanced_tools: false
-
-# Logging Configuration
-# ---------------------
+# Logging Configuration  [ACTIVE]
+# --------------------------------
 logging:
   # Log levels: DEBUG, INFO, WARNING, ERROR
   level: "INFO"
@@ -39,45 +51,36 @@ logging:
   # Optional: Log file path (if not specified, logs to stderr)
   # file: "memento.log"
 
-# Feature Configuration
-# ---------------------
+# Feature Configuration  [ACTIVE: allow_relationship_cycles only]
+# ---------------------------------------------------------------
 features:
   # Allow cycles in relationship graph
   # Default: false (recommended for most use cases)
   allow_relationship_cycles: false
 
-  # Full-text search configuration
+  # --- PLACEHOLDER: fts sub-section is not yet read by the loader ---
+  # Full-text search configuration (reserved for future use)
   fts:
-    # Enable/disable full-text search
-    # Default: true (if FTS5 is available in SQLite)
+    # These settings have no effect in the current version.
     enabled: true
-
-    # Minimum search term length
-    # Default: 2
     min_term_length: 2
-
-    # Search tolerance: strict, normal, fuzzy
-    # Default: normal
     tolerance: "normal"
 
-# Confidence System Configuration
-# -------------------------------
+# Confidence System Configuration  [PLACEHOLDER — not yet implemented]
+# --------------------------------------------------------------------
+# The settings below are reserved for future use and have NO effect on
+# the running server. Decay behaviour is currently hardcoded:
+#   - Default confidence: 0.8
+#   - Monthly decay factor: 0.95 (5% per month)
+#   - Validation boost: 0.05 per access
+#   - No-decay tags: security, auth, api_key, password, critical, no_decay
+# To change these, use the set_memento_decay_factor tool (Advanced profile)
+# or adjust_memento_confidence / boost_memento_confidence at runtime.
 confidence:
-  # Default confidence for new relationships (0.0-1.0)
-  # Default: 0.8
-  default_confidence: 0.8
-
-  # Monthly decay factor (0.0-1.0)
-  # Example: 0.95 = 5% monthly decay
-  # Default: 0.95
-  decay_factor: 0.95
-
-  # Boost amount when memory is validated (0.0-1.0)
-  # Default: 0.05
-  validation_boost: 0.05
-
-  # Tags that should never decay (always keep high confidence)
-  no_decay_tags:
+  default_confidence: 0.8 # reserved
+  decay_factor: 0.95 # reserved
+  validation_boost: 0.05 # reserved
+  no_decay_tags: # reserved
     - "security"
     - "auth"
     - "api_key"
@@ -85,70 +88,46 @@ confidence:
     - "critical"
     - "no_decay"
 
-# Memory Storage Configuration
-# ----------------------------
+# Memory Storage Configuration  [PLACEHOLDER — not yet implemented]
+# -----------------------------------------------------------------
+# These limits are currently hardcoded in the server (values below
+# match the hardcoded defaults). They have no effect if changed here.
 memory:
-  # Maximum title length (characters)
-  # Default: 500
-  max_title_length: 500
+  max_title_length: 500 # reserved
+  max_content_length: 50000 # reserved (50 KB)
+  max_tags: 50 # reserved
+  max_tag_length: 100 # reserved
 
-  # Maximum content length (characters)
-  # Default: 50000 (50KB)
-  max_content_length: 50000
-
-  # Maximum tags per memory
-  # Default: 50
-  max_tags: 50
-
-  # Maximum tag length (characters)
-  # Default: 100
-  max_tag_length: 100
-
-# Search Configuration
-# --------------------
+# Search Configuration  [PLACEHOLDER — not yet implemented]
+# ----------------------------------------------------------
+# These settings are reserved for future use and have no effect.
+# Current hardcoded defaults: limit=20, max=1000, order=confidence×importance.
 search:
-  # Default limit for search results
-  # Default: 20
-  default_limit: 20
+  default_limit: 20 # reserved
+  max_limit: 1000 # reserved
+  default_order: "confidence" # reserved
+  fuzzy_enabled: true # reserved
 
-  # Maximum limit for search results
-  # Default: 1000
-  max_limit: 1000
-
-  # Search result ordering
-  # Options: confidence, importance, relevance, created, accessed
-  # Default: confidence (confidence × importance)
-  default_order: "confidence"
-
-  # Enable fuzzy search
-  # Default: true
-  fuzzy_enabled: true
-
-# Performance Configuration
-# -------------------------
+# Performance Configuration  [PLACEHOLDER — not yet implemented]
+# --------------------------------------------------------------
+# These settings are reserved for future use and have no effect.
+# SQLite is configured with WAL mode and a 5-second busy timeout by default.
 performance:
-  # Database connection pool size
-  # Default: 5
-  connection_pool_size: 5
+  connection_pool_size: 5 # reserved
+  cache_size: 100 # reserved
+  vacuum_interval: 3600 # reserved
 
-  # Cache size for frequently accessed memories
-  # Default: 100
-  cache_size: 100
-
-  # Auto-vacuum database when idle (seconds)
-  # Set to 0 to disable
-  # Default: 3600 (1 hour)
-  vacuum_interval: 3600
-
-# Example Environment Variable Overrides
-# --------------------------------------
-# Uncomment and set environment variables to override YAML configuration:
+# Environment Variable Overrides  [ACTIVE]
+# ----------------------------------------
+# The following environment variables are supported. They override YAML values.
 #
-# export MEMENTO_DB_PATH="/custom/path/context.db"
-# export MEMENTO_PROFILE="advanced"
-# export MEMENTO_ENABLE_ADVANCED_TOOLS="true"
-# export MEMENTO_LOG_LEVEL="DEBUG"
-# export MEMENTO_ALLOW_CYCLES="false"
+# export MEMENTO_DB_PATH="/custom/path/context.db"   # database file path
+# export MEMENTO_PROFILE="advanced"                  # core | extended | advanced
+# export MEMENTO_LOG_LEVEL="DEBUG"                   # DEBUG|INFO|WARNING|ERROR
+# export MEMENTO_ALLOW_CYCLES="false"                # true | false
+#
+# Note: MEMENTO_ENABLE_ADVANCED_TOOLS is NOT a supported env var — use
+# MEMENTO_PROFILE="advanced" to unlock advanced tools instead.
 #
 # To use with CLI agents (Gemini, Claude):
 # gemini --mcp-servers 'memento --profile extended --log-level INFO'
@@ -156,32 +135,33 @@ performance:
 # Or with environment variables:
 # MEMENTO_PROFILE="advanced" gemini --mcp-servers memento
 
-# Example Project-Specific Configuration
-# --------------------------------------
-# This section is optional and can be used to document
-# project-specific memory patterns or conventions
+# Project-Specific Documentation  [PLACEHOLDER — informational only]
+# ------------------------------------------------------------------
+# This section is NOT read by the server. It is provided as a human-readable
+# documentation area to record project conventions. No values here affect
+# server behaviour (e.g., default_tags are NOT automatically added to memories).
 
 project:
-  name: "my-application"
-  language: "python"
-  framework: "fastapi"
+  name: "my-application" # documentation only
+  language: "python" # documentation only
+  framework: "fastapi" # documentation only
 
-  # Project-specific tags (automatically added to all memories)
-  default_tags:
+  # Document (but do not enforce) tagging conventions for this project:
+  default_tags: # documentation only — NOT applied automatically
     - "project:my-application"
     - "language:python"
     - "framework:fastapi"
 
-  # Memory types commonly used in this project
-  common_memory_types:
+  # Commonly used memory types in this project (for reference):
+  common_memory_types: # documentation only
     - "solution"
     - "problem"
-    - "pattern"
-    - "decision"
-    - "configuration"
+    - "code_pattern"
+    - "task"
+    - "general"
 
-  # Relationship types commonly used in this project
-  common_relationship_types:
+  # Commonly used relationship types in this project (for reference):
+  common_relationship_types: # documentation only
     - "SOLVES"
     - "CAUSES"
     - "IMPROVES"

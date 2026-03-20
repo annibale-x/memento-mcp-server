@@ -141,7 +141,10 @@ TAGGING BEST PRACTICE:
 - Fuzzy search struggles with acronyms in content
 - Tags provide exact match fallback for reliable retrieval
 
-Types: solution, problem, error, fix, pattern, decision, task, code_pattern, technology, command, workflow, general
+Types: solution, problem, error, fix, task, code_pattern, technology, command, file_context, workflow, project, general, conversation
+
+Note: `decision` is not a standalone type — use type="general" with tags=["decision", "architecture"].
+Note: `pattern` is not a standalone type — use type="code_pattern".
 
 EXAMPLES:
 - store_memento(type="solution", title="Fixed Redis timeout", content="Increased timeout to 30s...", tags=["redis"], importance=0.8)
@@ -643,7 +646,17 @@ Returns:
 - Breakdown by memory type""",
             inputSchema={
                 "type": "object",
-                "properties": {},
+                "properties": {
+                    "memory_id": {
+                        "type": "string",
+                        "description": (
+                            "Optional memory ID. When provided, applies decay only to "
+                            "relationships of that specific memory (and updates their "
+                            "decay_factor based on the memory's importance and tags). "
+                            "When omitted, applies decay to all relationships system-wide."
+                        ),
+                    },
+                },
             },
         ),
         Tool(
@@ -670,7 +683,20 @@ Boost mechanics:
                 "properties": {
                     "memory_id": {
                         "type": "string",
-                        "description": "ID of the memory to boost confidence for",
+                        "description": (
+                            "ID of the memory to boost confidence for. "
+                            "When provided, boosts confidence on all relationships of that memory. "
+                            "Either memory_id or relationship_id must be specified."
+                        ),
+                    },
+                    "relationship_id": {
+                        "type": "string",
+                        "description": (
+                            "ID of a specific relationship to boost confidence for. "
+                            "Use this to target a single relationship instead of all "
+                            "relationships of a memory. "
+                            "Either memory_id or relationship_id must be specified."
+                        ),
                     },
                     "boost_amount": {
                         "type": "number",

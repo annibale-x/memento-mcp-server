@@ -85,18 +85,20 @@ These tools provide advanced graph analysis and pattern detection:
 Memento offers three tool profiles with increasing capabilities:
 
 ### Core Profile (13 tools)
-- All Core Memory Tools (section 1 above)
+- All Core Memory Tools (section 1 above), including `memento_onboarding`
 - Basic confidence tools: `adjust_memento_confidence`, `get_low_confidence_mementos`, `boost_memento_confidence`
 
 ### Extended Profile (17 tools)
-- All Core Profile tools
+- All Core Profile tools (13)
 - Extended-Only Memory Tools (section 1b above): `get_memento_statistics`, `contextual_memento_search`, `search_memento_relationships_by_context`
 - Additional confidence tool: `apply_memento_confidence_decay`
 
 ### Advanced Profile (25 tools)
-- All Extended Profile tools
-- All Advanced Relationship Tools
+- All Extended Profile tools (17)
+- All Advanced Relationship Tools (section 3 above): `find_path_between_mementos`, `get_memento_clusters`, `get_central_mementos`, `suggest_memento_relationships`, `find_memento_patterns`, `analyze_memento_graph`, `get_memento_network`
 - Advanced confidence tool: `set_memento_decay_factor`
+
+> **Legacy profile names**: The profiles `lite`, `standard`, and `full` are accepted as aliases for `core`, `extended`, and `advanced` respectively, for backwards compatibility. Use the new names in all new configurations.
 
 ## Usage Examples
 
@@ -115,10 +117,17 @@ solution_id = store_memento(
 results = recall_mementos(query="Redis timeout solutions", limit=5)
 
 # Create relationships
+problem_id = store_memento(
+    type="problem",
+    title="Redis connection timeout under load",
+    content="API fails when concurrent users exceed 100",
+    tags=["redis", "performance", "api"]
+)
+
 create_memento_relationship(
     from_memory_id=solution_id,
-    to_memory_id=related_solution_id,
-    relationship_type="RELATED_TO"  # See [RELATIONSHIPS.md](./RELATIONSHIPS.md) for all 35 relationship types
+    to_memory_id=problem_id,
+    relationship_type="SOLVES"  # See [RELATIONSHIPS.md](./RELATIONSHIPS.md) for all 35 relationship types
 )
 ```
 
@@ -188,7 +197,7 @@ analytics = analyze_memento_graph()
 ### Database Optimization
 - SQLite with FTS5 for full-text search
 - Automatic indexing on frequently queried fields
-- Connection pooling for high-concurrency environments
+- WAL mode enabled for concurrent read/write access from multiple clients
 
 ## Error Handling
 
@@ -217,7 +226,7 @@ async def process_with_context(query: str):
     
     # Store successful interaction
     await store_memento(
-        type="interaction",
+        type="conversation",
         title=f"Query: {query[:50]}",
         content=f"Q: {query}\n\nA: {response}",
         tags=["auto-stored", "interaction"]
@@ -230,7 +239,7 @@ async def process_with_context(query: str):
 ```python
 async def store_test_results(test_name: str, results: dict):
     memento_id = await store_memento(
-        type="test_result",
+        type="general",
         title=f"Test: {test_name}",
         content=json.dumps(results, indent=2),
         tags=["ci-cd", "testing", "automation"],
@@ -254,11 +263,11 @@ async def store_test_results(test_name: str, results: dict):
 
 | Tool | Required Parameters | Optional Parameters |
 |------|---------------------|---------------------|
-| `store_memento` | `type`, `title`, `content` | `tags`, `importance`, `id` |
+| `store_memento` | `type`, `title`, `content` | `tags`, `importance`, `id`, `summary` |
 | `get_memento` | `memory_id` | `include_relationships` |
 | `update_memento` | `memory_id` | `title`, `content`, `tags`, `importance` |
 | `delete_memento` | `memory_id` | (none) |
-| `search_mementos` | (none) - at least one of `query`, `tags`, or `memory_types` recommended | `query`, `tags`, `memory_types`, `min_importance`, `limit`, `offset` |
+| `search_mementos` | (none) - at least one of `query`, `tags`, or `memory_types` recommended | `query`, `terms`, `match_mode`, `tags`, `memory_types`, `min_importance`, `search_tolerance`, `relationship_filter`, `project_path`, `limit`, `offset` |
 | `recall_mementos` | `query` | `memory_types`, `project_path`, `limit`, `offset` |
 | `create_memento_relationship` | `from_memory_id`, `to_memory_id`, `relationship_type` | `strength`, `confidence`, `context` |
 | `get_related_mementos` | `memory_id` | `relationship_types`, `max_depth` |
@@ -273,7 +282,24 @@ async def store_test_results(test_name: str, results: dict):
 | `boost_memento_confidence` | `memory_id` | `boost_amount`, `reason` |
 | `set_memento_decay_factor` | `memory_id` | `decay_factor`, `reason` |
 
+> **Profile note**: `adjust_memento_confidence`, `get_low_confidence_mementos`, and
+> `boost_memento_confidence` are available in **all profiles** (Core and above).
+> `apply_memento_confidence_decay` requires **Extended or above**.
+> `set_memento_decay_factor` requires **Advanced only**.
+
+### Extended-Only Memory Tools Required Parameters
+
+| Tool | Required Parameters | Optional Parameters |
+|------|---------------------|---------------------|
+| `get_memento_statistics` | (none) | (none) |
+| `contextual_memento_search` | `memory_id`, `query` | `max_depth` |
+| `search_memento_relationships_by_context` | (none) — at least one of `scope`, `conditions`, `evidence`, or `components` recommended | `scope`, `conditions`, `evidence`, `components` |
+
 ### Advanced Relationship Tools Required Parameters
+
+> All tools in this section require the **Advanced profile**. They are not available
+> in Core or Extended profiles. `suggest_memento_relationships` in particular is
+> a common source of confusion — it is Advanced-only.
 
 | Tool | Required Parameters | Optional Parameters |
 |------|---------------------|---------------------|

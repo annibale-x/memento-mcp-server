@@ -11,13 +11,14 @@
 3. [Development Setup](#3-development-setup)
 4. [Running Tests](#4-running-tests)
 5. [Release Workflow](#5-release-workflow)
-6. [Deploy Script Reference](#6-deploy-script-reference)
-7. [Extension Architecture](#7-extension-architecture-zed--vscode-)
-8. [Extension Stub Binary — Build & Release](#8-extension-stub-binary--build--release)
-9. [GitHub Actions CI](#9-github-actions-ci)
-10. [Version Convention](#10-version-convention)
-11. [Tag Convention](#11-tag-convention)
-12. [Changelog & README Badges](#12-changelog--readme-badges)
+6. [Configuration API Reference](#6-configuration-api-reference)
+7. [Deploy Script Reference](#7-deploy-script-reference)
+8. [Extension Architecture](#8-extension-architecture-zed--vscode-)
+9. [Extension Stub Binary — Build & Release](#9-extension-stub-binary--build--release)
+10. [GitHub Actions CI](#10-github-actions-ci)
+11. [Version Convention](#11-version-convention)
+12. [Tag Convention](#12-tag-convention)
+13. [Changelog & README Badges](#13-changelog--readme-badges)
 
 ---
 
@@ -45,7 +46,7 @@ The project has **two independent release tracks**:
 The two tracks are **versioned together**: the extension version always mirrors the Python package version it ships with. They are released independently only when fixing extension-only bugs (ext counter `N` increments without a Python version bump).
 
 > **Current state**: Only the Zed extension is implemented. The VSCode extension and
-> others will follow the same Rust stub pattern and use the same `vX.Y.Z-ext.N` tag
+> others will follow the same Rust stub pattern and the same `vX.Y.Z` unified tag
 > convention and CI workflow.
 
 ---
@@ -85,7 +86,7 @@ mcp-memento/
 ├── tests/                        ← pytest test suite (169+ tests)
 ├── docs/
 │   ├── dev/
-│   │   ├── DEV.md               ← this file
+│   │   ├── README.md            ← this file
 │   │   └── SCHEMA.md            ← SQLite schema reference
 │   ├── integrations/            ← IDE/agent integration guides
 │   ├── TOOLS.md                 ← Complete MCP tool reference
@@ -212,10 +213,10 @@ gh run watch <run-id> --repo annibale-x/mcp-memento
 python scripts/deploy.py ext-binaries
 
 # 5. Publish to TestPyPI first (optional but recommended)
-python scripts/deploy.py publish --test
+python scripts/deploy.py publish --target testpypi
 
 # 6. Publish to PyPI
-python scripts/deploy.py publish
+python scripts/deploy.py publish --target pypi
 ```
 
 ### Dev-only release (publish to PyPI later)
@@ -253,7 +254,59 @@ python scripts/deploy.py status
 
 ---
 
-## 6. Deploy Script Reference
+## 6. Configuration API Reference
+
+The `src/memento/config.py` module is the single source of truth for runtime configuration. Below is a reference for developers who need to interact with it programmatically (e.g. in tests or tooling scripts).
+
+### `Config` class — public API
+
+| Attribute / Method | Type | Description |
+|---|---|---|
+| `Config.DB_PATH` | `str` | Resolved database file path (tilde-expanded). Reads `MEMENTO_DB_PATH` env var. |
+| `Config.PROFILE` | `str` | Active tool profile (`core`, `extended`, `advanced`). Reads `MEMENTO_PROFILE` env var. |
+| `Config.LOG_LEVEL` | `str` | Log verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Reads `MEMENTO_LOG_LEVEL` env var. |
+| `Config.ALLOW_RELATIONSHIP_CYCLES` | `bool` | Whether cyclic relationships are permitted. Reads `MEMENTO_ALLOW_CYCLES` env var. |
+| `Config.get_enabled_tools()` | `list[str]` | Returns the list of tool names active for the current profile. Applies legacy alias mapping automatically. |
+| `Config.get_config_summary()` | `dict` | Returns a sanitised dict of the current configuration (no sensitive data). Useful for `--show-config`. |
+| `Config.reload_config()` | `None` | Reloads defaults from YAML files on disk. Useful when YAML changes at runtime (e.g. in tests). |
+| `Config.create_default_config(path)` | `None` | Writes a default `memento.yaml` to `path` (defaults to `./memento.yaml`). |
+| `Config.is_env_set(attr_name)` | `bool` | Returns `True` if the underlying environment variable for `attr_name` is explicitly set in `os.environ`. |
+
+### Legacy profile aliases
+
+The following profile names are accepted for backwards compatibility and silently mapped to their canonical equivalents:
+
+| Legacy | Canonical |
+|---|---|
+| `lite` | `core` |
+| `standard` | `extended` |
+| `full` | `advanced` |
+
+Do not use legacy names in new configurations. They may be removed in a future major version.
+
+### Windows path expansion
+
+On Windows, `_PathEnvVar` (used by `Config.DB_PATH`) expands `~` using `USERPROFILE` as a fallback if `HOME` is not set. This is transparent to callers; `Config.DB_PATH` always returns a fully resolved absolute path.
+
+### Testing patterns
+
+```python
+import os
+from unittest.mock import patch
+
+# Override via environment variable (preferred — works with _EnvVar descriptors)
+with patch.dict(os.environ, {"MEMENTO_PROFILE": "advanced"}):
+    assert Config.PROFILE == "advanced"
+
+# Override via direct assignment (also works; replaces descriptor with static value)
+Config.PROFILE = "core"
+# Restore by deleting the class attribute (restores the descriptor)
+del Config.PROFILE
+```
+
+---
+
+## 7. Deploy Script Reference
 
 **File**: `scripts/deploy.py`
 
@@ -293,7 +346,7 @@ python scripts/deploy.py status
 
 ---
 
-## 7. Extension Architecture (Zed / VSCode / …)
+## 8. Extension Architecture (Zed / VSCode / …)
 
 The Zed extension consists of **two Rust components** with distinct roles:
 
@@ -327,8 +380,8 @@ Zed → WASM extension → returns Command{stub_path, args:[], env:[...]}
      preventing Zed's 60-second timeout
   2. **Python discovery**: finds Python on the host system (platform-specific)
   3. **Real server launch**: spawns `python -u -m memento` as a subprocess
-  4. **Stdin/stdout proxy**: forwards all subsequent JSON-RPC traffic between
-     Zed and the Python server
+  4. **Stdio hand-off**: spawns `python -u -m memento` with **inherited stdio** —
+     Python inherits Zed's file descriptors directly (no proxy pipe)
 
 ### Why the stub is necessary (Windows)
 
@@ -358,29 +411,37 @@ buffered it indefinitely. The native stub solves this by:
 
 ---
 
-## 8. Extension Stub Binary — Build & Release
+## 9. Extension Stub Binary — Build & Release
 
-### Build locally (Windows only, for testing)
+### Build locally (current platform)
 
 ```bash
-# From repo root
-cd integrations/zed/stub
-cargo build --release --target x86_64-pc-windows-msvc
+# Recommended: use the deploy script (builds + copies to stub/bin/ + copies to Zed work dir)
+python scripts/deploy.py build-zed-stub
 
-# Output lands in the workspace target directory
-cp integrations/zed/target/x86_64-pc-windows-msvc/release/memento-stub.exe \
-   integrations/zed/stub/bin/memento-stub-x86_64-pc-windows-msvc.exe
+# Or manually (replace target with your platform):
+cd integrations/zed/stub
+cargo build --release --target x86_64-pc-windows-msvc   # Windows
+cargo build --release --target aarch64-apple-darwin      # macOS Apple Silicon
+cargo build --release --target x86_64-apple-darwin       # macOS Intel
+cargo build --release --target x86_64-unknown-linux-gnu  # Linux x86_64
+
+# Copy to stub/bin/ (output lands in workspace target dir)
+cp integrations/zed/target/<target>/release/memento-stub[.exe] \
+   integrations/zed/stub/bin/memento-stub-<target>[.exe]
 ```
 
 ### Cross-compile all platforms via CI (recommended)
 
-Push a Zed release tag — GitHub Actions handles everything:
+Push a release tag — GitHub Actions handles everything:
 
 ```bash
-git tag v0.3.0-ext.2
-git push origin v0.3.0-ext.2
-# or via deploy script (promote handles this automatically):
+# Via deploy script (recommended):
 python scripts/deploy.py promote --yes
+
+# Or manually:
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 CI compiles all 5 targets in parallel (~1 minute total):
@@ -404,12 +465,12 @@ After CI completes, download and commit the binaries so future extension
 installs require zero network access:
 
 ```bash
-python scripts/deploy.py ext-binaries --ext 2
+python scripts/deploy.py ext-binaries
 # Equivalent manual command:
-gh release download v0.3.0-ext.2 --repo annibale-x/mcp-memento \
+gh release download v0.3.0 --repo annibale-x/mcp-memento \
   --dir integrations/zed/stub/bin/ --clobber
 git add integrations/zed/stub/bin/
-git commit -m "chore(ext): bundle stub binaries from v0.3.0-ext.2"
+git commit -m "chore(ext): bundle stub binaries from v0.3.0"
 git push origin dev
 ```
 
@@ -424,18 +485,15 @@ cargo build --target wasm32-wasip1 --release
 
 ---
 
-## 9. GitHub Actions CI
+## 10. GitHub Actions CI
 
 ### Workflow: `zed-stub-release.yml`
 
-**Trigger**: push of a tag matching `v*-ext.*`
+**Trigger**: push of a tag matching `v[0-9]*` (e.g. `v0.2.24`)
 
 **Jobs**:
 - `build` (matrix, 5 jobs in parallel): compiles `memento-stub` for each platform
-- `release` (sequential, after all builds): creates GitHub Release with all binaries
-
-**Release naming**: the workflow automatically derives the title from the tag:
-- Tag `v0.3.0-ext.2` → Release title `Zed Extension ext.2  (mcp-memento v0.3.0)`
+- `upload` (sequential, after all builds): uploads binaries to the existing GitHub Release
 
 **Monitor**:
 ```bash
@@ -445,7 +503,7 @@ gh run watch <run-id> --repo annibale-x/mcp-memento
 
 ---
 
-## 10. Version Convention
+## 11. Version Convention
 
 All version strings follow **Semantic Versioning** (`MAJOR.MINOR.PATCH`).
 
@@ -463,23 +521,26 @@ This makes it unambiguous which Python version the extension was built against.
 
 ---
 
-## 11. Tag Convention
+## 12. Tag Convention
+
+There is a **single tag format** per release:
 
 | Tag format | Meaning | Triggers |
 |---|---|---|
-| `vX.Y.Z` | Python package release | (manual) PyPI publish |
-| `vX.Y.Z-ext.N` | IDE extension release | GitHub Actions stub CI build |
+| `vX.Y.Z` | Unified release (Python package + Zed stub) | `zed-stub-release.yml` CI build |
 
 **Examples**:
 ```
-v0.2.6          ← Python package version
-v0.2.6-ext.1   ← First IDE extension release for Python 0.2.6 (Zed)
-v0.2.6-ext.2   ← Bugfix to extension only, same Python version
-v0.3.0          ← Next Python package version
-v0.3.0-ext.1   ← First IDE extension release for Python 0.3.0 (Zed)
+v0.2.24   ← Python + Zed stub release
+v0.3.0    ← Next release
 ```
 
-`N` is a monotonically increasing integer, reset to `1` when `X.Y.Z` changes.
+The tag is created by `deploy.py bump` (or `promote`) and pushed to origin.
+Pushing the tag triggers `zed-stub-release.yml`, which cross-compiles stub binaries
+for all 5 platforms and uploads them to the GitHub Release (already created by `deploy.py`).
+
+> **Note**: An older `vX.Y.Z-ext.N` format was considered for extension-only hotfixes
+> but was never adopted. Only the `vX.Y.Z` format is used. Do not create `-ext.N` tags.
 
 **Never delete and recreate a production tag** unless CI failed before any
 release assets were uploaded. Use `git tag -d` + `git push origin :refs/tags/…`
@@ -487,7 +548,7 @@ only in that case.
 
 ---
 
-## 12. Changelog & README Badges
+## 13. Changelog & README Badges
 
 ### CHANGELOG.md format
 
@@ -532,7 +593,7 @@ restores the original `README.md` afterwards. No manual intervention needed.
 ### Read stub log on Windows
 
 ```powershell
-Get-Content "$env:TEMP\memento_stub.log"
+Get-Content "$env:TEMP\memento_stub_debug.log"
 ```
 
 The stub writes a marker file at startup. If this file is absent after
@@ -558,7 +619,7 @@ When ready to publish publicly:
    [mcp-memento]
    submodule = "extensions/mcp-memento"
    path = "integrations/zed"
-   version = "0.2.6"
+   version = "0.2.24"
    ```
 4. Run `pnpm sort-extensions`
 5. Open PR to `zed-industries/extensions`

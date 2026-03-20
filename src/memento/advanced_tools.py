@@ -211,24 +211,87 @@ class AdvancedRelationshipHandlers:
     async def handle_get_memento_clusters(
         self, arguments: Dict[str, Any]
     ) -> CallToolResult:
-        """Analyze memento clusters."""
+        """Detect clusters of densely connected mementos.
+
+        Uses degree-based community detection: memories sharing many common
+        neighbours are grouped together.  Returns clusters that meet the
+        min_cluster_size and min_density thresholds.
+        """
         try:
-            # Note: This is a simplified implementation
-            # In production, we'd need to fetch all memories and relationships
-            # from the database to perform proper cluster analysis
+            min_cluster_size = arguments.get("min_cluster_size", 3)
+            min_density = arguments.get("min_density", 0.3)
 
             stats = await self.memory_db.get_memory_statistics()
+            total_memories = stats.get("total_memories", {}).get("count", 0)
+            total_relationships = stats.get("total_relationships", {}).get("count", 0)
 
-            cluster_info = {
+            # Build adjacency map from the relationships table
+            rel_rows = await self.memory_db._execute_sql(
+                "SELECT from_id, to_id FROM relationships"
+            )
+            adj: dict[str, set[str]] = {}
+
+            for row in rel_rows:
+                adj.setdefault(row["from_id"], set()).add(row["to_id"])
+                adj.setdefault(row["to_id"], set()).add(row["from_id"])
+
+            # Simple greedy cluster detection: group nodes by shared neighbours
+            visited: set[str] = set()
+            clusters: list[dict] = []
+
+            for node in list(adj.keys()):
+                if node in visited:
+                    continue
+
+                # BFS / greedy expansion: include neighbours with ≥1 common link
+                group = {node}
+                frontier = list(adj.get(node, []))
+
+                for candidate in frontier:
+                    if candidate in visited or candidate in group:
+                        continue
+                    shared = adj.get(node, set()) & adj.get(candidate, set())
+                    if shared or candidate in adj.get(node, set()):
+                        group.add(candidate)
+
+                if len(group) < min_cluster_size:
+                    continue
+
+                # Density = actual internal edges / max possible edges
+                internal = sum(
+                    1
+                    for n in group
+                    for nbr in adj.get(n, set())
+                    if nbr in group
+                ) // 2  # each edge counted twice
+                max_internal = len(group) * (len(group) - 1) // 2
+                density = internal / max_internal if max_internal > 0 else 0.0
+
+                if density < min_density:
+                    continue
+
+                visited.update(group)
+                clusters.append(
+                    {
+                        "size": len(group),
+                        "density": round(density, 4),
+                        "members": list(group),
+                    }
+                )
+
+            result = {
                 "analysis_type": "cluster_detection",
-                "total_memories": stats.get("total_memories", 0),
-                "total_relationships": stats.get("total_relationships", 0),
-                "note": "Full cluster analysis requires loading entire graph. Use get_memory_statistics for overview.",
+                "total_memories": total_memories,
+                "total_relationships": total_relationships,
+                "min_cluster_size": min_cluster_size,
+                "min_density": min_density,
+                "clusters_found": len(clusters),
+                "clusters": clusters,
             }
 
             return CallToolResult(
                 content=[
-                    TextContent(type="text", text=json.dumps(cluster_info, indent=2))
+                    TextContent(type="text", text=json.dumps(result, indent=2))
                 ]
             )
 
@@ -244,24 +307,84 @@ class AdvancedRelationshipHandlers:
     async def handle_get_central_mementos(
         self, arguments: Dict[str, Any]
     ) -> CallToolResult:
-        """Find memento central memories connecting clusters."""
+        """Find mementos that act as bridges between different knowledge clusters.
+
+        A memory is considered central if it has a high degree (many connections)
+        relative to the graph average, making it a hub connecting otherwise
+        separate parts of the knowledge network.
+        """
         try:
             stats = await self.memory_db.get_memory_statistics()
+            total_memories = stats.get("total_memories", {}).get("count", 0)
+            total_relationships = stats.get("total_relationships", {}).get("count", 0)
 
-            bridge_info = {
+            if total_memories == 0:
+                result = {
+                    "analysis_type": "bridge_detection",
+                    "total_memories": 0,
+                    "central_mementos": [],
+                }
+                return CallToolResult(
+                    content=[
+                        TextContent(type="text", text=json.dumps(result, indent=2))
+                    ]
+                )
+
+            # Degree of each node
+            degree_rows = await self.memory_db._execute_sql(
+                """
+                SELECT node_id, COUNT(*) as degree FROM (
+                    SELECT from_id AS node_id FROM relationships
+                    UNION ALL
+                    SELECT to_id AS node_id FROM relationships
+                )
+                GROUP BY node_id
+                ORDER BY degree DESC
+                """
+            )
+
+            avg_degree = (
+                (2 * total_relationships / total_memories) if total_memories else 0.0
+            )
+
+            # Central = degree > average
+            central = []
+
+            for row in degree_rows:
+                if row["degree"] <= avg_degree and len(central) > 0:
+                    break  # sorted DESC, no point continuing
+
+                mem = await self.memory_db.get_memory_by_id(row["node_id"])
+
+                if mem:
+                    central.append(
+                        {
+                            "id": mem.id,
+                            "title": mem.title,
+                            "type": mem.type.value,
+                            "degree": row["degree"],
+                            "centrality_score": round(
+                                row["degree"] / max(avg_degree, 1), 3
+                            ),
+                        }
+                    )
+
+            result = {
                 "analysis_type": "bridge_detection",
-                "total_memories": stats.get("total_memories", 0),
-                "note": "Full bridge analysis requires loading entire graph. Use get_memory_statistics for overview.",
+                "total_memories": total_memories,
+                "total_relationships": total_relationships,
+                "avg_degree": round(avg_degree, 2),
+                "central_mementos": central,
             }
 
             return CallToolResult(
                 content=[
-                    TextContent(type="text", text=json.dumps(bridge_info, indent=2))
+                    TextContent(type="text", text=json.dumps(result, indent=2))
                 ]
             )
 
         except Exception as e:
-            logger.error(f"Error finding bridges: {e}")
+            logger.error(f"Error finding central mementos: {e}")
             return CallToolResult(
                 content=[
                     TextContent(type="text", text=f"Error finding bridges: {str(e)}")
@@ -340,54 +463,103 @@ class AdvancedRelationshipHandlers:
     async def handle_find_memento_patterns(
         self, arguments: Dict[str, Any]
     ) -> CallToolResult:
-        """Find patterns in mementos."""
+        """Find recurring patterns in mementos and relationships.
+
+        Analyzes the relationship graph to detect common structural patterns:
+        - Most frequent relationship types
+        - Common memory type pairs connected by relationships
+        - Hub memories (high degree nodes)
+        """
         try:
-            from_id = arguments["from_memory_id"]
-            to_id = arguments["to_memory_id"]
-            success = arguments.get("success", True)
+            min_pattern_size = arguments.get("min_pattern_size", 3)
+            min_support = arguments.get("min_support", 0.5)
 
-            # Get the existing relationship to find its type and current properties
-            related = await self.memory_db.get_related_memories(from_id, max_depth=1)
+            stats = await self.memory_db.get_memory_statistics()
+            total_memories = stats.get("total_memories", {}).get("count", 0)
+            total_relationships = stats.get("total_relationships", {}).get("count", 0)
 
-            # Find the relationship to the target memory
-            target_rel = None
-            for memory, rel in related:
-                if memory.id == to_id:
-                    target_rel = rel
-                    break
-
-            if not target_rel:
+            if total_memories == 0:
                 return CallToolResult(
                     content=[
                         TextContent(
                             type="text",
-                            text=f"No relationship found between {from_id} and {to_id}",
+                            text=json.dumps(
+                                {
+                                    "patterns": [],
+                                    "total_memories": 0,
+                                    "total_relationships": 0,
+                                    "note": "No memories found to analyze.",
+                                },
+                                indent=2,
+                            ),
                         )
-                    ],
-                    isError=True,
+                    ]
                 )
 
-            # Reinforce the relationship properties
-            new_props = relationship_manager.reinforce_relationship_properties(
-                target_rel.properties, success=success
-            )
+            # Count relationship type frequencies
+            rel_type_query = """
+                SELECT rel_type, COUNT(*) as count
+                FROM relationships
+                GROUP BY rel_type
+                ORDER BY count DESC
+            """
+            rel_counts = await self.memory_db._execute_sql(rel_type_query)
 
-            # Update the relationship in the database
-            await self.memory_db.update_relationship_properties(
-                from_id, to_id, target_rel.type, new_props
-            )
+            # Count memory type pair patterns
+            pair_query = """
+                SELECT
+                    json_extract(n1.properties, '$.type') as from_type,
+                    r.rel_type,
+                    json_extract(n2.properties, '$.type') as to_type,
+                    COUNT(*) as count
+                FROM relationships r
+                JOIN nodes n1 ON r.from_id = n1.id
+                JOIN nodes n2 ON r.to_id = n2.id
+                WHERE n1.label = 'Memory' AND n2.label = 'Memory'
+                GROUP BY from_type, r.rel_type, to_type
+                ORDER BY count DESC
+                LIMIT 20
+            """
+            pair_counts = await self.memory_db._execute_sql(pair_query)
+
+            # Build relationship type frequency list
+            rel_patterns = []
+            for row in rel_counts:
+                freq = row["count"] / max(total_relationships, 1)
+
+                if row["count"] >= min_pattern_size and freq >= min_support:
+                    rel_patterns.append(
+                        {
+                            "relationship_type": row["rel_type"],
+                            "count": row["count"],
+                            "frequency": round(freq, 3),
+                        }
+                    )
+
+            # Build memory type pair patterns
+            pair_patterns = []
+            for row in pair_counts:
+                if row["count"] >= min_pattern_size:
+                    pair_patterns.append(
+                        {
+                            "from_type": row["from_type"],
+                            "relationship": row["rel_type"],
+                            "to_type": row["to_type"],
+                            "count": row["count"],
+                        }
+                    )
 
             result = {
-                "from_memory_id": from_id,
-                "to_memory_id": to_id,
-                "relationship_type": target_rel.type.value,
-                "success": success,
-                "updated_properties": {
-                    "strength": new_props.strength,
-                    "confidence": new_props.confidence,
-                    "evidence_count": new_props.evidence_count,
-                    "success_rate": new_props.success_rate,
-                },
+                "total_memories": total_memories,
+                "total_relationships": total_relationships,
+                "min_pattern_size": min_pattern_size,
+                "min_support": min_support,
+                "relationship_type_patterns": rel_patterns,
+                "memory_type_pair_patterns": pair_patterns,
+                "analysis_note": (
+                    "Patterns show recurring relationship types and memory type "
+                    "combinations that appear at least min_pattern_size times."
+                ),
             }
 
             return CallToolResult(
@@ -395,7 +567,7 @@ class AdvancedRelationshipHandlers:
             )
 
         except Exception as e:
-            logger.error(f"Error reinforcing relationship: {e}")
+            logger.error(f"Error finding memento patterns: {e}")
             return CallToolResult(
                 content=[TextContent(type="text", text=f"Error: {str(e)}")],
                 isError=True,
@@ -404,32 +576,84 @@ class AdvancedRelationshipHandlers:
     async def handle_analyze_memento_graph(
         self, arguments: Dict[str, Any]
     ) -> CallToolResult:
-        """Analyze memento graph."""
+        """Get comprehensive analytics and metrics for the memento graph."""
         try:
-            category = RelationshipCategory(arguments["category"])
+            stats = await self.memory_db.get_memory_statistics()
+            total_memories = stats.get("total_memories", {}).get("count", 0)
+            total_relationships = stats.get("total_relationships", {}).get("count", 0)
+            memories_by_type = stats.get("memories_by_type", {})
+            avg_importance = stats.get("avg_importance", {}).get("avg_importance", 0.0)
+            avg_confidence = stats.get("avg_confidence", {}).get("avg_confidence", 0.0)
 
-            types = relationship_manager.get_types_by_category(category)
+            # Compute graph density: actual edges / max possible edges
+            max_edges = total_memories * (total_memories - 1) if total_memories > 1 else 0
+            density = round(total_relationships / max_edges, 4) if max_edges > 0 else 0.0
 
-            type_list = [
-                {
-                    "type": rel_type.value,
-                    "description": relationship_manager.get_relationship_metadata(
-                        rel_type
-                    ).description,
-                    "default_strength": relationship_manager.get_relationship_metadata(
-                        rel_type
-                    ).default_strength,
-                    "bidirectional": relationship_manager.get_relationship_metadata(
-                        rel_type
-                    ).bidirectional,
+            # Relationship type distribution
+            rel_dist_query = """
+                SELECT rel_type, COUNT(*) as count
+                FROM relationships
+                GROUP BY rel_type
+                ORDER BY count DESC
+            """
+            rel_dist = await self.memory_db._execute_sql(rel_dist_query)
+            relationship_distribution = {
+                row["rel_type"]: row["count"] for row in rel_dist
+            }
+
+            # Top connected memories (degree centrality)
+            degree_query = """
+                SELECT node_id, COUNT(*) as degree FROM (
+                    SELECT from_id as node_id FROM relationships
+                    UNION ALL
+                    SELECT to_id as node_id FROM relationships
+                )
+                GROUP BY node_id
+                ORDER BY degree DESC
+                LIMIT 5
+            """
+            degree_rows = await self.memory_db._execute_sql(degree_query)
+            top_connected = []
+
+            for row in degree_rows:
+                mem = await self.memory_db.get_memory_by_id(row["node_id"])
+
+                if mem:
+                    top_connected.append(
+                        {
+                            "id": mem.id,
+                            "title": mem.title,
+                            "degree": row["degree"],
+                        }
+                    )
+
+            # Category coverage
+            category_coverage = {}
+
+            for cat in RelationshipCategory:
+                types_in_cat = relationship_manager.get_types_by_category(cat)
+                used = sum(
+                    relationship_distribution.get(t.value, 0) for t in types_in_cat
+                )
+                category_coverage[cat.value] = {
+                    "available_types": len(types_in_cat),
+                    "used_count": used,
                 }
-                for rel_type in types
-            ]
 
             result = {
-                "category": category.value,
-                "relationship_types": type_list,
-                "count": len(type_list),
+                "summary": {
+                    "total_memories": total_memories,
+                    "total_relationships": total_relationships,
+                    "graph_density": density,
+                    "avg_importance": round(avg_importance, 3),
+                    "avg_confidence": round(avg_confidence, 3),
+                },
+                "memories_by_type": memories_by_type,
+                "relationship_distribution": relationship_distribution,
+                "category_coverage": category_coverage,
+                "top_connected_memories": top_connected,
+                "database_file_size_bytes": stats.get("database_file_size"),
+                "timestamp": stats.get("timestamp"),
             }
 
             return CallToolResult(
@@ -437,7 +661,7 @@ class AdvancedRelationshipHandlers:
             )
 
         except Exception as e:
-            logger.error(f"Error getting relationship types: {e}")
+            logger.error(f"Error analyzing memento graph: {e}")
             return CallToolResult(
                 content=[TextContent(type="text", text=f"Error: {str(e)}")],
                 isError=True,

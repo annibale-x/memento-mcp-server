@@ -9,8 +9,7 @@ multiple integration points.
 Key Features:
 - Cross-platform compatibility with major IDEs (Zed, Cursor, Windsurf, VSCode, Claude Desktop)
 - CLI agent integration (Gemini CLI, Claude CLI, custom agents)
-- Python API for programmatic usage
-- REST API for HTTP integration
+- Python API for programmatic usage via MCP client
 - SQLite backend for zero-dependency deployment
 - Intelligent confidence system with automatic decay
 - Relationship graph with 35+ relationship types
@@ -20,7 +19,6 @@ Usage Examples:
 1. IDE Integration: Configure in your IDE's MCP settings
 2. CLI Agents: Use with gemini --mcp-servers memento
 3. Python API: import memento; server = memento.Memento()
-4. REST API: HTTP wrapper for external applications
 
 For detailed documentation, see:
 - README.md for quick start
@@ -28,7 +26,7 @@ For detailed documentation, see:
 - docs/TOOLS.md for complete tool reference
 """
 
-__version__ = "0.2.24"
+__version__ = "0.2.25"
 __author__ = "Hannibal"
 __email__ = "annibale.x@gmail.com"
 

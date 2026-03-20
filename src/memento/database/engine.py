@@ -64,6 +64,8 @@ class SQLiteBackend(GraphBackend):
             await self.conn.execute("PRAGMA journal_mode=WAL")
             await self.conn.execute("PRAGMA synchronous=NORMAL")
             await self.conn.execute("PRAGMA busy_timeout=5000")
+            # Enable foreign key constraint enforcement (OFF by default in SQLite)
+            await self.conn.execute("PRAGMA foreign_keys=ON")
 
             # Check FTS support once
             await self._check_fts_support()

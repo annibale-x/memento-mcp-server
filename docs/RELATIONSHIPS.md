@@ -195,7 +195,7 @@ decision_id = await store_memento(
 
 # Store the alternative considered
 alternative_id = await store_memento(
-    type="pattern",
+    type="code_pattern",
     title="Memcached caching pattern",
     content="Simple key-value caching approach",
     tags=["caching", "memcached"]
@@ -285,7 +285,7 @@ Link memories when you create them, not later. This ensures:
 4. Decision → (`PREFERRED_OVER`) → Alternative
 
 ### Learning Progression
-1. Basic → (`BUILDS_ON`) → Foundation
+1. Advanced → (`BUILDS_ON`) → Basic (advanced knowledge builds upon basic foundations)
 2. Advanced → (`GENERALIZES`) → Concepts
 3. Example → (`CONFIRMS`) → Pattern
 4. Finding → (`CONFIRMS`/`CONTRADICTS`) → Hypothesis
@@ -354,7 +354,7 @@ prerequisites = await get_related_mementos(
 - Ensure decay hasn't reduced confidence below visible thresholds
 
 #### 3. Choosing the wrong relationship type
-- Use `suggest_memento_relationships()` for intelligent suggestions
+- Use `suggest_memento_relationships()` for intelligent suggestions (**Advanced profile only** — not available in Core or Extended)
 - Review the relationship categories above
 - When in doubt, use `RELATED_TO` with clear context
 

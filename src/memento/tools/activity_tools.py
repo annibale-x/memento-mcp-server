@@ -7,7 +7,9 @@ This module contains handlers for activity and statistics operations:
 - search_relationships_by_context: Search relationships by structured context fields
 """
 
+import asyncio
 import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from typing import Any, Dict, Union
 
 from mcp.types import CallToolResult, TextContent
@@ -117,13 +119,24 @@ async def handle_get_recent_memento_activity(
     days = arguments.get("days", 7)
     project = arguments.get("project")
 
-    # Auto-detect project if not specified
+    # Auto-detect project if not specified; run in a thread with a hard timeout
+    # so that subprocess git calls cannot block the MCP stdio transport.
     if not project:
-        from ..utils.project_detection import detect_project_context
+        try:
+            from ..utils.project_detection import detect_project_context
 
-        project_info = detect_project_context()
-        if project_info:
-            project = project_info.get("project_path")
+            loop = asyncio.get_event_loop()
+
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = loop.run_in_executor(executor, detect_project_context)
+                project_info = await asyncio.wait_for(future, timeout=3.0)
+
+            if project_info:
+                project = project_info.get("project_path")
+
+        except (asyncio.TimeoutError, FuturesTimeoutError, Exception):
+            # Project detection is best-effort; continue without it
+            pass
 
     activity = await memory_db.get_recent_activity(days=days, project=project)
 

@@ -54,18 +54,25 @@ Additional context, alternatives considered, trade-offs
 ```
 
 ### 4. Memory Types Guide
-Choosing the right memory type improves search filtering and organization. Here are the primary types and when to use them:
+Choosing the right memory type improves search filtering and organization. The complete list of supported types is:
 
 | Type | Use For | Example |
 |------|---------|---------|
 | **`solution`** | Working fixes, architectural implementations | "Fixed N+1 query with eager loading" |
 | **`problem`** | Issues encountered that need tracking | "Database deadlock under high concurrency" |
 | **`code_pattern`** | Reusable templates or patterns | "Repository pattern for database access" |
-| **`decision`** | Architecture choices (often tagged `decision`) | "Chose PostgreSQL over MongoDB for transactions" |
 | **`task`** | Completed milestones or session summaries | "Implemented user authentication" |
 | **`technology`** | Framework knowledge, configs | "FastAPI dependency injection best practices" |
 | **`error`** | Specific error strings | "ImportError: module not found" |
 | **`fix`** | Direct resolutions to specific errors | "Added missing import statement for models" |
+| **`workflow`** | Multi-step processes, procedures | "CI/CD pipeline deployment steps" |
+| **`general`** | Architecture choices, decisions, miscellaneous | "Chose PostgreSQL over MongoDB for transactions" |
+| **`project`** | Project-level context and metadata | "Project X uses a monorepo structure" |
+| **`command`** | CLI commands, shell scripts, one-liners | "Command to reset local dev database" |
+| **`file_context`** | Key files, their purpose and structure | "auth/middleware.py handles JWT validation" |
+| **`conversation`** | Session summaries, AI interaction notes | "Summary of onboarding session 2024-01-15" |
+
+> **Note**: The type `decision` is not a standalone enum value — use `type="general"` with a `decision` tag instead (e.g., `tags=["decision", "architecture"]`). This is the recommended convention throughout the codebase.
 
 ## Tagging Conventions
 
@@ -420,10 +427,14 @@ Use these tags for compliance:
 - `exportcontrolled`: Export-controlled information
 
 ### 3. Access Control
-- **Personal database**: Store in user home directory
-- **Team database**: Use appropriate file permissions
-- **Backup encryption**: Encrypt backups containing sensitive info
-- **Access logs**: Consider logging access to sensitive memories
+
+> **⚠️ Note**: Memento uses a plain SQLite file with no built-in authentication, roles, or ACL.
+> Access control is entirely at the OS filesystem level.
+
+- **Personal database**: Store in user home directory (`~/.mcp-memento/context.db`)
+- **Team database**: Use OS filesystem permissions on the shared `.db` file
+- **Backup encryption**: Encrypt backup files that may contain sensitive content
+- **Access logs**: SQLite does not log access — use OS-level auditing if required
 
 ## Troubleshooting Common Issues
 
@@ -438,9 +449,9 @@ Use these tags for compliance:
 ### 2. Slow Performance
 **Problem**: Searches or operations are slow
 **Solutions**:
-- Run `memento --maintenance`
-- Archive old, low-confidence memories
-- Check database file size
+- Run `apply_memento_confidence_decay` to clean up low-confidence relationships (Extended profile or above)
+- Delete obsolete memories identified by `get_low_confidence_mementos`
+- Check database file size with `memento --health`
 - Ensure adequate disk space
 
 ### 3. Duplicate Memories

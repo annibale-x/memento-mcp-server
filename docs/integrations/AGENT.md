@@ -296,38 +296,46 @@ For a more complete implementation (interactive REPL, error handling, multiple c
 see the [Python Integration Guide](./PYTHON.md).
 
 ### Shell Script Agent
-For simple shell-based workflows, pipe JSON-RPC directly to `memento`:
+
+> **⚠️ Note**: Memento is an MCP server that requires a proper MCP initialization
+> handshake before accepting tool calls. Raw JSON-RPC piping without that handshake
+> will not work. For shell-based automation use the Python MCP client pattern
+> (see [Python Integration Guide](./PYTHON.md)) or the CLI export/import commands
+> which bypass MCP entirely.
+
+For simple backup/search automation without MCP, use the CLI directly:
 
 ```bash
 #!/usr/bin/env bash
-# memento-agent.sh - Minimal shell wrapper for Memento MCP server
+# memento-agent.sh - Shell helper using Memento CLI (no MCP handshake needed)
 
-store_memory() {
-    printf '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"store_memento","arguments":{"type":"%s","title":"%s","content":"%s","tags":["shell"],"importance":0.7}}}' \
-        "$1" "$2" "$3" | memento --profile extended
+export_memories() {
+    memento export --format json --output "${1:-memories.json}"
+    echo "Exported to ${1:-memories.json}"
 }
 
-search_memories() {
-    printf '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"recall_mementos","arguments":{"query":"%s","limit":5}}}' \
-        "$*" | memento --profile extended | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-for m in json.loads(data['result']['content'][0]['text']):
-    print(f'- {m[\"title\"]}: {m.get(\"content\",\"\")[:80]}')
-"
+import_memories() {
+    memento import --format json --input "$1" ${2:+--skip-duplicates}
+    echo "Imported from $1"
 }
 
 case "$1" in
-    store)  store_memory "$2" "$3" "${*:4}" ;;
-    search) shift; search_memories "$@" ;;
-    *)      echo "Usage: $0 store <type> <title> <content>"; echo "       $0 search <query>" ;;
+    export) export_memories "$2" ;;
+    import) import_memories "$2" "--skip-duplicates" ;;
+    *)
+        echo "Usage: $0 export [output.json]"
+        echo "       $0 import <input.json>"
+        echo ""
+        echo "For MCP tool calls (store/search) from a shell script, use the"
+        echo "Python MCP client pattern instead (see docs/integrations/PYTHON.md)."
+        ;;
 esac
 ```
 
 ```bash
 chmod +x memento-agent.sh
-./memento-agent.sh store solution "API timeout fix" "Increased timeout to 30 s"
-./memento-agent.sh search "API timeout"
+./memento-agent.sh export memories-backup.json
+./memento-agent.sh import memories-backup.json
 ```
 
 ## Troubleshooting Common Issues
@@ -426,8 +434,9 @@ chmod +x memento-agent.sh
 
 3. **Archive inactive projects**:
    ```bash
-   # Export project memories
-   memento export --output project-archive.json --filter-tags "project:old-project"
+   # Export all memories (filtering by tag is not supported by the CLI;
+   # use get_low_confidence_mementos or delete_memento via MCP to clean up)
+   memento export --format json --output project-archive.json
    ```
 
 ## Next Steps

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-memento"
-version = "0.2.24"
+version = "0.2.25"
 description = "Intelligent persistent memory for AI agents and IDEs via Model Context Protocol (MCP)."
 readme = "README.md"
 authors = [

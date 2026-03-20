@@ -54,7 +54,7 @@ mcp-memento/
 │       ├── config.py          # TOOL_PROFILES, Config, DB path defaults
 │       ├── backend.py         # SQLiteBackend
 │       └── ...
-├── tests/                     # pytest test suite (~167 tests)
+├── tests/                     # pytest test suite (169+ tests)
 ├── docs/
 │   ├── TOOLS.md               # MCP tools reference
 │   ├── DECAY_SYSTEM.md        # Confidence & decay system

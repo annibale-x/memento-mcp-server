@@ -147,7 +147,14 @@ profile: extended
 db_path: ~/.mcp-memento/context.db
 logging:
   level: INFO
+features:
+  allow_relationship_cycles: false
 ```
+
+> **Supported YAML keys**: Only `db_path`, `profile`, `logging.level`, and
+> `features.allow_relationship_cycles` are actively read by the configuration loader.
+> All other keys (e.g. `confidence`, `search`, `performance`) are silently ignored.
+> Note that `log_level` as a flat top-level key is **not** supported — use `logging.level` (nested).
 Then use minimal JSON config:
 ```json
 {
@@ -163,8 +170,8 @@ Then use minimal JSON config:
 ### Configuration Priority
 When using mixed approaches, remember the priority order (highest to lowest):
 1. **CLI Arguments** (`--profile`, `--db`, `--log-level`)
-2. **Environment Variables** (`MEMENTO_PROFILE`, `MEMENTO_DB_PATH`, `MEMENTO_LOG_LEVEL`)
-3. **YAML Configuration Files** (`~/.mcp-memento/config.yaml`, `./memento.yaml`)
+2. **Environment Variables** (`MEMENTO_PROFILE`, `MEMENTO_DB_PATH`, `MEMENTO_LOG_LEVEL`, `MEMENTO_ALLOW_CYCLES`)
+3. **YAML Configuration Files** — project (`./memento.yaml`) overrides global (`~/.mcp-memento/config.yaml`)
 4. **Default Values**
 
 **Recommendation**: For clarity and maintainability, choose **one method consistently** across your configuration.
@@ -194,7 +201,7 @@ What do you remember about RESTful API design?
 **Server not appearing:**
 1. Check Zed version supports MCP
 2. Verify `~/.config/zed/settings.json` has valid JSON syntax
-3. Test Memento manually: `memento --health`
+3. Test Memento manually: `memento --health` (exits with code 0 if healthy, 1 if unhealthy; use `--health-json` for machine-readable output)
 
 **Permission issues:**
 ```bash
@@ -270,6 +277,7 @@ MCP tools only work in **Agent mode**:
 1. Ensure you're in **Agent mode** (not Chat or Composer mode)
 2. Restart Cursor after configuration changes
 3. Check `.cursor/mcp.json` JSON syntax
+4. Verify Memento is working: `memento --health`
 
 **Agent mode not available:**
 - Some Cursor versions require specific settings for Agent mode

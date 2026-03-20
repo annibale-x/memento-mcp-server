@@ -48,7 +48,7 @@ use std::os::unix::process::CommandExt;
 // Version — must match STUB_EXT_RELEASE in lib.rs
 // ---------------------------------------------------------------------------
 
-const STUB_VERSION: &str = "v0.2.24";
+const STUB_VERSION: &str = "v0.2.25";
 
 // ---------------------------------------------------------------------------
 // Logging

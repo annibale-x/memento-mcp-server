@@ -1,5 +1,16 @@
 # Changelog
 
+* 2026-03-20: v0.2.25 - Bug fixes: 8 critical tool regressions + 37 new regression tests (Hannibal)
+  * fix(tools): find_memento_patterns — handler was using wrong arguments (from_memory_id); replaced with real SQL-based pattern detection
+  * fix(tools): analyze_memento_graph — handler was using wrong argument (category); replaced with real graph analytics (density, degree, category coverage)
+  * fix(tools): set_memento_decay_factor — decay_factor argument was silently ignored; added set_decay_factor() DB method that writes directly to relationships.decay_factor
+  * fix(tools): get_recent_memento_activity — blocking subprocess git call caused MCP transport timeout; wrapped in ThreadPoolExecutor + asyncio.wait_for(timeout=3.0)
+  * fix(tools): get_memento_clusters — returned raw nested stats dict; replaced with greedy shared-neighbour cluster detection
+  * fix(tools): get_central_mementos — returned raw nested stats dict; replaced with degree-centrality bridge detection
+  * fix(db): PRAGMA foreign_keys=ON added to SQLiteBackend.connect() — ON DELETE CASCADE was silently inactive, leaving orphan relationship rows on memory deletion
+  * fix(db): FTS multi-word AND logic — _prepare_fts_query was wrapping multi-word queries in FTS5 phrase syntax; changed to AND of prefix tokens (t1* t2*). Same fix in _search_with_simple (per-word LIKE instead of whole-string LIKE)
+  * test: add test_bug_regressions.py — 37 regression tests covering all 8 bugs; suite grows from 169 to 206 tests
+
 * 2026-03-20: v0.2.24 - README TOC PyPI fix + stub pip timeout + CI binary size fix (Hannibal)
   * README: fixed Table of Contents anchor links for PyPI compatibility using explicit HTML anchors (<a name>)
   * README: removed stale TOC entry pointing to non-existent section; simplified TOC in DECAY_SYSTEM, INTEGRATION, RELATIONSHIPS

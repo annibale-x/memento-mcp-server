@@ -52,12 +52,14 @@ Store memories following these guidelines when detecting:
   - *"ricorda..."* / *"segna questo..."* / *"memorizza..."*
 
 ### 3. MEMORY STRUCTURE & SCHEMA
-- **Type**: solution | problem | code_pattern | fix | error | workflow | general
+- **Type**: solution | problem | code_pattern | fix | error | workflow | task | technology | command | file_context | general | conversation
 - **Title**: Specific and searchable (not generic).
 - **Content**: Detailed decisions, accomplishments, or patterns.
 - **Tags (REQUIRED)**: Project, technology, and category. (Technically optional in API but strongly recommended for effective search)
 - **Importance**: 0.8+ (Critical/Arch), 0.5-0.7 (Standard), 0.3-0.4 (Minor).
 - **Relationships**: Link to existing mementos whenever a connection exists.
+
+> **Profile names**: The canonical profile names are `core`, `extended`, and `advanced`. The legacy aliases `lite`, `standard`, and `full` are still accepted for backwards compatibility but should not be used in new configurations.
 
 ### 4. FALLBACK & CACHE
 - If optimized retrieval returns nothing: Log it, fallback to broad `recall_mementos`, and suggest creating the missing entry if relevant.
@@ -97,7 +99,7 @@ Consider storing memories:
 - **Session end**: For session summaries
 
 ### Memory Fields
-- **Type**: solution | problem | code_pattern | fix | error | workflow
+- **Type**: solution | problem | code_pattern | fix | error | workflow | task | technology | command | file_context | project | conversation | general
 - **Title**: Specific, searchable (not generic)
 - **Content**: Accomplishment, decisions, patterns
 - **Tags**: project, tech, category (REQUIRED - technically optional in API but strongly recommended for effective search)
@@ -108,9 +110,9 @@ Consider storing memories:
 - Solutions `SOLVE` problems
 - Fixes `ADDRESS` errors
 - Patterns `APPLIES_TO` projects
-- Decisions `IMPROVE` previous approaches
-- Errors `TRIGGERS` problems
-- Changes `CAUSE` issues
+- Decisions `IMPROVES` previous approaches
+- Errors `CAUSES` problems
+- Changes `CAUSES` issues
 
 *Note: Memento supports 35 relationship types. For complete reference with all types and examples, see [RELATIONSHIPS.md](./RELATIONSHIPS.md).*
 
@@ -257,8 +259,8 @@ Required tags for all team memories:
 
 ### Common Relationships
 - API endpoint patterns `APPLIES_TO` projects
-- Performance optimizations `IMPROVE` slow_queries
-- Security fixes `ADDRESS` vulnerabilities
+- Performance optimizations `IMPROVES` slow_queries
+- Security fixes `ADDRESSES` vulnerabilities
 - New patterns `REPLACE` deprecated_patterns
 
 ### Typical Session Flow
@@ -281,7 +283,7 @@ Required tags for all team memories:
 - **Deployment**: Serving patterns, monitoring, drift detection
 
 ### Common Relationships
-- Model improvements `IMPROVE` baseline_model
+- Model improvements `IMPROVES` baseline_model
 - Feature engineering `SOLVES` data_quality_problem
 - Experiment results `CONFIRM` hypothesis
 - New approach `CONTRADICTS` previous_assumption

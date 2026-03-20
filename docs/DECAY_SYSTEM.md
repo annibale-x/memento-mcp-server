@@ -69,10 +69,11 @@ All other columns (`id`, `from_id`, `to_id`, `rel_type`, `properties`, `created_
 ### Base Decay Formula
 
 ```
-monthly_decay = confidence × decay_factor^(months_since_last_access)
+new_confidence = confidence × decay_factor^(months_since_last_access)
 ```
 
 Where:
+- `confidence` = current confidence score (0.0–1.0)
 - `decay_factor` = 0.95 (5% monthly decay by default)
 - `months_since_last_access` = integer months since last usage
 
@@ -90,16 +91,17 @@ importance_factor = 1.0 - (importance × 0.3)
 adjusted_decay = base_decay × importance_factor
 ```
 
-Example:
-- Importance = 0.9 → importance_factor = 0.73 → decay_factor ≈ 0.69 (31% less decay)
-- Importance = 0.5 → importance_factor = 0.85 → decay_factor ≈ 0.81 (19% less decay)
+Example (base_decay = 0.95):
+- Importance = 0.9 → importance_factor = 0.73 → decay_factor = 0.95 × 0.73 ≈ 0.69 (27% monthly decay instead of 5%)
+- Importance = 0.5 → importance_factor = 0.85 → decay_factor = 0.95 × 0.85 ≈ 0.81 (19% monthly decay instead of 5%)
 
 #### 3. General Memories - Standard Decay
 - Base decay: 5% per month (decay_factor = 0.95)
 - Minimum confidence: 0.1 (won't decay below this)
 
 #### 4. Temporary Context - Higher Decay
-Memories with `temporary`, `session`, `debug` tags get faster decay.
+Memories with `temporary`, `session`, `debug` tags get faster decay: 20% monthly (decay_factor = 0.80).
+This rule is applied when `apply_memento_confidence_decay` is called with a specific `memory_id`.
 
 ### Decay Calculation Example
 
@@ -117,11 +119,11 @@ new_confidence = 0.8 × (1.0^3) = 0.8  # No change
 
 The confidence decay system is applied automatically through multiple mechanisms:
 
-### 1. Automatic On-Access Decay
+### 1. Automatic On-Access Boost
 - **When**: Every time a memory is accessed via `get_memento` or `recall_mementos`
-- **How**: The system checks the last access time and applies appropriate decay
-- **Efficiency**: Only decays relationships accessed during the current operation
-- **Real-time**: Users see updated confidence scores immediately
+- **How**: The system increments `access_count` and updates `last_accessed`; confidence is boosted by +0.01 (capped at 1.0) to reward actively used knowledge
+- **Efficiency**: Only updates relationships accessed during the current operation
+- **Note**: Decay (reduction) is **not** applied automatically on every access — it must be triggered explicitly via `apply_memento_confidence_decay` or scheduled maintenance
 
 ### 2. Manual Decay Application
 - **Tool**: `apply_memento_confidence_decay` MCP tool
@@ -152,24 +154,31 @@ async def apply_decay():
 asyncio.run(apply_decay())
 ```
 
-### 4. Real-time vs Batch Processing
-| Aspect | Real-time (On-Access) | Batch (Monthly) |
-|--------|----------------------|-----------------|
-| **Scope** | Only accessed memories | All memories |
+### 4. On-Access Boost vs Batch Decay
+| Aspect | On-Access Boost | Batch Decay (`apply_memento_confidence_decay`) |
+|--------|-----------------|------------------------------------------------|
+| **Effect** | Confidence +0.01 (capped at 1.0) | Confidence × decay_factor^months (reduced) |
+| **Scope** | Only the accessed relationships | All relationships in the database |
+| **Trigger** | Automatic on `get_memento` / `recall_mementos` | Manual call or scheduled maintenance |
 | **Performance** | Minimal overhead | Higher resource usage |
-| **Freshness** | Always up-to-date | May lag up to 1 month |
-| **Use Case** | User-facing queries | Maintenance & cleanup |
+| **Use Case** | Reward actively used knowledge | Periodic cleanup of unused knowledge |
 
 ### 5. Configuration Options
 
-The `memento.yaml` configuration file supports the following top-level keys:
+The `memento.yaml` configuration file supports the following **actively read** top-level keys:
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `db_path` | string | Path to the SQLite database file |
-| `profile` | string | Active profile (`default`, `advanced`, etc.) |
-| `log_level` | string | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `allow_relationship_cycles` | bool | Whether to allow cyclic relationships between nodes |
+| `db_path` | string | Path to the SQLite database file (maps to `sqlite_path` internally) |
+| `profile` | string | Active profile (`core`, `extended`, `advanced`) |
+| `logging.level` | string | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `features.allow_relationship_cycles` | bool | Whether to allow cyclic relationships between nodes |
+
+> **Important**: The `memento.yaml` shipped with the project contains additional sections
+> (`confidence`, `search`, `performance`, `memory`, `fts`, `project`) that are **not yet
+> read by the configuration loader**. Those sections are reserved for future use. Changes
+> to them have no effect on the running server. Only the four keys listed above (and their
+> environment-variable equivalents) are currently active.
 
 Decay parameters (decay rate, minimum threshold, protected types) are **not configurable via YAML** — they are governed by the `decay_factor` column stored per-relationship and by the tag-based rules described in the [Intelligent Decay Rules](#intelligent-decay-rules) section.
 
@@ -214,6 +223,7 @@ new_confidence = min(1.0, current_confidence + boost_amount)
 
 ### 1. `adjust_memento_confidence`
 **Purpose**: Manual confidence adjustment
+**Profile**: Core (available in all profiles)
 **When to use**: When you know a relationship's accuracy has changed
 ```json
 {
@@ -225,6 +235,7 @@ new_confidence = min(1.0, current_confidence + boost_amount)
 
 ### 2. `get_low_confidence_mementos`
 **Purpose**: Find obsolete knowledge
+**Profile**: Core (available in all profiles)
 **When to use**: Periodic cleanup or when search results seem unreliable
 ```json
 {
@@ -233,17 +244,27 @@ new_confidence = min(1.0, current_confidence + boost_amount)
 }
 ```
 
+> **Note**: This tool searches for *relationships* with low confidence and returns the
+> associated memory nodes — not memories that have a low confidence value of their own.
+
 ### 3. `apply_memento_confidence_decay`
-**Purpose**: Apply automatic decay
+**Purpose**: Apply automatic decay to all relationships system-wide (or to a specific memory)
+**Profile**: Extended and above (not available in Core profile)
 **When to use**: Monthly maintenance or after long periods of inactivity
 ```json
+{}
+```
+Optional parameter:
+```json
 {
-  "memory_id": "mem-456"  # Optional: apply only to specific memory
+  "memory_id": "mem-123"
 }
 ```
+When `memory_id` is provided, decay is applied only to the relationships of that memory, and the `decay_factor` is recalculated from the memory's importance and tags before being applied.
 
 ### 4. `boost_memento_confidence`
 **Purpose**: Boost confidence after successful usage
+**Profile**: Core (available in all profiles)
 **When to use**: After implementing a solution or validating knowledge
 ```json
 {
@@ -255,6 +276,7 @@ new_confidence = min(1.0, current_confidence + boost_amount)
 
 ### 5. `set_memento_decay_factor`
 **Purpose**: Set custom decay rates
+**Profile**: Advanced only
 **When to use**: For special memory types requiring different decay
 ```json
 {
@@ -313,16 +335,21 @@ for memory in low_conf:
 
 ### YAML Configuration
 
-The supported keys in `memento.yaml` are:
+The **actively read** keys in `memento.yaml` are:
 
 ```yaml
-db_path: /path/to/memento.db   # SQLite database path
-profile: default               # Active profile
-log_level: INFO                # Logging level
-allow_relationship_cycles: false
+db_path: /path/to/memento.db        # SQLite database path
+profile: core                        # Active profile (core|extended|advanced)
+logging:
+  level: INFO                        # Logging level (DEBUG|INFO|WARNING|ERROR)
+features:
+  allow_relationship_cycles: false   # Allow cyclic relationship graphs
 ```
 
-Decay behavior is controlled per-relationship via the `decay_factor` column in the database and is not configurable at the YAML level.
+> **Note**: `log_level` as a flat top-level key is **not** read by the configuration
+> loader. Use `logging.level` (nested) as shown above.
+
+Decay behavior is controlled per-relationship via the `decay_factor` column in the database and is not configurable at the YAML level. The `confidence` section present in the project's `memento.yaml` template is reserved for future use and currently has no effect.
 
 ### Environment Variables
 ```bash
@@ -422,8 +449,11 @@ FROM relationships
 GROUP BY confidence_level
 ORDER BY confidence DESC;
 
--- Find relationships needing review
-SELECT r.id, n.label, r.confidence, r.last_accessed
+-- Find relationships needing review (with memory titles from JSON properties)
+SELECT r.id,
+       json_extract(n.properties, '$.title') AS memory_title,
+       r.confidence,
+       r.last_accessed
 FROM relationships r
 JOIN nodes n ON r.from_id = n.id
 WHERE r.confidence < 0.3

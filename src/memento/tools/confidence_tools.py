@@ -360,7 +360,7 @@ async def handle_set_memento_decay_factor(
         CallToolResult with confirmation or error message
     """
     memory_id = arguments["memory_id"]
-    decay_factor = float(arguments["decay_factor"])
+    decay_factor = float(arguments.get("decay_factor", 0.95))
     reason = arguments.get("reason", "Custom decay factor")
 
     if decay_factor < 0.0 or decay_factor > 1.0:
@@ -374,35 +374,24 @@ async def handle_set_memento_decay_factor(
             isError=True,
         )
 
-    try:
-        # Apply decay with custom factor (this will update decay_factor in database)
-        await memory_db.apply_confidence_decay(memory_id)
+    # Verify the memory exists
+    memory = await memory_db.get_memory_by_id(memory_id)
 
-        # Note: The actual decay_factor update happens in apply_confidence_decay
-        # based on memory importance and tags. For direct control, we would need
-        # a separate method in the database interface.
-
-        message = f"Set decay factor for memory {memory_id} relationships. "
-        message += f"Critical memories (security, auth, api_key, etc.) have no decay. "
-        message += f"Other memories use intelligent decay based on importance."
-
+    if not memory:
         return CallToolResult(
-            content=[
-                TextContent(
-                    type="text",
-                    text=message,
-                )
-            ]
-        )
-
-    except Exception as e:
-        logger.error(f"Failed to set decay factor for memory {memory_id}: {e}")
-        return CallToolResult(
-            content=[
-                TextContent(
-                    type="text",
-                    text=f"Failed to set decay factor: {str(e)}",
-                )
-            ],
+            content=[TextContent(type="text", text=f"Memory not found: {memory_id}")],
             isError=True,
         )
+
+    updated = await memory_db.set_decay_factor(memory_id, decay_factor, reason)
+
+    message = (
+        f"Set decay_factor={decay_factor:.3f} for {updated} relationship(s) "
+        f"of memory '{memory.title}' (ID: {memory_id}).\n"
+        f"Reason: {reason}\n"
+        f"Effect: each monthly decay run will multiply confidence × {decay_factor:.3f}."
+    )
+
+    return CallToolResult(
+        content=[TextContent(type="text", text=message)]
+    )
