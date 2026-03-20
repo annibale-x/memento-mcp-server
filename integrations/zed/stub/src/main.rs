@@ -8,9 +8,10 @@
 //!   The process that receives stdin from Zed is the ACTIVE process.
 //!   It must BOTH serve MCP responses to Zed AND wait for setup.
 //!
-//!   1. Try to acquire the setup lock (O_CREAT|O_EXCL + PID written inside).
+//!   1. Try to acquire the setup lock (flock LOCK_EX|LOCK_NB on a file).
 //!      - If acquired → spawn setup thread (venv + pip).
-//!      - If not acquired → just wait; check for stale lock every 500ms.
+//!      - If not acquired → poll venv_is_valid() every 300ms; retries flock
+//!        every 2s to detect a dead owner (kernel releases flock on SIGKILL).
 //!
 //!   2. Bootstrap MCP server loop (always runs in the ACTIVE process):
 //!      - Reader thread feeds lines from Zed's stdin into a channel.
@@ -205,62 +206,49 @@ fn venv_is_valid(venv: &Path) -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// PID-based lockfile
+// flock-based setup lock
+//
+// We use an advisory LOCK_EX flock on the lockfile. The kernel automatically
+// releases the lock when the owning process dies (even via SIGKILL), so there
+// are no stale-PID zombies to deal with. The File handle must be kept alive
+// for the duration of ownership.
 // ---------------------------------------------------------------------------
 
-fn pid_is_alive(pid: u32) -> bool {
-    if pid == 0 {
-        return false;
-    }
+#[cfg(unix)]
+fn try_flock_exclusive(file: &fs::File) -> bool {
+    use std::os::unix::io::AsRawFd;
 
-    #[cfg(target_os = "linux")]
-    {
-        Path::new(&format!("/proc/{}", pid)).exists()
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    {
-        // Fallback: try kill -0
-        unsafe { libc::kill(pid as libc::pid_t, 0) == 0 }
-    }
+    let fd = file.as_raw_fd();
+    let ret = unsafe { libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB) };
+    ret == 0
 }
 
-fn lock_is_stale(lock: &Path) -> bool {
-    match fs::read_to_string(lock) {
-        Err(_) => false,
-        Ok(content) => {
-            let owner_pid: u32 = content.trim().parse().unwrap_or(0);
-            // Empty file or dead PID → stale
-            !pid_is_alive(owner_pid)
-        }
-    }
+#[cfg(not(unix))]
+fn try_flock_exclusive(_file: &fs::File) -> bool {
+    // Windows: flock not available — fall back to always acquiring
+    true
 }
 
-/// Try to atomically create the lockfile and write our PID.
-/// Removes a stale lock first if the previous owner is dead.
-fn acquire_setup_lock(venv: &Path) -> bool {
+/// Try to atomically acquire the setup lock (non-blocking flock).
+/// Returns (file_handle, true) if we own the lock, (file_handle, false) otherwise.
+/// The caller MUST keep the returned File alive to maintain the lock.
+fn acquire_setup_lock(venv: &Path) -> (fs::File, bool) {
     let lock = lock_path(venv);
 
-    if lock.exists() && lock_is_stale(&lock) {
-        log!("Removing stale lock (pid in file is dead or empty).");
-        let _ = fs::remove_file(&lock);
-    }
-
-    match fs::OpenOptions::new()
+    let file = fs::OpenOptions::new()
         .write(true)
-        .create_new(true)
+        .create(true)
+        .truncate(false)
         .open(&lock)
-    {
-        Ok(mut f) => {
-            let _ = writeln!(f, "{}", std::process::id());
-            true
-        }
-        Err(_) => false,
-    }
+        .expect("Cannot open/create lock file");
+
+    let owned = try_flock_exclusive(&file);
+    (file, owned)
 }
 
-fn release_setup_lock(venv: &Path) {
-    let _ = fs::remove_file(lock_path(venv));
+fn release_setup_lock(_lock_file: fs::File) {
+    // Dropping the file releases the flock automatically.
+    // Explicit drop makes intent clear.
     log!("Setup lock released (pid={}).", std::process::id());
 }
 
@@ -781,12 +769,12 @@ fn main() {
         let _ = fs::create_dir_all(parent);
     }
 
-    let we_own_lock = acquire_setup_lock(&venv);
+    let (lock_file, we_own_lock) = acquire_setup_lock(&venv);
 
     if we_own_lock {
-        log!("Acquired setup lock (pid={}).", std::process::id());
+        log!("Acquired setup lock via flock (pid={}).", std::process::id());
     } else {
-        log!("Setup lock busy — waiting (pid={}).", std::process::id());
+        log!("Setup lock busy — polling (pid={}).", std::process::id());
     }
 
     let state = Arc::new(Mutex::new(SetupState::Running));
@@ -795,71 +783,58 @@ fn main() {
     let python_for_thread = system_python.clone();
 
     thread::spawn(move || {
+        // Split the lock_file into either "owned" or "waiter" based on who
+        // acquired it. Both paths receive ownership via Option destructuring.
+        let (mut lock_holder, waiter): (Option<fs::File>, Option<fs::File>) = if we_own_lock {
+            (Some(lock_file), None)
+        } else {
+            (None, Some(lock_file))
+        };
         let mut need_setup = we_own_lock;
 
         if !we_own_lock {
-            // Poll until venv is valid OR we can steal a dead owner's lock
+            // lock_file not owned — use it only for flock retry attempts.
+            let mut waiter_file = waiter.expect("waiter file");
+            let mut ticks: u32 = 0;
+
             loop {
-                thread::sleep(Duration::from_millis(500));
+                thread::sleep(Duration::from_millis(300));
+                ticks += 1;
 
-                let venv_valid = venv_is_valid(&venv_for_thread);
-                let lock = lock_path(&venv_for_thread);
-                let lock_exists = lock.exists();
-                let lock_content = fs::read_to_string(&lock).unwrap_or_else(|_| "ERR".to_string());
-                let lock_content_trim = lock_content.trim().to_string();
-                let owner_pid: u32 = lock_content_trim.parse().unwrap_or(0);
-                let owner_alive = pid_is_alive(owner_pid);
-                let stale_check = !lock_exists || !owner_alive;
-
-                log!(
-                    "Poll: venv_valid={} lock_exists={} lock_content={:?} owner_pid={} owner_alive={} stale={}",
-                    venv_valid,
-                    lock_exists,
-                    lock_content_trim,
-                    owner_pid,
-                    owner_alive,
-                    stale_check
-                );
-
-                if venv_valid {
+                if venv_is_valid(&venv_for_thread) {
                     log!(
-                        "Other process finished — venv valid (pid={}).",
+                        "Other process finished setup — venv valid (pid={}).",
                         std::process::id()
                     );
                     *state_for_thread.lock().unwrap() = SetupState::Done;
                     return;
                 }
 
-                // Try to take over if the owner is dead
-                let stale = stale_check;
+                // Every ~2.1s retry flock. The kernel releases the advisory
+                // lock the moment the owning process dies (even SIGKILL), so
+                // this detects dead owners reliably without PID inspection.
+                if ticks % 7 == 0 {
+                    log!("Poll tick={}: retrying flock (pid={}).", ticks, std::process::id());
 
-                if stale {
-                    log!(
-                        "Lock is stale/gone — trying takeover (pid={}).",
-                        std::process::id()
-                    );
-
-                    if lock.exists() {
-                        let _ = fs::remove_file(&lock);
-                    }
-
-                    let grabbed = fs::OpenOptions::new()
-                        .write(true)
-                        .create_new(true)
-                        .open(&lock)
-                        .map(|mut f| {
-                            let _ = writeln!(f, "{}", std::process::id());
-                            true
-                        })
-                        .unwrap_or(false);
-
-                    if grabbed {
-                        log!("Takeover successful (pid={}).", std::process::id());
+                    if try_flock_exclusive(&waiter_file) {
+                        log!(
+                            "Acquired lock via flock retry — owner was dead (pid={}).",
+                            std::process::id()
+                        );
+                        lock_holder = Some(waiter_file);
                         need_setup = true;
                         break;
                     }
 
-                    log!("Another process grabbed the lock first — keep polling.");
+                    // Re-open so next iteration gets a fresh fd to try.
+                    if let Ok(f) = fs::OpenOptions::new()
+                        .write(true)
+                        .create(true)
+                        .truncate(false)
+                        .open(lock_path(&venv_for_thread))
+                    {
+                        waiter_file = f;
+                    }
                 }
             }
         }
@@ -867,12 +842,12 @@ fn main() {
         if need_setup {
             match setup_venv(&python_for_thread, &venv_for_thread) {
                 Ok(()) => {
-                    release_setup_lock(&venv_for_thread);
+                    release_setup_lock(lock_holder.take().expect("lock file"));
                     log!("Setup complete (pid={}).", std::process::id());
                     *state_for_thread.lock().unwrap() = SetupState::Done;
                 }
                 Err(e) => {
-                    release_setup_lock(&venv_for_thread);
+                    drop(lock_holder.take());
                     log!("Setup failed: {e}");
                     *state_for_thread.lock().unwrap() = SetupState::Failed(e);
                 }

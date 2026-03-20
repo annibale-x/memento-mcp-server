@@ -5,6 +5,9 @@ edition = "2024"
 authors = ["Hannibal <annibale.x@gmail.com>"]
 description = "Native MCP stub launcher for mcp-memento Zed extension."
 
+[dependencies]
+libc = "0.2"
+
 [[bin]]
 name = "memento-stub"
 path = "src/main.rs"
