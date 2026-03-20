@@ -1,7 +1,11 @@
 # Changelog
 
-* 2026-03-20: v0.2.21 - <TITLE> (Hannibal)
-  * <release notes here>
+* 2026-03-20: v0.2.21 - README TOC PyPI fix + stub pip timeout (Hannibal)
+  * Fixed README Table of Contents anchor links for PyPI compatibility (HTML explicit anchors, removed emoji-derived slugs)
+  * Removed stale TOC entry pointing to non-existent Auto-Onboarding Protocol section
+  * Simplified plain-text TOC in DECAY_SYSTEM.md, INTEGRATION.md, RELATIONSHIPS.md (anchor links broken on PyPI)
+  * Stub: added --timeout 120 to pip install to prevent false-failure on slow PyPI connections
+  * Stub: removed Stdio::null() suppression during pip install so errors are visible in Zed logs
 
 
 * 2026-03-20: v0.2.19 - Documentation audit and cleanup (Hannibal)
