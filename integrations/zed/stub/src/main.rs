@@ -42,36 +42,20 @@ const STUB_VERSION: &str = "v0.2.22";
 // Logging
 // ---------------------------------------------------------------------------
 
-fn debug_enabled() -> bool {
-    if let Ok(work) = env::var("MEMENTO_WORK_DIR") {
-        if !work.is_empty() {
-            return Path::new(&work).join("debug.enable").exists();
-        }
-    }
 
-    if let Ok(exe) = env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            return dir.join("debug.enable").exists();
-        }
-    }
-
-    false
-}
 
 macro_rules! log {
     ($($arg:tt)*) => {{
-        if debug_enabled() {
-            use std::io::Write as _;
-            let msg = format!($($arg)*);
-            let _ = writeln!(std::io::stderr(), "[MEMENTO-STUB] {}", msg);
+        use std::io::Write as _;
+        let msg = format!($($arg)*);
+        let _ = writeln!(std::io::stderr(), "[MEMENTO-STUB] {}", msg);
 
-            if let Ok(mut f) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(std::env::temp_dir().join("memento_stub_debug.log"))
-            {
-                let _ = writeln!(f, "{}", msg);
-            }
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(std::env::temp_dir().join("memento_stub_debug.log"))
+        {
+            let _ = writeln!(f, "{}", msg);
         }
     }};
 }
@@ -427,131 +411,148 @@ fn json_get_id(json: &str) -> Option<String> {
 /// Run the bootstrap MCP proxy on stdin/stdout.
 ///
 /// Returns when setup is done (or failed) and it is safe to launch Python.
+///
+/// The reader runs on a dedicated thread so that the main loop can poll the
+/// setup state via `recv_timeout` even when Zed sends no messages.
 fn run_bootstrap_proxy(state: Arc<Mutex<SetupState>>) {
-    let stdin = io::stdin();
-    let stdout = io::stdout();
-    let mut reader = io::BufReader::new(stdin.lock());
-    let mut writer = stdout.lock();
+    use std::sync::mpsc;
+    use std::time::Duration;
 
     log!("Bootstrap proxy started.");
 
-    loop {
-        // Check if setup finished before blocking on the next message.
-        {
-            let s = state.lock().unwrap();
+    // Spawn a reader thread that sends decoded JSON-RPC messages over a channel.
+    let (tx, rx) = mpsc::channel::<Option<String>>();
 
-            if *s != SetupState::Running {
-                log!("Setup finished — exiting bootstrap proxy.");
-                break;
+    thread::spawn(move || {
+        let stdin = io::stdin();
+        let mut reader = io::BufReader::new(stdin.lock());
+
+        loop {
+            match read_jsonrpc_message(&mut reader) {
+                Some(msg) => {
+                    if tx.send(Some(msg)).is_err() {
+                        break;
+                    }
+                }
+                None => {
+                    let _ = tx.send(None);
+                    break;
+                }
             }
         }
+    });
 
-        let msg = match read_jsonrpc_message(&mut reader) {
-            Some(m) => m,
-            None => {
+    let stdout = io::stdout();
+    let mut writer = stdout.lock();
+
+    loop {
+        // Poll for setup completion every 200 ms even with no incoming message.
+        match rx.recv_timeout(Duration::from_millis(200)) {
+            // Reader thread closed stdin → exit.
+            Ok(None) => {
                 log!("stdin closed — exiting bootstrap proxy.");
                 break;
             }
-        };
 
-        log!("Bootstrap RX: {}", &msg[..msg.len().min(200)]);
+            // Got a message — handle it.
+            Ok(Some(msg)) => {
+                log!("Bootstrap RX: {}", &msg[..msg.len().min(200)]);
 
-        let method = json_get_str(&msg, "method").unwrap_or("").to_string();
-        let id = json_get_id(&msg);
+                let method = json_get_str(&msg, "method").unwrap_or("").to_string();
+                let id = json_get_id(&msg);
 
-        // Notifications have no id and require no response.
-        if method.starts_with("notifications/") || method == "$/cancelRequest" {
-            log!("Bootstrap: ignoring notification '{}'", method);
-            continue;
+                // Notifications require no response.
+                if method.starts_with("notifications/") || method == "$/cancelRequest" {
+                    log!("Bootstrap: ignoring notification '{}'", method);
+                }
+                else if let Some(id) = id {
+                    let response = build_response(&method, &id, &state);
+                    log!("Bootstrap TX: {}", &response[..response.len().min(200)]);
+
+                    if let Err(e) = write_jsonrpc_message(&mut writer, &response) {
+                        log!("Bootstrap write error: {e}");
+                        break;
+                    }
+                }
+                else {
+                    log!("Bootstrap: no id, skipping '{}'", method);
+                }
+            }
+
+            // Timeout — just check setup state.
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+
+            // Channel disconnected (reader thread panicked).
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                log!("Reader thread disconnected — exiting bootstrap proxy.");
+                break;
+            }
         }
 
-        // No id → notification we don't recognise; skip.
-        let id = match id {
-            Some(i) => i,
-            None => {
-                log!("Bootstrap: no id, skipping '{}'", method);
-                continue;
-            }
-        };
+        // Exit as soon as setup is no longer running.
+        let s = state.lock().unwrap();
 
-        let response = match method.as_str() {
-            // ------------------------------------------------------------------
-            // initialize — advertise a minimal MCP 2024-11-05 server.
-            // ------------------------------------------------------------------
-            "initialize" => {
-                format!(
-                    r#"{{"jsonrpc":"2.0","id":{id},"result":{{"protocolVersion":"2024-11-05","capabilities":{{"tools":{{}}}},"serverInfo":{{"name":"memento-bootstrap","version":"{ver}"}}}}}}"#,
-                    id = id,
-                    ver = json_escape(STUB_VERSION),
-                )
-            }
-
-            // ------------------------------------------------------------------
-            // tools/list — expose the diagnostic status tool.
-            // ------------------------------------------------------------------
-            "tools/list" => {
-                format!(
-                    r#"{{"jsonrpc":"2.0","id":{id},"result":{{"tools":[{{"name":"memento_status","description":"Returns the current Memento server setup status.","inputSchema":{{"type":"object","properties":{{}}}}}}]}}}}"#,
-                    id = id,
-                )
-            }
-
-            // ------------------------------------------------------------------
-            // tools/call — return setup progress.
-            // ------------------------------------------------------------------
-            "tools/call" => {
-                let status_text = {
-                    let s = state.lock().unwrap();
-
-                    match &*s {
-                        SetupState::Running => {
-                            "Memento is being set up (installing mcp-memento via pip). \
-                             This usually takes 10-60 seconds on first run. \
-                             The server will restart automatically when ready."
-                                .to_string()
-                        }
-                        SetupState::Done => "Memento setup complete. Restarting…".to_string(),
-                        SetupState::Failed(e) => {
-                            format!(
-                                "Memento setup failed: {}. Please check your Python installation.",
-                                e
-                            )
-                        }
-                    }
-                };
-
-                format!(
-                    r#"{{"jsonrpc":"2.0","id":{id},"result":{{"content":[{{"type":"text","text":"{text}"}}]}}}}"#,
-                    id = id,
-                    text = json_escape(&status_text),
-                )
-            }
-
-            // ------------------------------------------------------------------
-            // ping — required by some MCP clients.
-            // ------------------------------------------------------------------
-            "ping" => {
-                format!(r#"{{"jsonrpc":"2.0","id":{id},"result":{{}}}}"#, id = id)
-            }
-
-            // ------------------------------------------------------------------
-            // Anything else — method not found.
-            // ------------------------------------------------------------------
-            _ => {
-                log!("Bootstrap: unknown method '{}' → method-not-found", method);
-                format!(
-                    r#"{{"jsonrpc":"2.0","id":{id},"error":{{"code":-32601,"message":"Method not found: {method}"}}}}"#,
-                    id = id,
-                    method = json_escape(&method),
-                )
-            }
-        };
-
-        log!("Bootstrap TX: {}", &response[..response.len().min(200)]);
-
-        if let Err(e) = write_jsonrpc_message(&mut writer, &response) {
-            log!("Bootstrap write error: {e}");
+        if *s != SetupState::Running {
+            log!("Setup finished — exiting bootstrap proxy.");
             break;
+        }
+    }
+}
+
+fn build_response(method: &str, id: &str, state: &Arc<Mutex<SetupState>>) -> String {
+    match method {
+        "initialize" => {
+            format!(
+                r#"{{"jsonrpc":"2.0","id":{id},"result":{{"protocolVersion":"2024-11-05","capabilities":{{"tools":{{}}}},"serverInfo":{{"name":"memento-bootstrap","version":"{ver}"}}}}}}"#,
+                id = id,
+                ver = json_escape(STUB_VERSION),
+            )
+        }
+
+        "tools/list" => {
+            format!(
+                r#"{{"jsonrpc":"2.0","id":{id},"result":{{"tools":[{{"name":"memento_status","description":"Returns the current Memento server setup status.","inputSchema":{{"type":"object","properties":{{}}}}}}]}}}}"#,
+                id = id,
+            )
+        }
+
+        "tools/call" => {
+            let status_text = {
+                let s = state.lock().unwrap();
+
+                match &*s {
+                    SetupState::Running => {
+                        "Memento is being set up (installing mcp-memento via pip). \
+                         This usually takes 10-60 seconds on first run. \
+                         The server will restart automatically when ready."
+                            .to_string()
+                    }
+                    SetupState::Done => "Memento setup complete. Restarting\u{2026}".to_string(),
+                    SetupState::Failed(e) => format!(
+                        "Memento setup failed: {}. Please check your Python installation.",
+                        e
+                    ),
+                }
+            };
+
+            format!(
+                r#"{{"jsonrpc":"2.0","id":{id},"result":{{"content":[{{"type":"text","text":"{text}"}}]}}}}"#,
+                id = id,
+                text = json_escape(&status_text),
+            )
+        }
+
+        "ping" => {
+            format!(r#"{{"jsonrpc":"2.0","id":{id},"result":{{}}}}"#, id = id)
+        }
+
+        _ => {
+            log!("Bootstrap: unknown method '{}' -> method-not-found", method);
+            format!(
+                r#"{{"jsonrpc":"2.0","id":{id},"error":{{"code":-32601,"message":"Method not found: {method}"}}}}"#,
+                id = id,
+                method = json_escape(method),
+            )
         }
     }
 }
