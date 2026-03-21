@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-blueviolet)](https://spec.modelcontextprotocol.io/)
-[![Latest Release](https://img.shields.io/badge/release-v0.2.31-purple.svg)](https://github.com/annibale-x/mcp-memento/releases/tag/v0.2.31)
+[![Latest Release](https://img.shields.io/badge/release-v0.2.32-purple.svg)](https://github.com/annibale-x/mcp-memento/releases/tag/v0.2.32)
 
 Intelligent memory management for MCP clients with confidence tracking, relationship mapping, and knowledge quality maintenance.
 
@@ -431,6 +431,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 - **[GitHub Repository](https://github.com/annibale-x/mcp-memento)** - Source code and issues
 - **[MCP Protocol](https://spec.modelcontextprotocol.io/)** - Model Context Protocol specification
 - **[PyPI Package](https://pypi.org/project/mcp-memento/)** - Python Package Index
+- **[MCP Registry](https://registry.modelcontextprotocol.io/?q=mcp-memento&all=1)** - Model Context Protocol Registry
 
 ---
 

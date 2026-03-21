@@ -1,5 +1,12 @@
 # Changelog
 
+* 2026-03-21: v0.2.32 - Add MCP Registry publish workflow and server.json (Hannibal)
+  * ci: add publish-mcp-registry.yml workflow — triggers on tag push, updates server.json version via jq, publishes via OIDC
+  * chore: add server.json for MCP Registry (schema 2025-12-11, pypi package, stdio transport)
+  * docs: add MCP Registry link in README Links section
+
+---
+
 * 2026-03-21: v0.2.31 - Add MCP Registry ownership marker (Hannibal)
 
 ---
