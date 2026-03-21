@@ -675,8 +675,8 @@ Usage patterns:
 - When multiple team members confirm a pattern → boost confidence
 
 Boost mechanics:
-- Base boost: +0.01 per access (capped at 1.0)
-- Additional boost for validation: +0.05 to +0.20
+- Base boost: +0.10 per access (capped at 1.0)
+- Additional boost for validation: +0.10 to +0.20
 - Maximum confidence: 1.0 (cannot exceed)""",
             inputSchema={
                 "type": "object",
@@ -702,7 +702,7 @@ Boost mechanics:
                         "type": "number",
                         "minimum": 0.0,
                         "maximum": 1.0,
-                        "description": "Amount to boost confidence (default: 0.05)",
+                        "description": "Amount to boost confidence (default: 0.10)",
                     },
                     "reason": {
                         "type": "string",

@@ -164,9 +164,9 @@ def _generate_best_practices_guide() -> str:
     return """# BEST PRACTICES FOR MEMENTO USAGE
 
 ## 1. NAMING CONVENTION
-ALWAYS use '_persistent' suffix for long-term storage
-- store_memento - Correct for solutions
-- store_memory - Wrong for solutions (session-only)
+Use store_memento (not store_memory) for long-term knowledge
+- store_memento - Correct for solutions and persistent knowledge
+- store_memory (Serena) - Wrong for solutions (session-only, temporary)
 
 ## 2. TAGGING STRATEGY
 Always tag acronyms in mementos
@@ -192,7 +192,7 @@ Benefits:
 ## 5. MEMORY TYPE SELECTION
 Choose appropriate memory types
 - solution: For fixes and workarounds
-- pattern: For reusable code patterns
+- code_pattern: For reusable code patterns
 - technology: For framework/tool knowledge
 - error: For error patterns and solutions
 - general: For miscellaneous knowledge
@@ -208,7 +208,7 @@ Use these tools for database health:
 - analyze_memento_graph: Analyze relationship density
 
 ## 8. AVOID THESE COMMON MISTAKES
-1. Over-persisting: Don't use _persistent for temporary data
+1. Don't use store_memory (Serena) for long-term knowledge — use store_memento
 2. Under-tagging: Always tag acronyms and key terms
 3. Sparse relationships: Connect related memories
 4. Vague titles: Use descriptive, specific titles
@@ -216,8 +216,8 @@ Use these tools for database health:
 
 ## 9. INTEGRATION WITH SESSION MEMORY
 Use both systems together:
-1. Store current work in session memory
-2. Extract patterns and solutions to memento
+1. Store current work in session memory (Serena)
+2. Extract patterns and solutions to memento (store_memento)
 3. Reference memento knowledge during session work
 4. Clean up session memory at end of project
 

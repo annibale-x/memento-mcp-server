@@ -482,7 +482,7 @@ class SQLiteMemoryDatabase:
         search_terms = self._prepare_fts_query(query.query)
 
         fts_query = f"""
-            SELECT n.id, n.properties
+            SELECT DISTINCT n.id, n.properties
             FROM nodes n
             JOIN nodes_fts fts ON n.id = fts.id
             WHERE n.label = 'Memory'
@@ -495,7 +495,7 @@ class SQLiteMemoryDatabase:
 
         # Get total count
         count_query = f"""
-            SELECT COUNT(*)
+            SELECT COUNT(DISTINCT n.id)
             FROM nodes n
             JOIN nodes_fts fts ON n.id = fts.id
             WHERE n.label = 'Memory'
@@ -507,7 +507,7 @@ class SQLiteMemoryDatabase:
         # Execute queries
         results = await self._execute_sql(fts_query, (search_terms, limit))
         count_result = await self._execute_sql(count_query, (search_terms,))
-        total_count = count_result[0]["COUNT(*)"] if count_result else 0
+        total_count = count_result[0]["COUNT(DISTINCT n.id)"] if count_result else 0
 
         # Convert to Memory objects
         memories = []
