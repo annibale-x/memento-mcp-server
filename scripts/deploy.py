@@ -981,12 +981,26 @@ def cmd_upload_stubs(python_ver: str, dry: bool) -> None:
     ok(f"Stub upload for v{python_ver} complete.")
 
 
+def _wheel_sha256(wheel: "Path") -> str:
+    """Return the first 12 hex chars of the SHA-256 of the wheel file."""
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(wheel, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+
+    return h.hexdigest()[:12]
+
+
 def cmd_dev_install(dry: bool) -> None:
     """Write local_wheel.txt sentinel and invalidate the Zed venv marker.
 
     - Finds the latest .whl in dist/.
-    - Writes <zed_work_dir>/local_wheel.txt with the absolute wheel path so
-      the stub installs from it instead of PyPI (no Zed settings needed).
+    - Writes <zed_work_dir>/local_wheel.txt as  "<path>:<sha256[:12]>"  so
+      the stub installs from it instead of PyPI AND the hash acts as a
+      content fingerprint: any rebuild produces a new hash, which causes the
+      stub to detect a marker mismatch and recreate the venv unconditionally.
     - Deletes the venv marker so the stub rebuilds the venv on next startup.
     - Prints the pip install command for optional local testing.
     """
@@ -1002,7 +1016,9 @@ def cmd_dev_install(dry: bool) -> None:
 
     wheel = wheels[-1]
     wheel_posix = wheel.as_posix()
-    ok(f"Wheel: {wheel}")
+    wheel_hash = _wheel_sha256(wheel)
+    sentinel_value = f"{wheel_posix}:{wheel_hash}"
+    ok(f"Wheel: {wheel}  (sha256:{wheel_hash})")
 
     zed_work = _zed_work_dir()
 
@@ -1019,10 +1035,10 @@ def cmd_dev_install(dry: bool) -> None:
 
         if not dry:
             zed_work.mkdir(parents=True, exist_ok=True)
-            sentinel.write_text(wheel_posix, encoding="utf-8")
+            sentinel.write_text(sentinel_value, encoding="utf-8")
             ok(f"Written: {sentinel}")
         else:
-            info(f"[dry-run] Would write: {sentinel}  ← {wheel_posix}")
+            info(f"[dry-run] Would write: {sentinel}  ← {sentinel_value}")
 
         # ------------------------------------------------------------------
         # Invalidate the venv marker so the stub rebuilds the venv and picks
@@ -1053,6 +1069,7 @@ def cmd_dev_install(dry: bool) -> None:
     print()
     print("  2. Local pip test (optional):")
     print(f"     pip install --force-reinstall {wheel_posix}")
+    print(f"     (sha256: {wheel_hash})")
     print()
     print("─" * 60)
 

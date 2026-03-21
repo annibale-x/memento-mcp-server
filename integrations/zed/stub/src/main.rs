@@ -182,18 +182,35 @@ fn marker_path(venv: &Path) -> PathBuf {
     venv.join("memento_version.txt")
 }
 
-/// Path to the dev-mode sentinel file that holds a local wheel path.
-/// Written by `scripts/deploy.py rebuild`; absent in production installs.
-fn local_wheel_path(venv: &Path) -> Option<String> {
+/// Dev-mode sentinel data read from `local_wheel.txt`.
+/// Written by `scripts/deploy.py rebuild` as "<path>:<sha256[:12]>".
+/// The full raw string (path+hash) is used as the venv marker fingerprint,
+/// so any rebuild that changes the wheel content invalidates the venv.
+struct LocalWheel {
+    /// Absolute path to the .whl file — passed to pip install.
+    path: String,
+    /// Raw sentinel string (path:hash or just path) — used as marker key.
+    fingerprint: String,
+}
+
+fn local_wheel_path(venv: &Path) -> Option<LocalWheel> {
     let sentinel = venv.parent().unwrap_or(venv).join("local_wheel.txt");
     match fs::read_to_string(&sentinel) {
         Ok(s) => {
             let trimmed = s.trim().to_string();
             if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed)
+                return None;
             }
+            // Format: "<path>:<hash>"  or legacy "<path>" (no colon).
+            let path = trimmed
+                .splitn(2, ':')
+                .next()
+                .unwrap_or(&trimmed)
+                .to_string();
+            Some(LocalWheel {
+                path,
+                fingerprint: trimmed,
+            })
         }
         Err(_) => None,
     }
@@ -206,7 +223,7 @@ fn lock_path(venv: &Path) -> PathBuf {
 fn expected_marker() -> String {
     let venv = venv_dir();
     match local_wheel_path(&venv) {
-        Some(w) => format!("{}+local:{}", STUB_VERSION, w),
+        Some(w) => format!("{}+local:{}", STUB_VERSION, w.fingerprint),
         None => STUB_VERSION.to_string(),
     }
 }
@@ -329,19 +346,13 @@ fn install_memento(python: &Path) -> Result<(), String> {
     // Dev-mode: if a local wheel sentinel file exists, install from it directly.
     let venv = venv_dir();
     if let Some(wheel) = local_wheel_path(&venv) {
-        log!("local_wheel.txt found — installing from local wheel: {}", wheel);
+        log!("local_wheel.txt found — installing from local wheel: {} (fingerprint: {})", wheel.path, wheel.fingerprint);
 
-        // Step 1: install dependencies from PyPI using the wheel's metadata
-        // (--only-deps is not a real flag; we install the wheel normally first
-        //  to pull deps, then reinstall from local to get the exact code)
+        // Step 1: install dependencies from PyPI (use the published package
+        //         just to pull its deps; the code itself is overwritten in step 2).
         let s_deps = Command::new(python)
             .args([
-                "-m",
-                "pip",
-                "install",
-                "--upgrade",
-                "--timeout",
-                "120",
+                "-m", "pip", "install", "--upgrade", "--timeout", "120",
                 "mcp-memento",
             ])
             .stdout(Stdio::null())
@@ -353,15 +364,12 @@ fn install_memento(python: &Path) -> Result<(), String> {
             log!("Warning: could not pre-install deps from PyPI ({s_deps}). Continuing anyway.");
         }
 
-        // Step 2: overwrite with the local wheel (no-deps: deps already installed)
+        // Step 2: overwrite with the local wheel (--no-deps: deps already present).
         let s = Command::new(python)
             .args([
-                "-m",
-                "pip",
-                "install",
-                "--force-reinstall",
-                "--no-deps",
-                &wheel,
+                "-m", "pip", "install",
+                "--force-reinstall", "--no-deps",
+                &wheel.path,
             ])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -374,7 +382,7 @@ fn install_memento(python: &Path) -> Result<(), String> {
         }
 
         return Err(format!(
-            "pip install from local wheel failed ({s}). Check local_wheel.txt path: {wheel}"
+            "pip install from local wheel failed ({s}). Check local_wheel.txt path: {}", wheel.path
         ));
     }
 
