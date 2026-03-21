@@ -1,5 +1,9 @@
 # Changelog
 
+* 2026-03-21: v0.2.31 - Add MCP Registry ownership marker (Hannibal)
+
+---
+
 * 2026-03-21: v0.2.30 - Fix IDE integration docs: Windsurf path/filename, VS Code servers key (Hannibal)
   * docs(ide): fix Windsurf config path — correct location is ~/.codeium/windsurf/mcp_config.json (not ~/Library/Application Support/Windsurf/mcp.json)
   * docs(ide): fix Windsurf config filename — mcp_config.json (not mcp.json)
