@@ -1,5 +1,19 @@
 # Changelog
 
+* 2026-03-21: v0.2.29 - Documentation audit: fixes, consistency, completeness (Hannibal)
+  * docs: expand README TOC from 8 to 14 entries — all sections now listed
+  * docs: compile CHANGELOG placeholder entries for v0.2.26-0.2.28
+  * docs(dev): document rebuild command, | sentinel separator, fingerprint venv marker, MCP server restart workflow
+  * docs(zed): add missing Table of Contents to ZED.md
+  * docs(tools): fix apply_memento_confidence_decay params — add memory_id optional; add async/await consistency note in Integration Patterns
+  * docs(decay): clarify boost_memento_confidence boosts relationships not memory node; add no-op note
+  * docs(integration): remove duplicate WAL Mode bullet point
+  * docs(api): remove deprecated docker-compose version key; fix recall_mementos example (returns text not JSON)
+  * docs(python): fix recall_mementos example (returns text not JSON)
+  * docs(agent): fix recall_mementos example (returns text not JSON)
+  * docker-compose.yml: remove deprecated version key
+  * docs(contributing): update test count 169→206; fix API.md description
+
 * 2026-03-21: v0.2.28 - Windows path parsing fix + venv fingerprint + deploy rebuild command (Hannibal)
   * fix(stub): changed sentinel separator in local_wheel.txt from `:` to `|` — colon collided with Windows drive letters causing splitn(2, ':') to parse the drive letter as filename, crashing pip install
   * fix(stub): venv marker now stores full sentinel fingerprint (path|hash) instead of STUB_VERSION — wheel content change forces venv rebuild, eliminating stale-server bug
