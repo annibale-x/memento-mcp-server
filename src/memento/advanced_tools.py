@@ -101,7 +101,17 @@ ADVANCED_RELATIONSHIP_TOOLS = [
     ),
     Tool(
         name="find_memento_patterns",
-        description="Find patterns in mementos and relationships",
+        description="""Find patterns in mementos and relationships
+
+Analyzes the relationship graph to detect recurring structural patterns:
+- Most frequent relationship types
+- Common memory-type pairs connected by relationships
+
+Note: patterns require multiple occurrences of the same relationship type.
+With small datasets (< 10 relationships), lower the thresholds:
+  min_pattern_size=1, min_support=0.0  → show all types, even singletons.
+When no patterns meet the thresholds the tool still reports all available
+relationship types with their counts so the result is always informative.""",
         inputSchema={
             "type": "object",
             "properties": {
@@ -598,6 +608,18 @@ class AdvancedRelationshipHandlers:
                         }
                     )
 
+            # When nothing meets the thresholds, expose all available types
+            # so the caller always gets useful information.
+            all_rel_types = [
+                {
+                    "relationship_type": row["rel_type"],
+                    "count": row["count"],
+                    "frequency": round(row["count"] / max(total_relationships, 1), 3),
+                }
+                for row in rel_counts
+            ]
+            below_threshold = not rel_patterns and bool(all_rel_types)
+
             result = {
                 "total_memories": total_memories,
                 "total_relationships": total_relationships,
@@ -610,6 +632,14 @@ class AdvancedRelationshipHandlers:
                     "combinations that appear at least min_pattern_size times."
                 ),
             }
+
+            if below_threshold:
+                result["available_relationship_types"] = all_rel_types
+                result["threshold_note"] = (
+                    f"No patterns meet min_pattern_size={min_pattern_size} / "
+                    f"min_support={min_support}. "
+                    f"Use min_pattern_size=1, min_support=0.0 to see all types."
+                )
 
             return CallToolResult(
                 content=[TextContent(type="text", text=json.dumps(result, indent=2))]

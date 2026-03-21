@@ -87,15 +87,18 @@ async def handle_get_low_confidence_mementos(
 
     # Get unique memory IDs from relationships
     memory_ids = set()
+
     for rel in relationships:
         memory_ids.add(rel.from_memory_id)
         memory_ids.add(rel.to_memory_id)
 
     # Fetch memory details
     memories: List[Memory] = []
+
     for memory_id in list(memory_ids)[:limit]:
         try:
             memory = await memory_db.get_memory_by_id(memory_id)
+
             if memory:
                 memories.append(memory)
         except Exception as e:
@@ -112,7 +115,7 @@ async def handle_get_low_confidence_mementos(
         )
 
     # Format results
-    result_text = f"**Low Confidence Memories (confidence < {threshold})**\n\n"
+    result_text = f"**Low Confidence Memories (threshold: confidence < {threshold})**\n\n"
     result_text += (
         f"Found {len(memories)} memories with low confidence relationships:\n\n"
     )
@@ -126,31 +129,45 @@ async def handle_get_low_confidence_mementos(
         ]
 
         result_text += f"**{i}. {memory.title}** (ID: {memory.id})\n"
-        result_text += (
-            f"Type: {memory.type.value} | Confidence: {memory.confidence:.2f}\n"
-        )
-        result_text += f"Importance: {memory.importance:.2f} | Last accessed: {memory.last_accessed.strftime('%Y-%m-%d') if memory.last_accessed else 'Never'}\n"
+        result_text += f"Type: {memory.type.value} | Importance: {memory.importance:.2f}\n"
 
         if memory.summary:
             result_text += f"Summary: {memory.summary[:150]}...\n"
 
         if mem_relationships:
             result_text += "Low confidence relationships:\n"
-            for rel in mem_relationships[:3]:  # Show top 3
+
+            for rel in mem_relationships[:3]:
                 other_id = (
                     rel.to_memory_id
                     if rel.from_memory_id == memory.id
                     else rel.from_memory_id
                 )
-                result_text += f"  - {rel.type.value} with {other_id[:8]}... (confidence: {rel.properties.confidence:.2f})\n"
+                # "Last accessed" refers to the relationship, not the memory
+                last_acc = rel.properties.last_accessed
+                last_acc_str = (
+                    last_acc.strftime("%Y-%m-%d")
+                    if last_acc
+                    else "never accessed via search"
+                )
+                result_text += (
+                    f"  - {rel.type.value} → {other_id[:8]}... "
+                    f"(relationship confidence: {rel.properties.confidence:.2f}, "
+                    f"last accessed: {last_acc_str})\n"
+                )
 
         result_text += "\n"
 
     result_text += "**💡 Suggestions:**\n"
     result_text += "- Review these memories for accuracy\n"
-    result_text += "- Use `adjust_confidence` to update if still valid\n"
+    result_text += "- Use `adjust_memento_confidence` to update if still valid\n"
     result_text += "- Consider deleting if obsolete\n"
-    result_text += "- Use `boost_confidence` if recently validated\n"
+    result_text += "- Use `boost_memento_confidence` if recently validated\n"
+    result_text += "\n"
+    result_text += "ℹ️ **Note:** 'relationship confidence' is the decay-tracked score on each "
+    result_text += "edge — it decreases automatically when the relationship is not accessed. "
+    result_text += "'last accessed' tracks when the relationship was last retrieved by a search, "
+    result_text += "not when the memory was created.\n"
 
     return CallToolResult(content=[TextContent(type="text", text=result_text)])
 
@@ -171,22 +188,42 @@ async def handle_apply_memento_confidence_decay(
     """
     memory_id = arguments.get("memory_id")
 
+    # Count total relationships before decay to compute skipped
+    if memory_id:
+        count_rows = await memory_db._execute_sql(
+            "SELECT COUNT(*) as total FROM relationships WHERE from_id = ? OR to_id = ?",
+            (memory_id, memory_id),
+        )
+    else:
+        count_rows = await memory_db._execute_sql(
+            "SELECT COUNT(*) as total FROM relationships"
+        )
+
+    total_rels = count_rows[0]["total"] if count_rows else 0
+
     updated_count = await memory_db.apply_confidence_decay(memory_id)
 
-    if memory_id:
-        message = f"Applied confidence decay to {updated_count} relationships for memory {memory_id}"
-    else:
-        message = (
-            f"Applied confidence decay to {updated_count} relationships system-wide"
+    skipped = total_rels - updated_count
+
+    # Build breakdown text
+    scope = f"memory {memory_id}" if memory_id else "all memories (system-wide)"
+    lines = [
+        f"**Confidence decay applied** ({scope})\n",
+        f"| | Count |",
+        f"|---|---|",
+        f"| Relationships updated | {updated_count} |",
+        f"| Skipped (no last_accessed or at min confidence 0.1) | {skipped} |",
+        f"| Total relationships in scope | {total_rels} |",
+    ]
+
+    if updated_count == 0 and total_rels > 0:
+        lines.append(
+            "\n⚠️ All relationships were skipped — they may already be at minimum "
+            "confidence (0.1) or have no `last_accessed` timestamp."
         )
 
     return CallToolResult(
-        content=[
-            TextContent(
-                type="text",
-                text=message,
-            )
-        ]
+        content=[TextContent(type="text", text="\n".join(lines))]
     )
 
 
@@ -268,7 +305,14 @@ async def handle_boost_memento_confidence(
                     f"Boosted via memory {memory_id}: {reason}",
                 )
 
-            message = f"Boosted confidence for {len(relationships)} relationships of memory {memory_id} by {boost_amount:.2f}"
+            if not relationships:
+                message = (
+                    f"Memory '{memory_id}' has no relationships — confidence boost requires "
+                    f"at least one relationship. "
+                    f"Create one first with `create_memento_relationship`."
+                )
+            else:
+                message = f"Boosted confidence for {len(relationships)} relationships of memory {memory_id} by {boost_amount:.2f}"
 
         except Exception as e:
             logger.error(f"Failed to boost confidence for memory {memory_id}: {e}")

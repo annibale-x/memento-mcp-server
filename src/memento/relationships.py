@@ -630,6 +630,11 @@ class RelationshipManager:
         if from_memory.type.value == "fix" and to_memory.type.value == "error":
             suggestions.append((RelationshipType.SOLVES, 0.9))
 
+        # Solution -> Error relationships
+        if from_memory.type.value == "solution" and to_memory.type.value == "error":
+            suggestions.append((RelationshipType.ADDRESSES, 0.8))
+            suggestions.append((RelationshipType.SOLVES, 0.7))
+
         # Technology relationships
         if (
             from_memory.type.value == "technology"
