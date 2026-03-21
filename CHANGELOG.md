@@ -1,5 +1,9 @@
 # Changelog
 
+* 2026-03-21: v0.2.28 - <TITLE> (Hannibal)
+  * <release notes here>
+
+
 * 2026-03-21: v0.2.27 - <TITLE> (Hannibal)
   * <release notes here>
 
