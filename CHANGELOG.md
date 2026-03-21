@@ -1,5 +1,12 @@
 # Changelog
 
+* 2026-03-21: v0.2.30 - Fix IDE integration docs: Windsurf path/filename, VS Code servers key (Hannibal)
+  * docs(ide): fix Windsurf config path — correct location is ~/.codeium/windsurf/mcp_config.json (not ~/Library/Application Support/Windsurf/mcp.json)
+  * docs(ide): fix Windsurf config filename — mcp_config.json (not mcp.json)
+  * docs(ide): remove incorrect Windsurf project-specific config section (not supported)
+  * docs(ide): fix VS Code JSON key — "servers" (not "mcpServers"; that key is Claude Desktop-specific)
+  * docs(ide): fix VS Code user-level config — use Command Palette "MCP: Open User Configuration" instead of hardcoded ~/.vscode/mcp.json
+
 * 2026-03-21: v0.2.29 - Documentation audit: fixes, consistency, completeness (Hannibal)
   * docs: expand README TOC from 8 to 14 entries — all sections now listed
   * docs: compile CHANGELOG placeholder entries for v0.2.26-0.2.28
