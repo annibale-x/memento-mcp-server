@@ -1,11 +1,17 @@
 # Changelog
 
+* 2026-03-21: v0.2.31 - Add MCP Registry ownership marker (Hannibal)
+
+---
+
 * 2026-03-21: v0.2.30 - Fix IDE integration docs: Windsurf path/filename, VS Code servers key (Hannibal)
   * docs(ide): fix Windsurf config path — correct location is ~/.codeium/windsurf/mcp_config.json (not ~/Library/Application Support/Windsurf/mcp.json)
   * docs(ide): fix Windsurf config filename — mcp_config.json (not mcp.json)
   * docs(ide): remove incorrect Windsurf project-specific config section (not supported)
   * docs(ide): fix VS Code JSON key — "servers" (not "mcpServers"; that key is Claude Desktop-specific)
   * docs(ide): fix VS Code user-level config — use Command Palette "MCP: Open User Configuration" instead of hardcoded ~/.vscode/mcp.json
+
+---
 
 * 2026-03-21: v0.2.29 - Documentation audit: fixes, consistency, completeness (Hannibal)
   * docs: expand README TOC from 8 to 14 entries — all sections now listed
@@ -21,6 +27,8 @@
   * docker-compose.yml: remove deprecated version key
   * docs(contributing): update test count 169→206; fix API.md description
 
+---
+
 * 2026-03-21: v0.2.28 - Windows path parsing fix + venv fingerprint + deploy rebuild command (Hannibal)
   * fix(stub): changed sentinel separator in local_wheel.txt from `:` to `|` — colon collided with Windows drive letters causing splitn(2, ':') to parse the drive letter as filename, crashing pip install
   * fix(stub): venv marker now stores full sentinel fingerprint (path|hash) instead of STUB_VERSION — wheel content change forces venv rebuild, eliminating stale-server bug
@@ -29,6 +37,7 @@
   * feat(deploy): add `rebuild` command — fast dev cycle: build stub + wheel + invalidate Zed venv in one step, no git interaction required
   * docs(dev): document `rebuild` workflow, `|` separator, fingerprint sentinel logic in dev/README.md
 
+---
 
 * 2026-03-21: v0.2.27 - Regression test suite: 25/25 tools verified on live MCP server (Hannibal)
   * test: executed 25-tool regression suite on live Zed MCP server
@@ -39,6 +48,7 @@
   * fix(tools): apply_memento_confidence_decay — output formatting corrected
   * fix(tools): get_memento_network — now returns nodes/edges topology instead of raw statistics
 
+---
 
 * 2026-03-21: v0.2.26 - Zed extension: stale server version root cause fix (Hannibal)
   * fix(stub): resolved stale server version issue where Zed extension launched old Python server after rebuild
@@ -46,6 +56,7 @@
   * fix(deploy): dev-install enhanced with pip verification and broken venv detection
   * chore: updated release_workflow memory with new deploy workflow
 
+---
 
 * 2026-03-20: v0.2.25 - Bug fixes: 8 critical tool regressions + 37 new regression tests (Hannibal)
   * fix(tools): find_memento_patterns — handler was using wrong arguments (from_memory_id); replaced with real SQL-based pattern detection
@@ -58,6 +69,8 @@
   * fix(db): FTS multi-word AND logic — _prepare_fts_query was wrapping multi-word queries in FTS5 phrase syntax; changed to AND of prefix tokens (t1* t2*). Same fix in _search_with_simple (per-word LIKE instead of whole-string LIKE)
   * test: add test_bug_regressions.py — 37 regression tests covering all 8 bugs; suite grows from 169 to 206 tests
 
+---
+
 * 2026-03-20: v0.2.24 - README TOC PyPI fix + stub pip timeout + CI binary size fix (Hannibal)
   * README: fixed Table of Contents anchor links for PyPI compatibility using explicit HTML anchors (<a name>)
   * README: removed stale TOC entry pointing to non-existent section; simplified TOC in DECAY_SYSTEM, INTEGRATION, RELATIONSHIPS
@@ -65,6 +78,7 @@
   * Stub: removed Stdio::null() suppression during pip install so errors are visible in Zed logs
   * Stub: moved [profile.release] to workspace root Cargo.toml — CI binaries now correctly optimized (495 KB → 309 KB)
 
+---
 
 * 2026-03-20: v0.2.23 - Stub: race condition fixes + slow-path tool discovery (Hannibal)
   * Stub: replace PID-based lockfile with flock advisory lock — kernel auto-releases on SIGKILL, eliminates zombie-PID stale lock bug
@@ -74,6 +88,7 @@
   * Stub: filter replay to initialize + notifications only — skip requests already answered by bootstrap
   * Stub: bootstrap initialize declares capabilities.tools.listChanged=true
 
+---
 
 * 2026-03-20: v0.2.22 - MCP bootstrap proxy: fix "Context Server Stopped" on Linux (Hannibal)
   * Stub: MCP bootstrap proxy for slow-path (venv not ready on first install/upgrade)
@@ -84,6 +99,7 @@
   * On Windows: bidirectional pipe proxy after setup completes
   * Pip install timeout raised from 60s to 120s
 
+---
 
 * 2026-03-20: v0.2.21 - README TOC PyPI fix + stub pip timeout (Hannibal)
   * Fixed README Table of Contents anchor links for PyPI compatibility (HTML explicit anchors, removed emoji-derived slugs)
@@ -92,6 +108,7 @@
   * Stub: added --timeout 120 to pip install to prevent false-failure on slow PyPI connections
   * Stub: removed Stdio::null() suppression during pip install so errors are visible in Zed logs
 
+---
 
 * 2026-03-20: v0.2.19 - Documentation audit and cleanup (Hannibal)
   * Rewrote API.md: removed non-existent HTTP REST/FastAPI/Node.js SDK/Kubernetes content; now documents only MCP client, Docker, and CLI export/import
@@ -110,6 +127,8 @@
   * Removed /etc/memento/memento.yaml (never implemented) from INTEGRATION.md
   * Compacted README.md: added TOC, reduced Natural Language section, compacted Background section
 
+---
+
 * 2026-03-19: v0.2.18 - Debug logging opt-in and deploy.py CLI redesign (Hannibal)
   * Zed extension and stub logging disabled by default; both enabled via debug.enable marker file in Zed work directory
   * Stub debug_enabled() checks MEMENTO_WORK_DIR first, then falls back to stub binary directory
@@ -117,6 +136,8 @@
   * deploy.py: bump X.Y.Z always dev (non-interactive); promote replaces prod bump; publish defaults to PyPI; publish -t for TestPyPI
   * Updated integrations/zed/README.md: unified debug logging section, updated release workflow
   * Updated scripts/deploy.py docstring and help to reflect new CLI
+
+---
 
 * 2026-03-19: v0.2.17 - Isolated venv for Zed extension stub (Hannibal)
   * Zed stub now creates and manages an isolated Python venv inside the Zed extension work directory (~/.local/share/zed/extensions/work/mcp-memento/venv/)
@@ -126,22 +147,31 @@
   * Removed pipx fallback strategy (superseded by venv isolation)
   * deploy.py bump now keeps STUB_VERSION in main.rs in sync with STUB_EXT_RELEASE in lib.rs
 
+---
+
 * 2026-03-19: v0.2.16 - Tilde expansion fix for MEMENTO_DB_PATH on all platforms (Hannibal)
   * Fixed tilde (~) not expanding to home directory on Linux/Darwin when using MEMENTO_DB_PATH env var
   * Added _PathEnvVar descriptor for automatic tilde expansion in path-based config options
   * Added fallback for HOME/USERPROFILE unavailability in sandboxed environments
   * Added test coverage for tilde expansion in config and database engine
 
+---
+
 * 2026-03-19: v0.2.15 - Tilde expansion fix for Linux/Darwin (Hannibal)
   * Fixed tilde (~) variable expansion on Linux/Darwin systems
+
+---
 
 * 2026-03-19: v0.2.14 - PyPI repository URL fix and Zed Marketplace submission (Hannibal)
   * Fixed incorrect repository URL in pyproject.toml (memento-mcp-server → mcp-memento)
   * Submitted mcp-memento extension to Zed Extension Marketplace (PR zed-industries/extensions#5301)
 
+---
+
 * 2026-03-19: v0.2.13 - deploy.py release workflow hardening (Hannibal)
   * Fixed bump prod after --dev on same version: tag local-only no longer causes fatal error, retag + push offered automatically
 
+---
 
 * 2026-03-19: v0.2.12 - deploy.py release workflow hardening (Hannibal)
   * Fixed "release not found": upload_stub_binaries_to_release now creates the GitHub Release object before uploading assets
@@ -154,12 +184,16 @@
   * Fixed changelog deduplication: prepend_changelog skips silently if entry already exists
   * Changed changelog strategy: --dev scaffolds a placeholder entry; prod bump verifies entry is filled and blocks on placeholder text
 
+---
+
 * 2026-03-19: v0.2.11 - deploy.py robustness fixes for release workflow (Hannibal)
   * Fixed bump command crashing when prod release attempted after a --dev bump on the same version (tag exists only locally)
   * Fixed "release not found" error: upload_stub_binaries_to_release now creates the GitHub Release before uploading assets
   * Fixed bump resume: tag already on remote is now treated as a mid-flight resume, not a fatal error
   * Added git_tag_exists_remote() helper using git ls-remote for reliable remote tag detection
   * Added upload-stubs subcommand for manual recovery (create GH Release + upload local binaries)
+
+---
 
 * 2026-03-18: v0.2.10 - Zed extension dual-channel stub workflow (Hannibal)
   * Added dev-latest pre-release channel for iterative Zed extension testing without full releases
@@ -170,6 +204,8 @@
   * Removed failed %USERPROFILE% resolution attempts in WASM; replaced with static placeholders
   * Reorganized Zed documentation: user guide to docs/extensions/ZED.md, dev guide to integrations/zed/README.md
 
+---
+
 * 2026-03-18: v0.2.9 - Zed extension native stub binary (Hannibal)
   * Added native stub binary for Zed WASM sandbox: extension downloads pre-compiled binary at runtime
   * Added zed-stub-release.yml CI workflow: cross-compiles 5 targets and uploads to GitHub Release
@@ -177,10 +213,14 @@
   * Fixed 404 error in development mode caused by WASM sandbox isolation from source tree
   * Added ext-binaries deploy.py subcommand to download CI-built stubs into stub/bin/
 
+---
+
 * 2026-03-18: v0.2.8 - Zed MCP extension scaffold (Hannibal)
   * Added initial Zed editor extension integrating mcp-memento as an MCP server
   * Added extension.toml, lib.rs and Cargo.toml for the Zed WASM extension
   * Added deploy.py support for bumping Zed extension version alongside Python package
+
+---
 
 * 2026-03-18: v0.2.7 - Complete documentation rewrite and quality fixes (Hannibal)
   * Full audit and rewrite of all 14 documentation files (README, CONTRIBUTING, TOOLS, RULES, RELATIONSHIPS, DECAY_SYSTEM, INTEGRATION, AGENT_CONFIGURATION, IDE, PYTHON, AGENT, API, DEV, SCHEMA)
@@ -193,6 +233,7 @@
   * Fixed PyPI build: relative links now correctly converted to absolute GitHub URLs; changelog section injected dynamically into PyPI long description
   * Fixed deploy.py: git_is_clean now ignores untracked files (Windows NUL phantom entry)
 
+---
 
 * 2026-03-17: v0.2.6 - Environment variable standardization and CLI option cleanup (Hannibal)
   * Renamed environment variables for consistency:
@@ -210,6 +251,8 @@
   * Backward compatibility: Maintained support for old variable names with deprecation warnings
   * Test suite validation: All 167 tests passing with updated configuration
 
+---
+
 * 2026-03-17: v0.2.5 - Test suite stabilization and documentation enhancement (Hannibal)
   * Test warnings resolution: Eliminated RuntimeWarning for unawaited coroutines in test suite (MagicMock → proper async mock handling)
   * CLI test reliability: Wrapped main() calls in try/except to handle SystemExit gracefully during testing
@@ -220,12 +263,16 @@
   * Agentic mindset clarification: Explained AI needs explicit instruction for tool usage, bridging traditional developer workflows
   * User feedback integration: Addressed confusion about autonomous agent behavior and memory storage mechanisms
 
+---
+
 * 2026-03-17: v0.2.2 - TestPyPI release validation and build process verification (Hannibal)
   * TestPyPI validation: Successfully published and tested v0.2.1 on TestPyPI
   * Build process verification: Confirmed automated README link conversion works correctly
   * Package integrity: Verified wheel and sdist packages pass twine checks
   * Installation testing: Confirmed package installs and runs correctly from TestPyPI
   * CLI functionality: Verified memento CLI commands work after installation
+
+---
 
 * 2026-03-16: v0.2.1 - Build infrastructure fixes and PyPI README compatibility (Hannibal)
   * PyPI README compatibility: Added dynamic link conversion for PyPI releases
@@ -234,6 +281,8 @@
   * Automated README patching: Build-time conversion of relative links to absolute GitHub URLs
   * Cross-platform consistency: Simplified build.bat and build.sh to call central Python script
   * Build reliability: Fixed configuration errors preventing successful package builds
+
+---
 
 * 2026-03-16: v0.2.0 - Comprehensive audit and refactoring for public release (Hannibal)
   * **Breaking changes**: Removed deprecated Bi-temporal tracking system (replaced with confidence-based decay)
@@ -246,6 +295,8 @@
   * Resolved naming conflicts (removed legacy "Context Keeper", "MemoryGraph" references)
   * Fixed CLI command examples (export_mementos() → CLI `memento --export`)
   * Comprehensive cleanup of ghost implementations and logical contradictions
+
+---
 
 * 2026-03-16: v0.1.20 - Codebase consistency restoration and documentation enhancement (Hannibal)
   * Legacy code cleanup: Removed mcp_context_keeper module, example.py, setup.py, and test_basic.py to restore consistent codebase
@@ -265,6 +316,8 @@
   * Architecture overview: Simplified explanation of consistent behavior across platforms
   * Documentation bug fixes: Addressed nomenclatura inconsistencies, clarified decay triggers, added parameter requirements, resolved Node.js antipattern references
 
+---
+
 * 2026-03-16: v0.1.19 - Test suite fixes and warning resolution (Hannibal)
   * Fixed 2 failing tests in server startup and initialization flow
   * Corrected server cleanup to call `disconnect()` instead of `close()` on database backend
@@ -274,6 +327,8 @@
   * Enhanced test reliability with proper mock specifications for all async methods
   * All 157 tests now passing with 0 warnings
   * Improved test suite stability and maintainability
+
+---
 
 * 2026-03-16: v0.1.18 - Memento onboarding protocol enhancement and tool renaming (Hannibal)
   * Renamed `help_memento_tools_usage` tool to `memento_onboarding` for clearer onboarding purpose
@@ -289,6 +344,8 @@
   * Updated tool definitions, registry, and imports to reflect new naming convention
   * Enhanced configuration handling for improved onboarding experience
   * Fixed test suite to work with renamed tool and updated functionality
+
+---
 
 * 2026-03-15: v0.1.17 - Complete environment variable renaming and configuration file standardization (Hannibal)
   * Renamed all remaining `CONTEXT_` environment variables to `MEMENTO_` prefix:
@@ -310,6 +367,8 @@
   * All 159 tests passing with new environment variable naming
   * Complete project renaming from Context Keeper to Memento finalized
 
+---
+
 * 2026-03-15: v0.1.16 - Documentation reorganization and README restructuring (Hannibal)
   * Completely reorganized README.md to focus on user needs (636 → 441 lines)
   * Created clear separation between MCP server usage and Python library usage
@@ -329,11 +388,13 @@
   * Updated GitHub repository URLs to use placeholders for consistency
   * All documentation cross-references verified and functional
 
+---
+
 * 2026-03-15: v0.1.15 - Confidence system reorganization and tool distribution optimization (Hannibal)
   * Reorganized confidence system tools for better accessibility across profiles
   * Moved 3 essential confidence tools to Core profile (13 tools total):
     - get_low_confidence_mementos - Identify obsolete knowledge
-    - boost_memento_confidence - Reinforce valid knowledge  
+    - boost_memento_confidence - Reinforce valid knowledge
     - adjust_memento_confidence - Manual confidence correction
   * Moved apply_memento_confidence_decay to Extended profile (17 tools total)
   * Kept set_memento_decay_factor in Advanced profile (25 tools total)
@@ -343,6 +404,8 @@
   * Demo script fully functional with new tool distribution
   * Improved user experience: all users now have basic confidence management
   * Better search result ordering with confidence-based prioritization
+
+---
 
 * 2026-03-15: v0.1.14 - FTS schema fix and database stability improvements (Hannibal)
   * Fixed critical 'no such column: T.title' error in SQLite FTS table
@@ -355,6 +418,8 @@
   * Improved error handling and logging for FTS operations
   * All memento tools now fully functional with proper FTS support
 
+---
+
 * 2026-03-15: v0.1.13 - ID generation pattern implementation and database schema initialization fix (Hannibal)
   * Implemented functional ID generation pattern with automatic UUID generation and optional override
   * Fixed database schema initialization bug in server startup (missing initialize_schema() call)
@@ -365,12 +430,16 @@
   * Improved error handling for ID validation and conflict scenarios
   * All 128 tests passing with comprehensive ID pattern validation
 
+---
+
 * 2026-03-15: v0.1.12 - Zed MCP integration fix and character encoding issues (Hannibal)
   * Fixed Zed MCP server integration by resolving hidden character issues in configuration
   * Identified and resolved copy-paste invisible character problems in environment variables
   * Enhanced Windows compatibility with proper UTF-8 encoding for tool descriptions
   * Improved error handling for MCP protocol communication with Zed editor
   * Added comprehensive debugging tools for Zed MCP integration testing
+
+---
 
 * 2026-03-15: v0.1.11 - Relationship system bug fixes and API consistency (Hannibal)
   * Fixed critical bug in relationship creation: added missing create_relationship method to SQLiteMemoryDatabase
@@ -381,6 +450,8 @@
   * Enhanced get_related_memories to properly handle relationship type filtering and depth traversal
   * Improved error handling and validation for relationship operations
   * All relationship tools now functional: create_memento_relationship, get_related_mementos, etc.
+
+---
 
 * 2026-03-14: v0.1.10 - Complete test suite reconstruction and bug fixes (Hannibal)
   * Fixed 18 failing tests in the test suite (from 18 to 0 failures)
@@ -394,12 +465,16 @@
   * Fixed await syntax bug in SQLiteMemoryDatabase.update_memory()
   * Added missing RelationshipProperties import to database interface
 
+---
+
 * 2026-03-14: v0.1.9 - Path resolution and Windows compatibility fixes (Hannibal)
   * Fixed SQLite database path issues on Windows systems
   * Changed default database path from `.db` to `context.db` in configuration
   * Fixed indentation error in `memento.py` wrapper script
   * Improved environment variable handling for configuration overrides
   * Enhanced Windows compatibility for database file operations
+
+---
 
 * 2026-03-14: v0.1.8 - Code quality analysis and dead code removal (Hannibal)
   * Removed unused `SimpleGraph` and graph algorithms classes
@@ -408,6 +483,8 @@
   * Migrated inline tools definitions from `server.py` to `tools/definitions.py`
   * Fixed test suite by using explicit asserts instead of return values
   * Cleaned up leftover testing artifacts and databases
+
+---
 
 * 2026-03-14: v0.1.7 - File reorganization and structure cleanup (Hannibal)
   * Renamed database files for better clarity:
@@ -419,6 +496,8 @@
   * Removed unused work files (`simple_sqlite_db.py`)
   * Cleaned up import paths after file reorganization
   * Ensured all tests pass with new file structure
+
+---
 
 * 2026-03-14: v0.1.6 - Memory tools guidance and usage clarification (Hannibal)
   * Added `help_memento_tools_usage` tool for comprehensive guidance on memento vs session memory usage
@@ -432,6 +511,8 @@
   * Fixed potential confusion between memento tools (`_persistent` suffix) and session memory tools (no suffix)
   * Fixed documentation inconsistencies regarding tool naming conventions
   * Fixed integration guidance for using multiple MCP context servers together
+
+---
 
 * 2026-03-14: v0.1.5 - Memento tool naming convention and configuration updates (Hannibal)
   * Added memento tool naming convention to avoid conflicts with Serena Context Server
@@ -451,6 +532,8 @@
   * Fixed configuration file path references
   * Fixed tool registry mapping with new memento tool names
 
+---
+
 * 2026-03-13: v0.1.4 - NetworkX dependency removal and SimpleGraph implementation (Hannibal)
   * Added SimpleGraph class to replace NetworkX dependency
   * Added lightweight in-memory graph structure for SQLite backend
@@ -465,6 +548,8 @@
   * Fixed documentation inconsistencies regarding dependencies
   * Removed NetworkX dependency (networkx>=3.0.0)
   * Removed external graph library dependency
+
+---
 
 * 2026-03-13: v0.1.3 - SQLite-only backend simplification (Hannibal)
   * Added SQLite-only backend support (removed all other backends)
@@ -483,6 +568,8 @@
   * Removed admin-only tools and migration tools
   * Removed advanced analytics modules not essential for core functionality
 
+---
+
 * 2026-03-12: v0.1.2 - Initial simplified version for Zed editor (Hannibal)
   * Added initial simplified version for Zed editor integration
   * Added core MCP tools for memory management
@@ -492,6 +579,8 @@
   * Focus on context-aware memory management for MCP servers
   * Simplified architecture for Zed editor compatibility
 
+---
+
 * 2026-03-11: v0.1.1 - Export/import and health check functionality (Hannibal)
   * Added export/import functionality for memories
   * Added health check CLI command
@@ -499,12 +588,16 @@
   * Fixed SQLite schema initialization issues
   * Fixed memory parsing utilities
 
+---
+
 * 2026-03-10: v0.1.0 - Initial SQLite backend implementation (Hannibal)
   * Added initial SQLite backend implementation
   * Added core memory models (Memory, MemoryContext, Relationship)
   * Added basic tool handlers for MCP protocol
   * Ported from original MemoryGraph project
   * Simplified for single-backend operation
+
+---
 
 * 2026-03-09: v0.0.1 - Initial project setup (Hannibal)
   * Added initial project setup
