@@ -290,11 +290,10 @@ Windsurf is a modern code editor with AI integration. Memento provides persisten
 
 ### Configuration
 
-Windsurf configuration varies by operating system:
+Windsurf uses a single global configuration file for all platforms:
 
-**macOS**: `~/Library/Application Support/Windsurf/mcp.json`
-**Linux**: `~/.config/Windsurf/mcp.json`
-**Windows**: `%APPDATA%\Windsurf\mcp.json`
+**macOS/Linux**: `~/.codeium/windsurf/mcp_config.json`
+**Windows**: `C:\Users\<username>\.codeium\windsurf\mcp_config.json`
 
 ```json
 {
@@ -307,25 +306,10 @@ Windsurf configuration varies by operating system:
 }
 ```
 
-### Project-Specific Configuration
-
-Create `.windsurf/mcp.json` in your project root:
-
-```json
-{
-  "mcpServers": {
-    "memento": {
-      "command": "memento",
-      "args": ["--db", "./.windsurf/memento.db"],
-      "env": {}
-    }
-  }
-}
-```
-
 ### Where to Save Configuration
-- **User-level**: OS-specific location (see above)
-- **Project-specific**: `.windsurf/mcp.json` in project root
+- **User-level (global)**: `~/.codeium/windsurf/mcp_config.json` (the only supported location)
+
+> **Note**: Windsurf does not support project-specific MCP configuration files. All servers are configured globally.
 
 ### Usage Examples
 
@@ -350,7 +334,7 @@ What coding standards should I follow for this project?
   "mcpServers": {
     "memento": {
       "command": "memento",
-      "args": ["--profile", "extended", "--db", "~/.windsurf-memento/context.db"],
+      "args": ["--profile", "extended", "--db", "~/.codeium/windsurf/memento.db"],
       "env": {}
     }
   }
@@ -387,7 +371,7 @@ Create `.vscode/mcp.json` in your workspace root:
 
 ```json
 {
-  "mcpServers": {
+  "servers": {
     "memento": {
       "command": "memento",
       "args": []
@@ -396,9 +380,12 @@ Create `.vscode/mcp.json` in your workspace root:
 }
 ```
 
-For user-level configuration (all workspaces), create at:
-- **macOS/Linux**: `~/.vscode/mcp.json`
-- **Windows**: `%USERPROFILE%\.vscode\mcp.json`
+For user-level configuration (all workspaces), open the Command Palette
+(`Cmd/Ctrl + Shift + P`) and run **`MCP: Open User Configuration`**.
+This opens the correct profile-specific file (path varies by OS and active profile).
+
+> **Note**: VS Code uses the key `"servers"` (not `"mcpServers"`). The `"mcpServers"` key
+> is used by Claude Desktop and other clients.
 
 ### Starting the MCP Server
 
@@ -408,8 +395,8 @@ For user-level configuration (all workspaces), create at:
 4. Find `memento` and click **Start**
 
 ### Where to Save Configuration
-- **Workspace-specific**: `.vscode/mcp.json` in project root (recommended)
-- **User-level**: `~/.vscode/mcp.json` (all workspaces)
+- **Workspace-specific**: `.vscode/mcp.json` in project root (recommended for team sharing)
+- **User-level**: Run `MCP: Open User Configuration` from the Command Palette (path is profile-dependent)
 
 ### Usage with GitHub Copilot
 
@@ -431,7 +418,7 @@ MCP tools work with GitHub Copilot in **Agent mode**:
 
 ```json
 {
-  "mcpServers": {
+  "servers": {
     "memento": {
       "command": "memento",
       "args": ["--profile", "extended", "--db", "${workspaceFolder}/.vscode/memento.db"],
