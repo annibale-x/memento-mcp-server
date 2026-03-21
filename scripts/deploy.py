@@ -666,11 +666,25 @@ def git_push_tag(tag: str, dry: bool) -> None:
 
 
 def git_merge_to_main(dry: bool) -> None:
+
     step("Merging dev → main")
+
+    # Stash any local modifications (e.g. locally-built stub binaries) so
+    # the checkout doesn't abort.  We restore them afterwards.
+    stashed = False
+
+    if not dry:
+        result = run("git stash --include-untracked", dry=False, capture=True)
+        stashed = "No local changes to save" not in result
+
     run("git checkout main", dry=dry)
     run('git merge dev --no-ff -m "chore(release): merge dev into main"', dry=dry)
     run("git push origin main", dry=dry)
     run("git checkout dev", dry=dry)
+
+    if stashed and not dry:
+        run("git stash pop", dry=False)
+
     ok("Merged and pushed main, back on dev")
 
 
@@ -908,7 +922,20 @@ def build_stub_local(dry: bool) -> None:
         if not src.exists():
             die(f"Expected stub binary not found: {src}")
         ZED_STUB_BIN.mkdir(parents=True, exist_ok=True)
-        _shutil.copy2(src, dst)
+
+        # Only overwrite if contents differ — avoids dirtying the git tree
+        # with a timestamp-only change when cargo produces an identical binary.
+        import hashlib as _hashlib
+
+        def _sha256(p: Path) -> str:
+            h = _hashlib.sha256()
+            h.update(p.read_bytes())
+            return h.hexdigest()
+
+        if not dst.exists() or _sha256(src) != _sha256(dst):
+            _shutil.copy2(src, dst)
+        else:
+            info("Stub binary unchanged — skipping copy to avoid git noise")
 
     ok(f"Stub built and copied to {dst.relative_to(ROOT)}")
 
